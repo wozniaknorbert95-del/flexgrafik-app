@@ -1,0 +1,41 @@
+{
+  "name": "FlexGrafik Accountability OS",
+  "short_name": "FlexGrafik",
+  "description": "AI-powered accountability system for entrepreneurs",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#FF00FF",
+  "orientation": "portrait-primary",
+  "categories": ["productivity", "business", "utilities"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><text y='0.9em' font-size='400' fill='%23FF00FF'>🎯</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><text y='0.9em' font-size='150' fill='%23FF00FF'>🎯</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Home",
+      "description": "Main dashboard",
+      "url": "/",
+      "icons": [{ "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🏠</text></svg>", "sizes": "96x96" }]
+    },
+    {
+      "name": "AI Coach",
+      "short_name": "AI",
+      "description": "Chat with AI Coach",
+      "url": "/?view=ai_coach",
+      "icons": [{ "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🤖</text></svg>", "sizes": "96x96" }]
+    }
+  ]
+}
