@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AppData, SprintDay } from '../types';
 import { generateSprintRetrospective } from '../services/aiService';
+import { generateTrophyPDF } from '../utils/trophyGenerator';
 import { useVoiceNotify } from '../utils/voiceUtils';
 import { withErrorHandling } from '../utils/errorHandler';
 
@@ -120,6 +121,24 @@ const SprintView: React.FC<SprintViewProps> = ({ data, onToggleDay, onResetSprin
             className="w-full bg-cyber-magenta hover:bg-opacity-80 disabled:bg-gray-600 disabled:cursor-not-allowed text-black font-bold py-3 px-4 rounded-lg transition-colors"
           >
             {aiLoading ? '⏳ AI myśli...' : '📊 AI Retrospektywa'}
+          </button>
+
+          <button
+            onClick={() => {
+              try {
+                const filename = generateTrophyPDF(sprint, data.pillars);
+                alert(`🏆 Trophy PDF generated!\n\nFile: ${filename}\n\nCheck your downloads folder!`);
+                if (data.settings.voice.enabled) {
+                  voiceNotify('Trophy generated! Check your downloads.', 'normal');
+                }
+              } catch (error) {
+                console.error('Trophy generation error:', error);
+                alert('❌ Error generating trophy PDF. Check console for details.');
+              }
+            }}
+            className="w-full bg-cyber-gold hover:bg-opacity-80 text-black font-bold py-3 px-4 rounded-lg transition-colors"
+          >
+            🏆 Generate Trophy PDF
           </button>
 
           <div className="flex gap-3">
