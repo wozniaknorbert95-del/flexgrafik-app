@@ -3,41 +3,51 @@ import { AppData } from '../types';
 import { generateDailyPriorities, chatWithAI } from '../services/aiService';
 import { getSystemPrompt } from '../prompts/systemPrompt';
 import { useVoiceNotify } from '../utils/voiceUtils';
-import { withErrorHandling } from '../utils/errorHandler';
+import { withErrorHandling, handleError } from '../utils/errorHandler';
 
 // Strategy validation and management utilities
-const validateStrategy = (json: any): boolean => {
+const validateStrategy = (json: unknown): boolean => {
+  if (typeof json !== 'object' || json === null) return false;
+  const data = json as Record<string, unknown>;
   try {
     // Check required fields exist
-    if (!json.pillars || !Array.isArray(json.pillars)) return false;
-    if (!json.phases || !Array.isArray(json.phases)) return false;
-    if (!json.sprint || typeof json.sprint !== 'object') return false;
+    if (!data.pillars || !Array.isArray(data.pillars)) return false;
+    if (!data.phases || !Array.isArray(data.phases)) return false;
+    if (!data.sprint || typeof data.sprint !== 'object') return false;
 
     // Check pillars structure
-    if (json.pillars.length === 0) return false;
-    const pillarsValid = json.pillars.every((p: any) =>
-      p.id && p.name && typeof p.completion === 'number' &&
-      p.done_definition && Array.isArray(p.tasks)
-    );
+    if (data.pillars.length === 0) return false;
+    const pillarsValid = data.pillars.every((p: unknown) => {
+      if (typeof p !== 'object' || p === null) return false;
+      const pillar = p as Record<string, unknown>;
+      return pillar.id && pillar.name && typeof pillar.completion === 'number' &&
+        pillar.done_definition && Array.isArray(pillar.tasks);
+    });
     if (!pillarsValid) return false;
 
     // Check phases structure
-    const phasesValid = json.phases.every((phase: any) =>
-      phase.phase && phase.name && typeof phase.completion === 'number' &&
-      Array.isArray(phase.checklist)
-    );
+    const phasesValid = data.phases.every((phase: unknown) => {
+      if (typeof phase !== 'object' || phase === null) return false;
+      const p = phase as Record<string, unknown>;
+      return p.phase && p.name && typeof p.completion === 'number' &&
+        Array.isArray(p.checklist);
+    });
     if (!phasesValid) return false;
 
     return true;
   } catch (error) {
-    console.error('Strategy validation error:', error);
+    handleError(error, {
+      component: 'Settings',
+      action: 'validateStrategy',
+      userMessage: 'Strategy validation failed'
+    });
     return false;
   }
 };
 
-const migrateStrategy = (json: any): Partial<AppData> => {
+const migrateStrategy = (json: unknown): Partial<AppData> => {
   // Add missing fields with defaults
-  const migrated: Partial<AppData> = { ...json };
+  const migrated: Partial<AppData> = { ...(json as Partial<AppData>) };
 
   // Add customRules if missing
   if (!migrated.customRules) {
@@ -121,230 +131,227 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
   };
 
   return (
-    <div className="pb-24 pt-4 px-4 max-w-md mx-auto animate-fade-in">
-      {/* Header */}
-      <div className="mb-6 border-b border-gray-800 pb-4">
+    <div className="pb-24 pt-4 px-4 max-w-6xl mx-auto animate-fade-in">
+      {/* Glassmorphism Sticky Header */}
+      <div className="sticky top-0 z-20 mb-8 pb-6 backdrop-blur-xl bg-dark-bg bg-opacity-80 border-b-2 border-neon-cyan border-opacity-20">
         <button
           onClick={onBack}
-          className="text-cyber-cyan hover:text-cyber-magenta transition-colors mb-2"
+          className="inline-flex items-center gap-2 text-neon-cyan hover:text-neon-magenta transition-all hover:scale-105 mb-4 font-bold uppercase tracking-wide"
         >
-          ← Powrót
+          ← POWRÓT
         </button>
-        <h1 className="text-xl font-bold text-cyber-cyan tracking-widest uppercase mb-1">Ustawienia</h1>
-        <p className="text-xs text-gray-400 font-mono">Konfiguracja aplikacji</p>
+        
+        {/* Holographic Header */}
+        <h1 className="text-5xl font-extrabold uppercase tracking-wider mb-2 text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan via-neon-magenta to-gold">
+          Settings
+        </h1>
+        <p className="text-xs text-gray-500 font-mono uppercase tracking-widest">
+          /// SYSTEM CONFIGURATION TERMINAL
+        </p>
       </div>
 
-      {/* Voice Settings Section */}
-      <div className="space-y-6">
-        <h2 className="text-sm font-bold text-gray-300 uppercase tracking-widest mb-4">🔊 Powiadomienia Głosowe</h2>
+      {/* Voice Settings Section - WIDGET GRID */}
+      <div className="mb-12">
+        {/* Section Header with Gradient */}
+        <h2 className="text-2xl font-extrabold uppercase tracking-wider mb-6 text-transparent bg-clip-text bg-gradient-to-r from-neon-magenta to-neon-cyan">
+          🔊 Voice Notifications
+        </h2>
 
-        {/* Enable/Disable Toggle */}
-        <div className="bg-cyber-panel border border-gray-800 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-white mb-1">Włącz powiadomienia głosowe</h3>
-              <p className="text-xs text-gray-400">Otrzymuj głosowe alerty i powiadomienia</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Enable/Disable Toggle - WIDGET CARD */}
+          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(255,0,255,0.15)] transition-all duration-300 hover:border-neon-magenta hover:border-opacity-30">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">Voice Alerts</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">Receive spoken alerts and real-time notifications</p>
+              </div>
+              
+              {/* Cyberpunk Toggle Switch */}
+              <button
+                onClick={handleVoiceToggle}
+                className={`ml-4 w-14 h-7 rounded-full transition-all duration-300 relative ${
+                  voice.enabled 
+                    ? 'bg-neon-cyan shadow-[0_0_15px_rgba(0,243,255,0.6)]' 
+                    : 'bg-gray-700'
+                }`}
+              >
+                <div className={`w-6 h-6 bg-white rounded-full transition-all duration-300 absolute top-0.5 shadow-lg ${
+                  voice.enabled ? 'translate-x-7' : 'translate-x-0.5'
+                }`} />
+              </button>
             </div>
+            
+            {/* Status Indicator */}
+            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white border-opacity-5">
+              <div className={`w-2 h-2 rounded-full ${voice.enabled ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`}/>
+              <span className={`text-xs font-mono uppercase tracking-wider ${voice.enabled ? 'text-green-400' : 'text-gray-600'}`}>
+                {voice.enabled ? 'ACTIVE' : 'INACTIVE'}
+              </span>
+            </div>
+          </div>
+
+          {/* Volume Slider - WIDGET CARD */}
+          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(0,243,255,0.15)] transition-all duration-300">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-white uppercase tracking-wide">Volume</h3>
+              <span className="text-2xl font-mono font-bold text-neon-cyan">{voice.volume}%</span>
+            </div>
+            
+            {/* Custom Neon Slider */}
+            <div className="relative">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={voice.volume}
+                onChange={handleVolumeChange}
+                className="w-full h-2 bg-gray-900 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gold [&::-webkit-slider-thumb]:shadow-[0_0_15px_rgba(255,215,0,0.8)] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110"
+                style={{
+                  background: `linear-gradient(to right, #10b981 0%, #10b981 ${voice.volume}%, #1a1a1a ${voice.volume}%, #1a1a1a 100%)`
+                }}
+              />
+            </div>
+            
+            {/* Volume Indicator */}
+            <div className="flex justify-between mt-3 text-xs font-mono text-gray-600">
+              <span>MUTE</span>
+              <span className="text-green-400">OPTIMAL</span>
+              <span>MAX</span>
+            </div>
+          </div>
+
+          {/* Speed Slider - WIDGET CARD */}
+          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(255,0,255,0.15)] transition-all duration-300">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-white uppercase tracking-wide">Speech Rate</h3>
+              <span className="text-2xl font-mono font-bold text-neon-magenta">{voice.speed.toFixed(1)}x</span>
+            </div>
+            
+            {/* Custom Neon Slider */}
+            <div className="relative">
+              <input
+                type="range"
+                min="0.8"
+                max="1.2"
+                step="0.1"
+                value={voice.speed}
+                onChange={handleSpeedChange}
+                className="w-full h-2 bg-gray-900 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gold [&::-webkit-slider-thumb]:shadow-[0_0_15px_rgba(255,215,0,0.8)] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110"
+                style={{
+                  background: `linear-gradient(to right, #ff00ff 0%, #00f3ff ${((voice.speed - 0.8) / 0.4) * 100}%, #1a1a1a ${((voice.speed - 0.8) / 0.4) * 100}%, #1a1a1a 100%)`
+                }}
+              />
+            </div>
+            
+            {/* Speed Indicator */}
+            <div className="flex justify-between mt-3 text-xs font-mono text-gray-600">
+              <span>SLOW</span>
+              <span className="text-neon-cyan">NORMAL</span>
+              <span>FAST</span>
+            </div>
+          </div>
+
+          {/* Test Button - WIDGET CARD (Spans 2 columns on desktop) */}
+          <div className="md:col-span-2 bg-[#0a0a0a] rounded-3xl p-6 border border-neon-magenta border-opacity-20 hover:shadow-[0_0_25px_rgba(255,0,255,0.25)] transition-all duration-300">
             <button
-              onClick={handleVoiceToggle}
-              className={`w-12 h-6 rounded-full transition-colors relative ${
-                voice.enabled ? 'bg-cyber-magenta' : 'bg-gray-600'
-              }`}
+              onClick={handleTestVoice}
+              className="w-full bg-gradient-to-r from-neon-magenta to-neon-cyan hover:scale-[1.02] active:scale-95 text-black font-extrabold py-4 px-6 rounded-2xl transition-all duration-300 uppercase tracking-widest shadow-[0_0_20px_rgba(255,0,255,0.4)]"
             >
-              <div className={`w-5 h-5 bg-white rounded-full transition-transform absolute top-0.5 ${
-                voice.enabled ? 'translate-x-6' : 'translate-x-0.5'
-              }`} />
+              🎵 Test Voice Notification
             </button>
-          </div>
-        </div>
-
-        {/* Volume Slider */}
-        <div className="bg-cyber-panel border border-gray-800 rounded-lg p-4">
-          <div className="mb-3">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-sm font-bold text-white">Głośność</h3>
-              <span className="text-xs text-cyber-cyan font-mono">{voice.volume}%</span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={voice.volume}
-              onChange={handleVolumeChange}
-              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
-            />
-          </div>
-        </div>
-
-        {/* Speed Slider */}
-        <div className="bg-cyber-panel border border-gray-800 rounded-lg p-4">
-          <div className="mb-3">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-sm font-bold text-white">Szybkość mówienia</h3>
-              <span className="text-xs text-cyber-cyan font-mono">{voice.speed.toFixed(1)}x</span>
-            </div>
-            <input
-              type="range"
-              min="0.8"
-              max="1.2"
-              step="0.1"
-              value={voice.speed}
-              onChange={handleSpeedChange}
-              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
-            />
-          </div>
-        </div>
-
-        {/* Test Button */}
-        <div className="bg-cyber-panel border border-gray-800 rounded-lg p-4">
-          <button
-            onClick={handleTestVoice}
-            className="w-full bg-cyber-magenta hover:bg-opacity-80 text-black font-bold py-3 px-4 rounded-lg transition-colors"
-          >
-            🎵 Test powiadomienia głosowego
-          </button>
-          <p className="text-xs text-gray-400 mt-2 text-center">
-            Sprawdź jak będą brzmieć powiadomienia
-          </p>
-        </div>
-      </div>
-
-      {/* AI Coach Settings Section */}
-      <div className="space-y-6">
-        <h2 className="text-sm font-bold text-gray-300 uppercase tracking-widest mb-4">🤖 AI Coach</h2>
-
-        {/* Enable/Disable AI Toggle */}
-        <div className="bg-cyber-panel border border-gray-800 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-white mb-1">Włącz AI Coach</h3>
-              <p className="text-xs text-gray-400">Otrzymuj AI-powered wskazówki i priorytety</p>
-            </div>
-            <button
-              onClick={() => onUpdateSettings({
-                ...data.settings,
-                ai: { ...ai, enabled: !ai.enabled }
-              })}
-              className={`w-12 h-6 rounded-full transition-colors relative ${
-                ai.enabled ? 'bg-cyber-magenta' : 'bg-gray-600'
-              }`}
-            >
-              <div className={`w-5 h-5 bg-white rounded-full transition-transform absolute top-0.5 ${
-                ai.enabled ? 'translate-x-6' : 'translate-x-0.5'
-              }`} />
-            </button>
-          </div>
-        </div>
-
-        {/* API Key Input */}
-        <div className="bg-cyber-panel border border-gray-800 rounded-lg p-4">
-          <div className="mb-3">
-            <h3 className="text-sm font-bold text-white mb-2">Groq API Key</h3>
-            <input
-              type="password"
-              value={ai.apiKey}
-              onChange={(e) => onUpdateSettings({
-                ...data.settings,
-                ai: { ...ai, apiKey: e.target.value }
-              })}
-              placeholder="Wprowadź swój API key..."
-              className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-cyber-magenta"
-            />
-            <p className="text-xs text-gray-400 mt-2">
-              API key z <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="text-cyber-cyan hover:text-cyber-magenta">Groq Console</a> (darmowe 30 req/min)
+            <p className="text-xs text-gray-500 mt-3 text-center font-mono uppercase tracking-wider">
+              /// Verify audio output settings
             </p>
           </div>
         </div>
-
-        {/* AI Test Button */}
-        <div className="bg-cyber-panel border border-gray-800 rounded-lg p-4">
-          <button
-            onClick={async () => {
-              if (!ai.apiKey) {
-                alert('Dodaj API Key najpierw');
-                return;
-              }
-              setLoading(true);
-              const response = await withErrorHandling(
-                () => generateDailyPriorities(data),
-                {
-                  component: 'Settings',
-                  action: 'testAI',
-                  userMessage: 'Nie udało się przetestować AI.'
-                }
-              );
-
-              if (response) {
-                alert(`AI: ${response}`);
-                if (voice.enabled) {
-                  voiceNotify(response, 'normal');
-                }
-              }
-              setLoading(false);
-            }}
-            disabled={loading || !ai.enabled}
-            className="w-full bg-cyber-magenta hover:bg-opacity-80 disabled:bg-gray-600 disabled:cursor-not-allowed text-black font-bold py-3 px-4 rounded-lg transition-colors"
-          >
-            {loading ? '⏳ AI myśli...' : '🧪 Test AI (Priorytety)'}
-          </button>
-        </div>
       </div>
 
-      {/* AI Coach Personality Section */}
-      <div className="space-y-6">
-        <h2 className="text-sm font-bold text-gray-300 uppercase tracking-widest mb-4">🎭 AI Coach Personality</h2>
+      {/* AI Coach Settings Section - WIDGET GRID */}
+      <div className="mb-12">
+        {/* Section Header with Gradient */}
+        <h2 className="text-2xl font-extrabold uppercase tracking-wider mb-6 text-transparent bg-clip-text bg-gradient-to-r from-gold to-neon-magenta">
+          🤖 AI Coach
+        </h2>
 
-        {/* System Prompt Editor */}
-        <div className="bg-cyber-panel border border-gray-800 rounded-lg p-4">
-          <div className="mb-4">
-            <h3 className="text-sm font-bold text-white mb-2">System Prompt</h3>
-            <p className="text-xs text-gray-400 mb-3">
-              Dostosuj osobowość AI Coach. Określa jak AI myśli i odpowiada.
-            </p>
-            <textarea
-              value={ai.customSystemPrompt || getSystemPrompt(data)}
-              onChange={(e) => onUpdateSettings({
-                ...data.settings,
-                ai: { ...ai, customSystemPrompt: e.target.value }
-              })}
-              className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-cyber-magenta resize-none font-mono"
-              rows={8}
-              placeholder="Wprowadź system prompt..."
-            />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Enable/Disable AI Toggle - WIDGET CARD */}
+          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(255,215,0,0.15)] transition-all duration-300 hover:border-gold border-opacity-30">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">AI Assistant</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">AI-powered insights and daily priorities</p>
+              </div>
+              
+              {/* Cyberpunk Toggle Switch */}
+              <button
+                onClick={() => onUpdateSettings({
+                  ...data.settings,
+                  ai: { ...ai, enabled: !ai.enabled }
+                })}
+                className={`ml-4 w-14 h-7 rounded-full transition-all duration-300 relative ${
+                  ai.enabled 
+                    ? 'bg-gold shadow-[0_0_15px_rgba(255,215,0,0.6)]' 
+                    : 'bg-gray-700'
+                }`}
+              >
+                <div className={`w-6 h-6 bg-white rounded-full transition-all duration-300 absolute top-0.5 shadow-lg ${
+                  ai.enabled ? 'translate-x-7' : 'translate-x-0.5'
+                }`} />
+              </button>
+            </div>
+            
+            {/* Status Indicator */}
+            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white border-opacity-5">
+              <div className={`w-2 h-2 rounded-full ${ai.enabled ? 'bg-yellow-400 animate-pulse' : 'bg-gray-600'}`}/>
+              <span className={`text-xs font-mono uppercase tracking-wider ${ai.enabled ? 'text-gold' : 'text-gray-600'}`}>
+                {ai.enabled ? 'ONLINE' : 'OFFLINE'}
+              </span>
+            </div>
           </div>
 
-          <div className="flex gap-3">
-            <button
-              onClick={() => onUpdateSettings({
-                ...data.settings,
-                ai: { ...ai, customSystemPrompt: undefined }
-              })}
-              className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded text-sm transition-colors"
-            >
-              🔄 Reset do Default
-            </button>
+          {/* API Key Input - WIDGET CARD */}
+          <div className="md:col-span-2 bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(255,0,255,0.15)] transition-all duration-300">
+            <h3 className="text-lg font-bold text-white mb-4 uppercase tracking-wide">Groq API Key</h3>
+            
+            {/* Cyberpunk Input */}
+            <div className="relative mb-4">
+              <input
+                type="password"
+                value={ai.apiKey}
+                onChange={(e) => onUpdateSettings({
+                  ...data.settings,
+                  ai: { ...ai, apiKey: e.target.value }
+                })}
+                placeholder="Enter your API key..."
+                className="w-full bg-black/50 border-0 border-b-2 border-neon-magenta border-opacity-50 px-4 py-3 text-white text-sm font-mono focus:outline-none focus:border-neon-magenta focus:shadow-[0_2px_10px_#ff00ff] transition-all placeholder:text-gray-700 placeholder:uppercase placeholder:tracking-wider"
+              />
+            </div>
+            
+            <p className="text-xs text-gray-500 font-mono">
+              Get free key: <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="text-neon-cyan hover:text-gold transition-colors underline">console.groq.com</a> (30 req/min free tier)
+            </p>
+          </div>
+
+          {/* AI Test Button - WIDGET CARD */}
+          <div className="md:col-span-2 bg-[#0a0a0a] rounded-3xl p-6 border border-gold border-opacity-20 hover:shadow-[0_0_25px_rgba(255,215,0,0.25)] transition-all duration-300">
             <button
               onClick={async () => {
                 if (!ai.apiKey) {
-                  alert('Dodaj API Key najpierw');
+                  alert('Add API Key first');
                   return;
                 }
-
-                const testPrompt = ai.customSystemPrompt || getSystemPrompt(data);
-                const testMessages = [{ role: 'user' as const, content: 'Cześć! Kim jesteś i jak możesz mi pomóc?' }];
-
                 setLoading(true);
                 const response = await withErrorHandling(
-                  () => chatWithAI(testMessages, testPrompt, ai.apiKey),
+                  () => generateDailyPriorities(data),
                   {
                     component: 'Settings',
-                    action: 'testPrompt',
-                    userMessage: 'Nie udało się przetestować prompt.'
+                    action: 'testAI',
+                    userMessage: 'Failed to test AI.'
                   }
                 );
 
                 if (response) {
-                  alert(`🤖 Test odpowiedzi:\n\n${response}`);
+                  alert(`AI: ${response}`);
                   if (voice.enabled) {
                     voiceNotify(response, 'normal');
                   }
@@ -352,215 +359,330 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
                 setLoading(false);
               }}
               disabled={loading || !ai.enabled}
-              className="flex-1 bg-cyber-cyan hover:bg-opacity-80 disabled:bg-gray-600 disabled:cursor-not-allowed text-black font-bold py-2 px-4 rounded text-sm transition-colors"
+              className="w-full bg-gradient-to-r from-gold to-neon-magenta hover:scale-[1.02] active:scale-95 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed text-black font-extrabold py-4 px-6 rounded-2xl transition-all duration-300 uppercase tracking-widest shadow-[0_0_20px_rgba(255,215,0,0.4)]"
             >
-              {loading ? '⏳ Test...' : '🧪 Test Prompt'}
+              {loading ? '⏳ AI THINKING...' : '🧪 Test AI Priority Generator'}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Strategy Management Section */}
-      <div className="space-y-6">
-        <h2 className="text-sm font-bold text-gray-300 uppercase tracking-widest mb-4">📋 Strategy Management</h2>
+      {/* AI Coach Personality Section - WIDGET GRID */}
+      <div className="mb-12">
+        {/* Section Header with Gradient */}
+        <h2 className="text-2xl font-extrabold uppercase tracking-wider mb-6 text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-gold">
+          🎭 AI Personality
+        </h2>
 
-        {/* Export Strategy */}
-        <div className="bg-cyber-panel border border-gray-800 rounded-lg p-4">
-          <h3 className="text-sm font-bold text-white mb-3">💾 Export Current Strategy</h3>
-          <p className="text-xs text-gray-400 mb-4">
-            Pobierz aktualny plan strategiczny jako plik JSON do backupu lub edycji.
-          </p>
-          <button
-            onClick={() => {
-              const strategyData = {
-                pillars: data.pillars,
-                phases: data.phases,
-                sprint: data.sprint,
-                customRules: data.customRules,
-                exportedAt: new Date().toISOString(),
-                version: '1.0'
-              };
+        <div className="grid grid-cols-1 gap-6">
+          {/* System Prompt Editor - FULL WIDTH WIDGET */}
+          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(0,243,255,0.15)] transition-all duration-300">
+            <h3 className="text-lg font-bold text-white mb-3 uppercase tracking-wide">System Prompt</h3>
+            <p className="text-xs text-gray-500 mb-4 font-mono uppercase tracking-wider">
+              /// Customize AI behavior and personality
+            </p>
+            
+            {/* Cyberpunk Textarea */}
+            <textarea
+              value={ai.customSystemPrompt || getSystemPrompt(data)}
+              onChange={(e) => onUpdateSettings({
+                ...data.settings,
+                ai: { ...ai, customSystemPrompt: e.target.value }
+              })}
+              className="w-full bg-black/50 border-2 border-neon-cyan border-opacity-30 rounded-2xl px-4 py-3 text-white text-xs focus:outline-none focus:border-neon-cyan focus:shadow-[0_0_15px_rgba(0,243,255,0.3)] resize-none font-mono transition-all placeholder:text-gray-700"
+              rows={8}
+              placeholder="Enter system prompt..."
+            />
 
-              const blob = new Blob([JSON.stringify(strategyData, null, 2)], {
-                type: 'application/json'
-              });
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <button
+                onClick={() => onUpdateSettings({
+                  ...data.settings,
+                  ai: { ...ai, customSystemPrompt: undefined }
+                })}
+                className="bg-gray-800 hover:bg-gray-700 hover:scale-[1.02] text-white font-bold py-3 px-4 rounded-xl text-sm transition-all uppercase tracking-wider"
+              >
+                🔄 Reset Default
+              </button>
+              <button
+                onClick={async () => {
+                  if (!ai.apiKey) {
+                    alert('Add API Key first');
+                    return;
+                  }
 
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `flexgrafik-strategy-${new Date().toISOString().split('T')[0]}.json`;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
+                  const testPrompt = ai.customSystemPrompt || getSystemPrompt(data);
+                  const testMessages = [{ role: 'user' as const, content: 'Hi! Who are you and how can you help?' }];
 
-              alert('Strategia została pobrana!');
-            }}
-            className="w-full bg-cyber-green hover:bg-opacity-80 text-black font-bold py-3 px-4 rounded-lg transition-colors"
-          >
-            💾 Export Strategy (JSON)
-          </button>
-        </div>
+                  setLoading(true);
+                  const response = await withErrorHandling(
+                    () => chatWithAI(testMessages, testPrompt, ai.apiKey),
+                    {
+                      component: 'Settings',
+                      action: 'testPrompt',
+                      userMessage: 'Failed to test prompt.'
+                    }
+                  );
 
-        {/* Import Strategy */}
-        <div className="bg-cyber-panel border border-gray-800 rounded-lg p-4">
-          <h3 className="text-sm font-bold text-white mb-3">📥 Import New Strategy</h3>
-          <p className="text-xs text-gray-400 mb-4">
-            Wklej JSON strategii i zastąp aktualny plan. <strong>To nieodwracalna operacja!</strong>
-          </p>
-
-          <textarea
-            placeholder={`Wklej tutaj JSON strategii...\n\nPrzykład struktury:\n{\n  "pillars": [...],\n  "phases": [...],\n  "sprint": {...},\n  "customRules": [...]\n}`}
-            className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-cyber-magenta resize-none font-mono mb-4"
-            rows={6}
-            style={{ tabSize: 2 }}
-          />
-
-          <button
-            onClick={async () => {
-              const textarea = document.querySelector('textarea[placeholder*="Wklej tutaj JSON"]') as HTMLTextAreaElement;
-              const jsonText = textarea?.value?.trim();
-
-              if (!jsonText) {
-                alert('Wklej JSON strategii najpierw.');
-                return;
-              }
-
-              try {
-                const importedData = JSON.parse(jsonText);
-
-                // Validate structure
-                if (!validateStrategy(importedData)) {
-                  alert('❌ Nieprawidłowa struktura JSON. Sprawdź czy wszystkie wymagane pola są obecne.');
-                  return;
-                }
-
-                // Confirm replacement
-                const confirmMessage = `⚠️ To zastąpi aktualny plan strategiczny!\n\nZaimportowane dane zawierają:\n• ${importedData.pillars?.length || 0} filarów\n• ${importedData.phases?.length || 0} faz\n• ${importedData.customRules?.length || 0} reguł\n\nKontynuować?`;
-
-                if (!confirm(confirmMessage)) {
-                  return;
-                }
-
-                // Migrate and apply
-                const migratedData = migrateStrategy(importedData);
-                const newAppData = { ...data, ...migratedData };
-
-                // Update all settings at once
-                onUpdateSettings(newAppData.settings);
-
-                // Trigger full app reload to apply changes
-                alert('✅ Strategia została zaimportowana! Odświeżam aplikację...');
-                window.location.reload();
-
-              } catch (error) {
-                alert('❌ Błąd parsowania JSON. Sprawdź składnię.');
-                console.error('Import error:', error);
-              }
-            }}
-            className="w-full bg-cyber-gold hover:bg-opacity-80 text-black font-bold py-3 px-4 rounded-lg transition-colors"
-          >
-            📥 Import & Replace Strategy
-          </button>
-        </div>
-
-        {/* Strategy Editor Preview */}
-        <div className="bg-cyber-panel border border-gray-800 rounded-lg p-4">
-          <h3 className="text-sm font-bold text-white mb-3">🎯 Quick Stats</h3>
-          <div className="grid grid-cols-2 gap-4 text-center">
-            <div className="bg-gray-900/50 rounded p-3">
-              <div className="text-xl font-bold text-cyber-magenta">{data.pillars.length}</div>
-              <div className="text-xs text-gray-400">Filarów</div>
-            </div>
-            <div className="bg-gray-900/50 rounded p-3">
-              <div className="text-xl font-bold text-cyber-cyan">{data.phases.length}</div>
-              <div className="text-xs text-gray-400">Faz</div>
-            </div>
-            <div className="bg-gray-900/50 rounded p-3">
-              <div className="text-xl font-bold text-cyber-gold">{data.customRules.length}</div>
-              <div className="text-xs text-gray-400">Reguł</div>
-            </div>
-            <div className="bg-gray-900/50 rounded p-3">
-              <div className="text-xl font-bold text-cyber-green">{data.aiChatHistory.length}</div>
-              <div className="text-xs text-gray-400">Wiadomości AI</div>
+                  if (response) {
+                    alert(`🤖 Test Response:\n\n${response}`);
+                    if (voice.enabled) {
+                      voiceNotify(response, 'normal');
+                    }
+                  }
+                  setLoading(false);
+                }}
+                disabled={loading || !ai.enabled}
+                className="bg-gradient-to-r from-neon-cyan to-neon-magenta hover:scale-[1.02] disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed text-black font-bold py-3 px-4 rounded-xl text-sm transition-all uppercase tracking-wider shadow-[0_0_15px_rgba(0,243,255,0.3)]"
+              >
+                {loading ? '⏳ Testing...' : '🧪 Test Prompt'}
+              </button>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Data Management Section */}
-        <h2 className="text-sm font-bold text-gray-300 uppercase tracking-widest mb-4 mt-8">💾 Data Management</h2>
+      {/* Strategy Management Section - WIDGET GRID */}
+      <div className="mb-12">
+        {/* Section Header with Gradient */}
+        <h2 className="text-2xl font-extrabold uppercase tracking-wider mb-6 text-transparent bg-clip-text bg-gradient-to-r from-neon-magenta to-neon-cyan">
+          📋 Strategy Management
+        </h2>
 
-        <div className="space-y-3">
-          <button
-            onClick={() => {
-              const data = localStorage.getItem('flexgrafik-data');
-              if (!data) return;
-
-              const blob = new Blob([data], { type: 'application/json' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `flexgrafik-backup-${new Date().toISOString().split('T')[0]}.json`;
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-            className="w-full bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-colors"
-          >
-            💾 Export Backup
-          </button>
-
-          <label className="block">
-            <input
-              type="file"
-              accept=".json"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                  try {
-                    const data = JSON.parse(event.target?.result as string);
-                    localStorage.setItem('flexgrafik-data', JSON.stringify(data));
-                    window.location.reload();
-                  } catch (error) {
-                    alert('Invalid backup file');
-                  }
-                };
-                reader.readAsText(file);
-              }}
-              className="hidden"
-            />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Export Strategy - WIDGET CARD */}
+          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(0,243,255,0.15)] transition-all duration-300">
+            <h3 className="text-lg font-bold text-white mb-3 uppercase tracking-wide">💾 Export Strategy</h3>
+            <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+              Download current strategic plan as JSON for backup or editing
+            </p>
             <button
-              onClick={() => document.querySelector('input[type="file"]')?.click()}
-              className="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+              onClick={() => {
+                const strategyData = {
+                  pillars: data.pillars,
+                  phases: data.phases,
+                  sprint: data.sprint,
+                  customRules: data.customRules,
+                  exportedAt: new Date().toISOString(),
+                  version: '1.0'
+                };
+
+                const blob = new Blob([JSON.stringify(strategyData, null, 2)], {
+                  type: 'application/json'
+                });
+
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `flexgrafik-strategy-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                alert('Strategy downloaded!');
+              }}
+              className="w-full bg-gradient-to-r from-green-500 to-green-400 hover:scale-[1.02] active:scale-95 text-black font-bold py-3 px-4 rounded-xl transition-all uppercase tracking-wider shadow-[0_0_15px_rgba(34,197,94,0.4)]"
             >
-              📥 Import Backup
+              💾 Export JSON
             </button>
-          </label>
+          </div>
 
-          <button
-            onClick={() => {
-              const confirmed = confirm('Are you sure you want to clear all data? This cannot be undone.');
-              if (confirmed) {
-                localStorage.clear();
-                window.location.reload();
-              }
-            }}
-            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-          >
-            🗑️ Clear All Data
-          </button>
+          {/* Import Strategy - WIDGET CARD (Spans 2 columns) */}
+          <div className="md:col-span-2 bg-[#0a0a0a] rounded-3xl p-6 border border-red-500 border-opacity-20 hover:shadow-[0_0_20px_rgba(239,68,68,0.15)] transition-all duration-300">
+            <h3 className="text-lg font-bold text-white mb-3 uppercase tracking-wide">📥 Import Strategy</h3>
+            <p className="text-xs text-red-400 mb-4 font-bold uppercase tracking-wider">
+              ⚠️ Warning: This will replace your current plan (irreversible!)
+            </p>
+
+            {/* Cyberpunk Textarea */}
+            <textarea
+              placeholder="Paste JSON strategy here..."
+              className="w-full bg-black/50 border-2 border-red-500/30 rounded-2xl px-4 py-3 text-white text-xs focus:outline-none focus:border-red-500 focus:shadow-[0_0_15px_rgba(239,68,68,0.3)] resize-none font-mono mb-4 transition-all placeholder:text-gray-700"
+              rows={6}
+              style={{ tabSize: 2 }}
+            />
+
+            <button
+              onClick={async () => {
+                const textarea = document.querySelector('textarea[placeholder*="Paste JSON"]') as HTMLTextAreaElement;
+                const jsonText = textarea?.value?.trim();
+
+                if (!jsonText) {
+                  alert('Paste JSON strategy first.');
+                  return;
+                }
+
+                try {
+                  const importedData = JSON.parse(jsonText);
+
+                  // Validate structure
+                  if (!validateStrategy(importedData)) {
+                    alert('❌ Invalid JSON structure. Check if all required fields are present.');
+                    return;
+                  }
+
+                  // Confirm replacement
+                  const confirmMessage = `⚠️ This will replace your current strategic plan!\n\nImported data contains:\n• ${importedData.pillars?.length || 0} pillars\n• ${importedData.phases?.length || 0} phases\n• ${importedData.customRules?.length || 0} rules\n\nContinue?`;
+
+                  if (!confirm(confirmMessage)) {
+                    return;
+                  }
+
+                  // Migrate and apply
+                  const migratedData = migrateStrategy(importedData);
+                  const newAppData = { ...data, ...migratedData };
+
+                  // Update all settings at once
+                  onUpdateSettings(newAppData.settings);
+
+                  // Trigger full app reload to apply changes
+                  alert('✅ Strategy imported! Refreshing app...');
+                  window.location.reload();
+
+                } catch (error) {
+                  alert('❌ JSON parsing error. Check syntax.');
+                  handleError(error, {
+                    component: 'Settings',
+                    action: 'importStrategy',
+                    userMessage: 'Failed to import strategy'
+                  });
+                }
+              }}
+              className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:scale-[1.02] active:scale-95 text-white font-bold py-3 px-4 rounded-xl transition-all uppercase tracking-wider shadow-[0_0_15px_rgba(239,68,68,0.4)]"
+            >
+              📥 Import & Replace
+            </button>
+          </div>
+
+          {/* Quick Stats - WIDGET CARD */}
+          <div className="md:col-span-2 bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(255,0,255,0.15)] transition-all duration-300">
+            <h3 className="text-lg font-bold text-white mb-4 uppercase tracking-wide">🎯 Quick Stats</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-black/50 rounded-2xl p-4 text-center border border-neon-magenta border-opacity-20 hover:border-neon-magenta border-opacity-50 transition-all">
+                <div className="text-3xl font-bold text-neon-magenta mb-1">{data.pillars.length}</div>
+                <div className="text-xs text-gray-500 uppercase tracking-wider font-mono">Pillars</div>
+              </div>
+              <div className="bg-black/50 rounded-2xl p-4 text-center border border-neon-cyan border-opacity-20 hover:border-neon-cyan border-opacity-50 transition-all">
+                <div className="text-3xl font-bold text-neon-cyan mb-1">{data.phases.length}</div>
+                <div className="text-xs text-gray-500 uppercase tracking-wider font-mono">Phases</div>
+              </div>
+              <div className="bg-black/50 rounded-2xl p-4 text-center border border-gold border-opacity-20 hover:border-gold/50 transition-all">
+                <div className="text-3xl font-bold text-gold mb-1">{data.customRules.length}</div>
+                <div className="text-xs text-gray-500 uppercase tracking-wider font-mono">Rules</div>
+              </div>
+              <div className="bg-black/50 rounded-2xl p-4 text-center border border-green-500 border-opacity-20 hover:border-green-500/50 transition-all">
+                <div className="text-3xl font-bold text-green-400 mb-1">{data.aiChatHistory.length}</div>
+                <div className="text-xs text-gray-500 uppercase tracking-wider font-mono">AI Chats</div>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* Voice Info */}
-        <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-4">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">ℹ️ Informacje</h3>
-          <ul className="text-xs text-gray-500 space-y-1">
-            <li>• Priorytety: Normalne, Pilne (powtórzone), Krytyczne (powtórzone)</li>
-            <li>• Język: Polski (z fallbackiem na angielski)</li>
-            <li>• Web Speech API wymagane dla działania</li>
-            <li>• Strategie są w pełni kompatybilne wstecz</li>
+      {/* Data Management Section - WIDGET GRID */}
+      <div className="mb-12">
+        {/* Section Header with Gradient */}
+        <h2 className="text-2xl font-extrabold uppercase tracking-wider mb-6 text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-neon-cyan">
+          💾 Data Management
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Export Backup - WIDGET CARD */}
+          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(0,243,255,0.15)] transition-all duration-300">
+            <button
+              onClick={() => {
+                const data = localStorage.getItem('flexgrafik-data');
+                if (!data) return;
+
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `flexgrafik-backup-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="w-full bg-gradient-to-r from-neon-cyan to-blue-500 hover:scale-[1.02] active:scale-95 text-black font-bold py-4 px-4 rounded-xl transition-all uppercase tracking-wider shadow-[0_0_15px_rgba(0,243,255,0.4)]"
+            >
+              💾 Export<br/>Backup
+            </button>
+          </div>
+
+          {/* Import Backup - WIDGET CARD */}
+          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(156,163,175,0.15)] transition-all duration-300">
+            <label className="block">
+              <input
+                type="file"
+                accept=".json"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    try {
+                      const data = JSON.parse(event.target?.result as string);
+                      localStorage.setItem('flexgrafik-data', JSON.stringify(data));
+                      window.location.reload();
+                    } catch (error) {
+                      alert('Invalid backup file');
+                    }
+                  };
+                  reader.readAsText(file);
+                }}
+                className="hidden"
+              />
+              <button
+                onClick={() => document.querySelector('input[type="file"]')?.click()}
+                className="w-full bg-gray-700 hover:bg-gray-600 hover:scale-[1.02] active:scale-95 text-white font-bold py-4 px-4 rounded-xl transition-all uppercase tracking-wider"
+              >
+                📥 Import<br/>Backup
+              </button>
+            </label>
+          </div>
+
+          {/* Clear Data - WIDGET CARD */}
+          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-red-500 border-opacity-20 hover:shadow-[0_0_20px_rgba(239,68,68,0.15)] transition-all duration-300">
+            <button
+              onClick={() => {
+                const confirmed = confirm('Are you sure you want to clear all data? This cannot be undone.');
+                if (confirmed) {
+                  localStorage.clear();
+                  window.location.reload();
+                }
+              }}
+              className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:scale-[1.02] active:scale-95 text-white font-bold py-4 px-4 rounded-xl transition-all uppercase tracking-wider shadow-[0_0_15px_rgba(239,68,68,0.4)]"
+            >
+              🗑️ Clear All<br/>Data
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* System Info Section */}
+      <div className="mb-12">
+        {/* System Info - WIDGET CARD */}
+        <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-5">
+          <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3">ℹ️ System Information</h3>
+          <ul className="text-xs text-gray-600 space-y-2 font-mono">
+            <li className="flex items-start gap-2">
+              <span className="text-neon-cyan">▸</span>
+              <span>Priorities: Normal, Urgent (repeated), Critical (repeated)</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-neon-magenta">▸</span>
+              <span>Language: Polish (with English fallback)</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-gold">▸</span>
+              <span>Web Speech API required for voice notifications</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-green-400">▸</span>
+              <span>Strategies are fully backward compatible</span>
+            </li>
           </ul>
         </div>
       </div>

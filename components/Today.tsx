@@ -20,8 +20,8 @@ const Today: React.FC<TodayProps> = ({ data, onToggleTask, onStartTimer }) => {
     p.tasks.map(t => ({ ...t, pillarId: p.id, pillarName: p.name, isStuck: p.ninety_percent_alert }))
   );
 
-  const mustCloseTasks = allTasks.filter(t => t.isStuck && !t.done && t.type === 'close');
-  const otherTasks = allTasks.filter(t => !t.isStuck && !t.done).slice(0, 3); // Just show top 3 others if no emergency
+  const mustCloseTasks = allTasks.filter(t => t.isStuck && t.progress < 100 && t.type === 'close');
+  const otherTasks = allTasks.filter(t => !t.isStuck && t.progress < 100).slice(0, 3); // Just show top 3 others if no emergency
 
   return (
     <div className="pb-24 pt-4 px-4 max-w-md mx-auto animate-fade-in">
@@ -42,7 +42,7 @@ const Today: React.FC<TodayProps> = ({ data, onToggleTask, onStartTimer }) => {
                   onClick={() => onToggleTask(task.pillarId, task.name)}
                   className="mt-0.5 w-5 h-5 rounded border border-cyber-red flex items-center justify-center flex-shrink-0 hover:bg-red-900/50"
                 >
-                  {task.done && <div className="w-3 h-3 bg-cyber-red rounded-sm" />}
+                  {task.progress >= 100 && <div className="w-3 h-3 bg-cyber-red rounded-sm" />}
                 </button>
                 <span className="text-gray-200 text-sm">{task.name}</span>
               </div>
@@ -73,7 +73,7 @@ const Today: React.FC<TodayProps> = ({ data, onToggleTask, onStartTimer }) => {
                             onClick={() => onToggleTask(task.pillarId, task.name)}
                             className="mt-0.5 w-5 h-5 rounded border border-cyber-gold flex items-center justify-center flex-shrink-0"
                             >
-                            {task.done && <div className="w-3 h-3 bg-cyber-gold rounded-sm" />}
+                            {task.progress >= 100 && <div className="w-3 h-3 bg-cyber-gold rounded-sm" />}
                         </button>
                         <span className="text-gray-200">{task.name}</span>
                     </div>

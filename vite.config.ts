@@ -13,14 +13,14 @@ export default defineConfig(({ mode }) => {
       plugins: [react()],
       build: {
         outDir: 'dist',
-        sourcemap: false, // Reduce bundle size for production
-        emptyOutDir: true, // Clear output dir before build
+        sourcemap: false,
+        emptyOutDir: true,
         rollupOptions: {
           output: {
-            // FORCE NEW HASH EVERY BUILD - Add timestamp to bust all caches
-            entryFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
-            chunkFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
-            assetFileNames: `assets/[name]-[hash]-${Date.now()}.[ext]`,
+            // Standard Vite hashing - reliable for Vercel
+            entryFileNames: 'assets/[name]-[hash].js',
+            chunkFileNames: 'assets/[name]-[hash].js',
+            assetFileNames: 'assets/[name]-[hash].[ext]',
             manualChunks: {
               'react-vendor': ['react', 'react-dom']
             }

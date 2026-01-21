@@ -1,6 +1,7 @@
 import { AppData } from '../types';
 import { migrateOldPillarTasks, migrateOldPhaseTasks, needsMigration } from './migrateData';
 import { INITIAL_DATA } from '../constants';
+import { handleError } from './errorHandler';
 
 // Debounced LocalStorage save
 let saveTimeout: NodeJS.Timeout | null = null;
@@ -16,7 +17,11 @@ export const debouncedSave = (key: string, data: AppData): void => {
       localStorage.setItem(key, JSON.stringify(data));
       console.log('Data saved to LocalStorage');
     } catch (error) {
-      console.error('Failed to save to LocalStorage:', error);
+      handleError(error, {
+        component: 'Storage',
+        action: 'saveToLocalStorage',
+        userMessage: 'Failed to save your data'
+      });
     }
   }, SAVE_DEBOUNCE_MS);
 };
@@ -30,7 +35,11 @@ export const safeLoad = <T>(key: string, defaultValue: T): T => {
     const parsed = JSON.parse(saved);
     return parsed as T;
   } catch (error) {
-    console.warn('Failed to load from LocalStorage, using defaults:', error);
+    handleError(error, {
+      component: 'Storage',
+      action: 'loadFromLocalStorage',
+      userMessage: 'Failed to load your data, using defaults'
+    });
     return defaultValue;
   }
 };
@@ -80,7 +89,11 @@ export const loadAppData = (): AppData => {
 export const saveAppData = (data: AppData): void => {
   // Validate data structure before saving
   if (!data || typeof data !== 'object' || !data.pillars) {
-    console.error('❌ Invalid data structure, not saving');
+    handleError(new Error('Invalid data structure'), {
+      component: 'Storage',
+      action: 'validateDataStructure',
+      userMessage: 'Data validation failed, not saving'
+    });
     return;
   }
 

@@ -3,7 +3,7 @@ import { AppData, Pillar } from '../types';
 import { generateDailyPriorities } from '../services/aiService';
 import { useVoiceNotify } from '../utils/voiceUtils';
 import { handleError, withErrorHandling } from '../utils/errorHandler';
-import { generateDailyPriority } from '../src/utils/dailyPriority';
+import { generateDailyPriority } from '../utils/dailyPriority';
 import { Button } from './ui/Button';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
@@ -59,26 +59,28 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onPillarClick, onAlertClick
 
   return (
     <div className="pb-24 pt-6 px-6 max-w-md mx-auto animate-fade-in" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      {/* Header */}
+      {/* Header - Cyberpunk neon gradient */}
       <div className="mb-8">
-        <h1 className="text-h1 text-cyan-400">
-          FlexGrafik
+        <h1 className="text-4xl font-bold uppercase tracking-widest">
+          <span className="text-glow-magenta">Flex</span>
+          <span className="text-glow-cyan">Grafik</span>
         </h1>
-        <p className="text-caption mt-1">
-          {new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })}
-        </p>
+        <p className="text-gray-400 text-xs mt-2 uppercase tracking-wide">Accountability OS</p>
       </div>
 
-      {/* PRIMARY CTA - One dominant action per screen */}
-      <div className="mb-8">
+      {/* Primary CTA - Dominant but not obnoxious */}
+      <div className="mb-6">
         <Button
           variant="primary"
           size="lg"
           fullWidth
+          className="h-14"
           onClick={() => onPillarClick(stuckProjects.length > 0 ? stuckProjects[0].id : data.pillars[0]?.id)}
-          icon={<span>🎯</span>}
         >
-          Start Today's Priority
+          <span className="flex items-center gap-3">
+            <span className="text-2xl">🎯</span>
+            <span>Start Today's Priority</span>
+          </span>
         </Button>
       </div>
 
@@ -114,55 +116,48 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onPillarClick, onAlertClick
         </div>
       )}
 
-      {/* Alerts Section - Subtle, not aggressive */}
+      {/* Active Alerts - Glassmorphism with neon border */}
       {(stuckProjects.length > 0 || checkinNeeded) && (
-        <div className="mb-8">
-          <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-warning">⚠️</span>
-              <h3 className="text-h3">Active Alerts</h3>
-            </div>
-            <div className="space-y-2">
-              {stuckProjects.map(p => (
-                <div
-                  key={p.id}
-                  onClick={() => onAlertClick('stuck', p.id)}
-                  className="bg-gray-800/30 border border-gray-700 rounded p-3 cursor-pointer hover:bg-gray-700/30 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="status-indicator status-error">Stuck</span>
-                        <span className="caption">{p.days_stuck} days without progress</span>
-                      </div>
-                      <p className="text-body font-medium">{p.name}</p>
-                    </div>
-                    <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); onAlertClick('stuck', p.id); }}>
-                      Resume
-                    </Button>
-                  </div>
+        <div className="glass-panel rounded-lg p-4 mb-6 border-2 border-neon-magenta/30">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-neon-magenta animate-pulse border-glow"/>
+            <h2 className="text-sm font-bold text-neon-magenta uppercase tracking-widest">
+              🚨 ACTIVE ALERTS
+            </h2>
+          </div>
+
+          <div className="space-y-2">
+            {stuckProjects.map(p => (
+              <div
+                key={p.id}
+                onClick={() => onAlertClick('stuck', p.id)}
+                className="flex items-start gap-3 py-2 border-l-2 border-red-500/30 pl-3 mb-2 cursor-pointer hover:bg-gray-800/30 transition-colors rounded"
+              >
+                <span className="text-red-400 text-xs font-mono uppercase">STUCK</span>
+                <div className="flex-1">
+                  <p className="text-gray-300 text-sm font-medium">{p.name}</p>
+                  <p className="text-gray-500 text-xs">{p.days_stuck} days without progress</p>
                 </div>
-              ))}
-              {checkinNeeded && (
-                <div
-                  onClick={() => onAlertClick('checkin')}
-                  className="bg-gray-800/30 border border-gray-700 rounded p-3 cursor-pointer hover:bg-gray-700/30 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="status-indicator status-info">Check-in</span>
-                        <span className="caption">Daily progress tracking</span>
-                      </div>
-                      <p className="text-body font-medium">Complete today's check-in</p>
-                    </div>
-                    <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); onAlertClick('checkin'); }}>
-                      Check In
-                    </Button>
-                  </div>
+                <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); onAlertClick('stuck', p.id); }}>
+                  Resume
+                </Button>
+              </div>
+            ))}
+            {checkinNeeded && (
+              <div
+                onClick={() => onAlertClick('checkin')}
+                className="flex items-start gap-3 py-2 border-l-2 border-cyan-500/30 pl-3 cursor-pointer hover:bg-gray-800/30 transition-colors rounded"
+              >
+                <span className="text-cyan-400 text-xs font-mono uppercase">CHECK-IN</span>
+                <div className="flex-1">
+                  <p className="text-gray-300 text-sm font-medium">Complete today's check-in</p>
+                  <p className="text-gray-500 text-xs">Daily progress tracking</p>
                 </div>
-              )}
-            </div>
+                <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); onAlertClick('checkin'); }}>
+                  Check In
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -200,31 +195,39 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onPillarClick, onAlertClick
         </div>
       )}
 
-      {/* Projects Grid - Tertiary content */}
-      <div className="mb-8">
-        <h2 className="text-h2 mb-4">Projects ({data.pillars.length})</h2>
+      {/* Projects - Grid with depth */}
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
+          Projects ({data.pillars.length})
+        </h2>
+
         <div className="grid grid-cols-2 gap-3">
           {data.pillars.map(pillar => (
-            <div 
+            <div
               key={pillar.id}
               onClick={() => onPillarClick(pillar.id)}
-              className={`p-3 rounded-lg border bg-cyber-panel flex flex-col justify-between h-28 cursor-pointer active:bg-gray-900 transition-colors ${getStatusColor(pillar)}`}
+              className="glass-panel rounded-lg p-4 cursor-pointer group transition-all duration-300 hover:border-neon-cyan hover:border-glow-cyan"
             >
-              <div className="flex justify-between items-start">
-                <span className="font-bold text-sm truncate w-full">{pillar.name}</span>
-                {pillar.ninety_percent_alert && <span className="text-xs">⚠️</span>}
+              <h3 className="text-white font-bold mb-2 group-hover:text-glow-cyan transition-all truncate uppercase tracking-wide text-sm">
+                {pillar.name}
+              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-3xl font-bold text-gray-500 group-hover:text-neon-cyan transition-colors">
+                  {pillar.completion}%
+                </span>
+                {pillar.ninety_percent_alert && (
+                  <span className="text-xs px-2 py-1 rounded-full bg-gold/10 border border-gold text-gold">
+                    ⚠️ STUCK
+                  </span>
+                )}
               </div>
-              
-              <div className="mt-2">
-                <div className="flex justify-between text-xs mb-1 font-mono">
-                  <span>{pillar.completion}%</span>
-                </div>
-                <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full rounded-full ${pillar.ninety_percent_alert ? 'bg-cyber-red' : (pillar.completion === 100 ? 'bg-cyber-green' : 'bg-cyber-gold')}`} 
-                    style={{ width: `${pillar.completion}%` }}
-                  ></div>
-                </div>
+
+              {/* Progress bar with neon glow */}
+              <div className="mt-2 progress-bar">
+                <div
+                  className="progress-bar-fill"
+                  style={{ width: `${pillar.completion}%` }}
+                />
               </div>
             </div>
           ))}

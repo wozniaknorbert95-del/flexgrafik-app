@@ -10,13 +10,15 @@ interface NavigationProps {
 const Navigation: React.FC<NavigationProps> = ({ currentView, setView, stuckCount }) => {
   const getButtonClass = (view: ViewState) => {
     const isActive = currentView === view;
-    return `flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
-      isActive ? 'text-cyber-magenta' : 'text-gray-500 hover:text-gray-300'
+    return `flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 ${
+      isActive 
+        ? 'text-neon-magenta text-glow scale-110' 
+        : 'text-gray-500 hover:text-neon-cyan hover:scale-105'
     }`;
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-cyber-dark border-t border-gray-800 z-50 px-2 shadow-lg">
+    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-dark-bg/95 backdrop-blur-lg border-t-2 border-neon-cyan/30 z-50 px-2 shadow-[0_-5px_20px_rgba(0,243,255,0.2)]">
       <div className="flex justify-between items-center h-full max-w-md mx-auto">
         <button onClick={() => setView('home')} className={getButtonClass('home')}>
           <span className="text-xl">🏠</span>
@@ -26,15 +28,9 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView, stuckCoun
           <span className="text-xl">🎯</span>
           <span className="text-[10px] font-medium tracking-wider">TODAY</span>
         </button>
-        <button
-          onClick={() => setView('finish')}
-          className={`${getButtonClass('finish')} relative`}
-        >
-          <span className="text-xl">🔥</span>
-          <span className="text-[10px] font-medium tracking-wider">FINISH</span>
-          {stuckCount > 0 && (
-            <span className="absolute top-1 right-4 w-2 h-2 bg-cyber-red rounded-full animate-pulse" />
-          )}
+        <button onClick={() => setView('timer')} className={getButtonClass('timer')}>
+          <span className="text-xl">⏰</span>
+          <span className="text-[10px] font-medium tracking-wider">TIMER</span>
         </button>
         <button onClick={() => setView('sprint')} className={getButtonClass('sprint')}>
           <span className="text-xl">📅</span>

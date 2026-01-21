@@ -3,7 +3,7 @@ import { AppData, SprintDay } from '../types';
 import { generateSprintRetrospective } from '../services/aiService';
 import { generateTrophyPDF } from '../utils/trophyGenerator';
 import { useVoiceNotify } from '../utils/voiceUtils';
-import { withErrorHandling } from '../utils/errorHandler';
+import { withErrorHandling, handleError } from '../utils/errorHandler';
 
 interface SprintViewProps {
   data: AppData;
@@ -132,7 +132,11 @@ const SprintView: React.FC<SprintViewProps> = ({ data, onToggleDay, onResetSprin
                   voiceNotify('Trophy generated! Check your downloads.', 'normal');
                 }
               } catch (error) {
-                console.error('Trophy generation error:', error);
+                handleError(error, {
+                  component: 'SprintView',
+                  action: 'generateTrophy',
+                  userMessage: 'Failed to generate trophy PDF'
+                });
                 alert('❌ Error generating trophy PDF. Check console for details.');
               }
             }}

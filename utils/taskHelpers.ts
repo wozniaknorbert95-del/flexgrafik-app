@@ -35,8 +35,7 @@ export function createNewTask(
     progress: 0,
     priority,
     status: 'not-started',
-    createdAt: now,
-    done: false // Backward compatibility
+    createdAt: now
   };
 }
 
@@ -49,8 +48,7 @@ export function updateTaskProgress(task: Task, newProgress: number): Task {
     ...task,
     progress: updatedProgress,
     status,
-    completedAt: status === 'done' && !task.completedAt ? now : task.completedAt,
-    done: updatedProgress >= 100 // Backward compatibility
+    completedAt: status === 'done' && !task.completedAt ? now : task.completedAt
   };
 }
 

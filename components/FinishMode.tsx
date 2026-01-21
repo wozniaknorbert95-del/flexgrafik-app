@@ -44,7 +44,7 @@ const FinishMode: React.FC<FinishModeProps> = ({ data, projectId, onToggleTask, 
 
   // Check if all tasks done
   useEffect(() => {
-    if (project && project.tasks.every(t => t.done)) {
+    if (project && project.tasks.every(t => t.progress >= 100)) {
       setShowConfetti(true);
     }
   }, [project]);
@@ -90,7 +90,7 @@ const FinishMode: React.FC<FinishModeProps> = ({ data, projectId, onToggleTask, 
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const tasksLeft = project.tasks.filter(t => !t.done).length;
+  const tasksLeft = project.tasks.filter(t => t.progress < 100).length;
 
   return (
     <div className="min-h-screen bg-black text-white p-4 flex flex-col relative overflow-hidden">
@@ -134,14 +134,14 @@ const FinishMode: React.FC<FinishModeProps> = ({ data, projectId, onToggleTask, 
             <h3 className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-4">📋 Closing Checklist ({project.tasks.length - tasksLeft}/{project.tasks.length})</h3>
             <div className="space-y-4">
                 {project.tasks.map((task, idx) => (
-                    <div key={idx} className={`flex items-center gap-4 transition-all ${task.done ? 'opacity-40' : 'opacity-100'}`}>
-                         <button 
+                    <div key={idx} className={`flex items-center gap-4 transition-all ${task.progress >= 100 ? 'opacity-40' : 'opacity-100'}`}>
+                         <button
                             onClick={() => onToggleTask(project!.id, task.name)}
-                            className={`w-6 h-6 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${task.done ? 'bg-cyber-green border-cyber-green' : 'border-gray-500 hover:border-cyber-magenta'}`}
+                            className={`w-6 h-6 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${task.progress >= 100 ? 'bg-cyber-green border-cyber-green' : 'border-gray-500 hover:border-cyber-magenta'}`}
                         >
-                            {task.done && <span className="text-black font-bold">✓</span>}
+                            {task.progress >= 100 && <span className="text-black font-bold">✓</span>}
                         </button>
-                        <span className={`text-sm ${task.done ? 'line-through' : ''}`}>{task.name}</span>
+                        <span className={`text-sm ${task.progress >= 100 ? 'line-through' : ''}`}>{task.name}</span>
                     </div>
                 ))}
             </div>

@@ -9,6 +9,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
   icon?: React.ReactNode;
   loading?: boolean;
+  children?: React.ReactNode;
 
   // NEW: Accessibility props
   ariaLabel?: string;  // For icon-only buttons
@@ -39,47 +40,67 @@ export function Button({
     ${fullWidth ? 'w-full' : ''}
   `;
 
-  // VARIANT STYLES (visual hierarchy)
+  // VARIANT STYLES - CYBERPUNK (.cursorrules compliant)
   const variantStyles = {
-    // PRIMARY - Magenta glow, dominant (use ONCE per screen max)
+    // PRIMARY - Neon Magenta (main actions)
     primary: `
-      bg-gradient-to-r from-pink-600 to-fuchsia-600
-      text-white font-bold uppercase tracking-wide
-      shadow-[0_0_20px_rgba(255,0,128,0.5)]
-      hover:shadow-[0_0_30px_rgba(255,0,128,0.7)]
-      hover:scale-[1.02]
-      focus:ring-pink-500
+      relative overflow-hidden
+      bg-transparent
+      border-2 border-neon-magenta
+      text-neon-magenta
+      font-bold uppercase tracking-widest
+      
+      /* Neon glow on hover */
+      hover:text-white
+      hover:shadow-[0_0_20px_rgba(255,0,255,0.8),0_0_40px_rgba(255,0,255,0.4)]
+      hover:border-glow-magenta
+      
+      /* Subtle background pulse */
+      hover:bg-neon-magenta/10
+      
+      active:scale-95
+      transition-all duration-300
     `,
 
-    // SECONDARY - Cyan outline, supporting actions
+    // SECONDARY - Neon Cyan (highlights, supporting actions)
     secondary: `
       bg-transparent
-      border-2 border-cyan-500
-      text-cyan-400
-      shadow-[0_0_10px_rgba(0,255,255,0.2)]
-      hover:bg-cyan-500/10
-      hover:shadow-[0_0_20px_rgba(0,255,255,0.4)]
-      focus:ring-cyan-500
+      border-2 border-neon-cyan
+      text-neon-cyan
+      font-semibold uppercase tracking-wide
+      
+      hover:text-white
+      hover:shadow-[0_0_20px_rgba(0,243,255,0.8),0_0_40px_rgba(0,243,255,0.4)]
+      hover:border-glow-cyan
+      hover:bg-neon-cyan/10
+      
+      transition-all duration-300
     `,
 
-    // TERTIARY - Subtle gray, passive actions
+    // TERTIARY - Subtle dark (passive actions)
     tertiary: `
-      bg-gray-800/50
+      bg-dark-card/50
       border border-gray-700
       text-gray-300
-      hover:bg-gray-700/50
+      
+      hover:bg-dark-card
       hover:border-gray-600
-      focus:ring-gray-600
+      hover:text-white
+      
+      transition-all duration-200
     `,
 
-    // DANGER - Red, destructive actions
+    // DANGER - Red glow (destructive actions)
     danger: `
-      bg-red-600/20
-      border border-red-500/50
+      bg-transparent
+      border-2 border-red-500
       text-red-400
-      hover:bg-red-600/30
-      hover:border-red-500
-      focus:ring-red-500
+      
+      hover:text-white
+      hover:shadow-[0_0_20px_rgba(239,68,68,0.8)]
+      hover:bg-red-500/10
+      
+      transition-all duration-300
     `
   };
 

@@ -11,6 +11,7 @@ import PillarDetail from './components/PillarDetail';
 import Settings from './components/Settings';
 import Rules from './components/Rules';
 import AICoach from './components/screens/AICoach';
+import Timer, { TimerState } from './components/Timer';
 // Remove top-level notificationCenter import to fix circular dependency
 import { loadAppData, saveAppData } from './utils/storageUtils';
 import { handleError } from './utils/errorHandler';
@@ -24,8 +25,12 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [notificationCenter, setNotificationCenter] = useState<any>(null);
+  const [notificationCenter, setNotificationCenter] = useState<import('./types').NotificationCenter | null>(null);
   const [lastRuleExecution, setLastRuleExecution] = useState<Record<string, number>>({});
+
+  // Timer state management
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [timerState, setTimerState] = useState<TimerState | null>(null);
 
   // 2. Initialize Data Effect (Enhanced with automatic migration)
   useEffect(() => {
@@ -135,7 +140,11 @@ const App: React.FC = () => {
           notificationCenter.executeRuleAction(rule);
         }
       } catch (error) {
-        console.error(`Rule evaluation error for ${rule.name}:`, error);
+        handleError(error, {
+          component: 'App',
+          action: 'evaluateRule',
+          userMessage: `Rule "${rule.name}" failed and has been disabled`
+        });
         // Disable broken rules automatically
         setData(prev => ({
           ...prev,
@@ -206,13 +215,17 @@ const App: React.FC = () => {
         if (p.id !== pillarId) return p;
 
         const newTasks = p.tasks.map(t =>
-          t.name === taskName ? { ...t, done: !t.done } : t
+          t.name === taskName ? {
+            ...t,
+            progress: t.progress >= 100 ? 0 : 100,
+            completedAt: t.progress >= 100 ? undefined : new Date().toISOString()
+          } : t
         );
 
         // Recalculate completion
         const total = newTasks.length;
-        const done = newTasks.filter(t => t.done).length;
-        const completion = total === 0 ? 0 : Math.round((done / total) * 100);
+        const completed = newTasks.filter(t => t.progress >= 100).length;
+        const completion = total === 0 ? 0 : Math.round((completed / total) * 100);
 
         // Check 90% logic update
         const ninety_alert = completion >= 90 && completion < 100 && (p.days_stuck || 0) > 5;
@@ -235,8 +248,8 @@ const App: React.FC = () => {
         const newPillar = newPillars.find(p => p.id === pillarId);
         const newTask = newPillar?.tasks.find(t => t.name === taskName);
 
-        // Only notify if task was just completed (changed from false to true)
-        if (oldTask && !oldTask.done && newTask && newTask.done) {
+        // Only notify if task was just completed (changed from <100 to >=100)
+        if (oldTask && oldTask.progress < 100 && newTask && newTask.progress >= 100) {
           // Update cooldown timestamp
           setLastRuleExecution(prev => ({
             ...prev,
@@ -349,11 +362,11 @@ const App: React.FC = () => {
       case 'home':
         return <Dashboard data={data} onPillarClick={handlePillarClick} onAlertClick={handleAlertClick} setView={setCurrentView} />;
       case 'today':
-        return <Today 
-          data={data} 
-          onToggleTask={handleToggleTask} 
-          onStartTimer={() => setCurrentView('finish')} 
-          isTimerRunning={false} 
+        return <Today
+          data={data}
+          onToggleTask={handleToggleTask}
+          onStartTimer={() => setCurrentView('timer')}
+          isTimerRunning={isTimerRunning}
         />;
       case 'finish':
         return <FinishMode 
@@ -481,6 +494,31 @@ const App: React.FC = () => {
           onUpdateChatHistory={handleUpdateChatHistory}
           onBack={() => setCurrentView('home')}
         />;
+      case 'timer':
+        return (
+          <div className="pb-24 pt-6 px-6 max-w-md mx-auto animate-fade-in">
+            <div className="mb-6">
+              <button
+                onClick={() => setCurrentView('home')}
+                className="text-cyber-cyan hover:text-cyber-magenta transition-colors mb-4"
+              >
+                ← Back to Dashboard
+              </button>
+              <h1 className="text-2xl font-bold text-white mb-2">Focus Timer</h1>
+              <p className="text-gray-400 text-sm">Pomodoro-style productivity timer</p>
+            </div>
+
+            <Timer
+              onTimerStart={(state) => setIsTimerRunning(true)}
+              onTimerPause={(state) => setIsTimerRunning(false)}
+              onTimerComplete={(state) => {
+                setIsTimerRunning(false);
+                // Could add task completion logic here
+              }}
+              onTimerReset={() => setIsTimerRunning(false)}
+            />
+          </div>
+        );
       default:
         return <Dashboard data={data} onPillarClick={handlePillarClick} onAlertClick={handleAlertClick} setView={setCurrentView} />;
     }
@@ -495,7 +533,7 @@ const App: React.FC = () => {
         Skip to main content
       </a>
 
-      <div className="min-h-screen bg-cyber-black text-gray-200 font-sans selection:bg-cyber-magenta selection:text-white pb-safe">
+      <div className="min-h-screen bg-dark-bg text-white font-sans selection:bg-neon-magenta selection:text-white pb-16 pb-safe">
         {/* Header with navigation role */}
         <header role="banner" className="sr-only">
           FlexGrafik - Accountability Assistant

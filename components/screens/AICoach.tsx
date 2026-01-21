@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AppData, ChatMessage } from '../../types';
 import { chatWithAI } from '../../services/aiService';
 import { getSystemPrompt } from '../../prompts/systemPrompt';
+import { handleError } from '../../utils/errorHandler';
 
 interface AICoachProps {
   data: AppData;
@@ -68,7 +69,11 @@ const AICoach: React.FC<AICoachProps> = ({ data, onUpdateChatHistory, onBack }) 
       setMessages(finalMessages);
       onUpdateChatHistory(finalMessages);
     } catch (error: any) {
-      console.error('AI Chat error:', error);
+      handleError(error, {
+        component: 'AICoach',
+        action: 'sendMessage',
+        userMessage: 'Failed to send message to AI coach'
+      });
       const errorMessage: ChatMessage = {
         id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         role: 'assistant',

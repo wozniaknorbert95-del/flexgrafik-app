@@ -16,9 +16,6 @@ export interface Task {
   dueDate?: string; // ISO date string
   createdAt: string; // Track when task was added
   completedAt?: string; // Track when task finished
-
-  // DEPRECATED (keep for migration):
-  done: boolean; // Will be calculated from progress >= 100
 }
 
 export interface DoneDefinition {
@@ -42,7 +39,7 @@ export interface Pillar {
 
 export interface ChecklistItem {
   item: string;
-  done: boolean;
+  completed: boolean;
 }
 
 export interface Phase {
@@ -136,4 +133,12 @@ export interface AppData {
   };
 }
 
-export type ViewState = 'home' | 'today' | 'finish' | 'sprint' | 'pillar_detail' | 'phase_detail' | 'accountability' | 'settings' | 'rules' | 'ai_coach';
+export type ViewState = 'home' | 'today' | 'timer' | 'sprint' | 'pillar_detail' | 'phase_detail' | 'accountability' | 'settings' | 'rules' | 'ai_coach';
+
+// NotificationCenter interface
+export interface NotificationCenter {
+  send: (type: string, message: string, id: string) => void;
+  dismiss: (id: string) => void;
+  getActive: () => NotificationHistory[];
+  executeRuleAction?: (rule: CustomRule) => void;
+}

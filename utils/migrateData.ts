@@ -14,9 +14,7 @@ export function migrateOldTasks(oldTasks: any[]): Task[] {
 
     dueDate: oldTask.dueDate,
     createdAt: oldTask.createdAt || new Date().toISOString(),
-    completedAt: oldTask.done ? new Date().toISOString() : undefined,
-
-    done: oldTask.done // Keep for backward compatibility
+    completedAt: oldTask.done ? new Date().toISOString() : undefined
   }));
 }
 

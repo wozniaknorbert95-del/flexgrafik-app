@@ -1,6 +1,7 @@
 import { AI_CONFIG } from '../constants';
 import { AppData } from '../types';
 import { getSystemPrompt } from '../prompts/systemPrompt';
+import { handleError } from '../utils/errorHandler';
 
 interface GroqMessage {
   role: 'system' | 'user' | 'assistant';
@@ -83,7 +84,11 @@ export const callGroqAPI = async (
     const data: GroqResponse = await response.json();
     return data.choices[0].message.content;
   } catch (error) {
-    console.error('Groq API error:', error);
+    handleError(error, {
+      component: 'AIService',
+      action: 'chatWithAI',
+      userMessage: 'AI service is currently unavailable'
+    });
     throw error;
   }
 };

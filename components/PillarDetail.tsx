@@ -54,14 +54,14 @@ const PillarDetail: React.FC<PillarDetailProps> = ({ pillar, onBack, onToggleTas
              <div className="space-y-2">
                  {pillar.tasks.map((task, idx) => (
                      <div key={idx} className="flex items-center gap-3 bg-cyber-panel p-3 rounded border border-gray-800">
-                        <button 
+                        <button
                             onClick={() => onToggleTask(pillar.id, task.name)}
-                            className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 ${task.done ? 'bg-cyber-cyan border-cyber-cyan' : 'border-gray-600'}`}
+                            className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 ${task.progress >= 100 ? 'bg-cyber-cyan border-cyber-cyan' : 'border-gray-600'}`}
                         >
-                            {task.done && <span className="text-black text-xs font-bold">✓</span>}
+                            {task.progress >= 100 && <span className="text-black text-xs font-bold">✓</span>}
                         </button>
                         <div className="flex-1">
-                             <p className={`text-sm ${task.done ? 'text-gray-500 line-through' : 'text-gray-200'}`}>{task.name}</p>
+                             <p className={`text-sm ${task.progress >= 100 ? 'text-gray-500 line-through' : 'text-gray-200'}`}>{task.name}</p>
                         </div>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ${task.type === 'close' ? 'bg-red-900 text-red-200' : 'bg-blue-900 text-blue-200'}`}>
                             {task.type}
