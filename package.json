@@ -1,7 +1,8 @@
 {
-  "name": "flexgrafik-adhd-os",
+  "name": "flexgrafik-app",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "ADHD Accountability Assistant - Production Ready",
   "type": "module",
   "scripts": {
     "dev": "vite",
