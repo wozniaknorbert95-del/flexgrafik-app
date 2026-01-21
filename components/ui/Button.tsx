@@ -9,6 +9,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
   icon?: React.ReactNode;
   loading?: boolean;
+
+  // NEW: Accessibility props
+  ariaLabel?: string;  // For icon-only buttons
+  isLoading?: boolean; // Loading state with aria-busy
 }
 
 export function Button({
@@ -17,6 +21,8 @@ export function Button({
   fullWidth = false,
   icon,
   loading = false,
+  ariaLabel,
+  isLoading = false,
   children,
   className = '',
   disabled,
@@ -89,12 +95,22 @@ export function Button({
   return (
     <button
       className={classes}
-      disabled={disabled || loading}
+      disabled={disabled || loading || isLoading}
+      aria-label={ariaLabel}
+      aria-busy={loading || isLoading}
       {...props}
     >
-      {loading && <span>⏳</span>}
-      {icon && !loading && <span className="flex-shrink-0">{icon}</span>}
-      {children}
+      {(loading || isLoading) ? (
+        <>
+          <span className="loading-spinner mr-2" aria-hidden="true">⟳</span>
+          <span className="sr-only">Loading...</span>
+        </>
+      ) : (
+        <>
+          {icon && <span className="flex-shrink-0" aria-hidden="true">{icon}</span>}
+          {children}
+        </>
+      )}
     </button>
   );
 }

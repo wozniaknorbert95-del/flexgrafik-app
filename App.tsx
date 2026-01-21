@@ -347,7 +347,7 @@ const App: React.FC = () => {
 
     switch (currentView) {
       case 'home':
-        return <Dashboard data={data} onPillarClick={handlePillarClick} onAlertClick={handleAlertClick} />;
+        return <Dashboard data={data} onPillarClick={handlePillarClick} onAlertClick={handleAlertClick} setView={setCurrentView} />;
       case 'today':
         return <Today 
           data={data} 
@@ -482,25 +482,42 @@ const App: React.FC = () => {
           onBack={() => setCurrentView('home')}
         />;
       default:
-        return <Dashboard data={data} onPillarClick={handlePillarClick} onAlertClick={handleAlertClick} />;
+        return <Dashboard data={data} onPillarClick={handlePillarClick} onAlertClick={handleAlertClick} setView={setCurrentView} />;
     }
   };
 
   const stuckCount = data?.pillars?.filter(p => p.ninety_percent_alert).length || 0;
 
   return (
-    <div className="min-h-screen bg-cyber-black text-gray-200 font-sans selection:bg-cyber-magenta selection:text-white pb-safe">
-      {renderView()}
-      
-      {/* Show Nav unless in Finish Mode */}
-      {currentView !== 'finish' && (
-        <Navigation 
-          currentView={currentView} 
-          setView={setCurrentView} 
-          stuckCount={stuckCount}
-        />
-      )}
-    </div>
+    <>
+      {/* Skip link for keyboard users */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
+      <div className="min-h-screen bg-cyber-black text-gray-200 font-sans selection:bg-cyber-magenta selection:text-white pb-safe">
+        {/* Header with navigation role */}
+        <header role="banner" className="sr-only">
+          FlexGrafik - Accountability Assistant
+        </header>
+
+        {/* Main content with landmark */}
+        <main id="main-content" role="main" tabIndex={-1}>
+          {renderView()}
+        </main>
+
+        {/* Bottom navigation with navigation role */}
+        {currentView !== 'finish' && (
+          <nav role="navigation" aria-label="Main navigation">
+            <Navigation
+              currentView={currentView}
+              setView={setCurrentView}
+              stuckCount={stuckCount}
+            />
+          </nav>
+        )}
+      </div>
+    </>
   );
 };
 

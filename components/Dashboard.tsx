@@ -3,19 +3,47 @@ import { AppData, Pillar } from '../types';
 import { generateDailyPriorities } from '../services/aiService';
 import { useVoiceNotify } from '../utils/voiceUtils';
 import { handleError, withErrorHandling } from '../utils/errorHandler';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 interface DashboardProps {
   data: AppData;
   onPillarClick: (id: number) => void;
   onAlertClick: (type: 'stuck' | 'checkin', projectId?: number) => void;
+  setView?: (view: string) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ data, onPillarClick, onAlertClick }) => {
+const Dashboard: React.FC<DashboardProps> = ({ data, onPillarClick, onAlertClick, setView }) => {
   const stuckProjects = data.pillars.filter(p => p.ninety_percent_alert);
   const checkinNeeded = !data.user.last_checkin || new Date(data.user.last_checkin).getDate() !== new Date().getDate();
   const [aiLoading, setAiLoading] = useState(false);
   const [lastTaskToggle, setLastTaskToggle] = useState<Record<string, number>>({});
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const voiceNotify = useVoiceNotify(data.settings.voice);
+
+  // Add keyboard shortcuts for power users
+  useKeyboardShortcuts([
+    {
+      key: 't',
+      action: () => setView?.('today'),
+      description: 'Go to Today view'
+    },
+    {
+      key: 's',
+      action: () => setView?.('sprint'),
+      description: 'Go to Sprint view'
+    },
+    {
+      key: 'a',
+      action: () => setView?.('ai_coach'),
+      description: 'Open AI Coach'
+    },
+    {
+      key: '?',
+      shiftKey: true,
+      action: () => setShowKeyboardHelp(true),
+      description: 'Show keyboard shortcuts'
+    }
+  ]);
 
   const getStatusColor = (p: Pillar) => {
     if (p.ninety_percent_alert) return 'border-cyber-red text-cyber-red shadow-[0_0_8px_rgba(239,68,68,0.4)]';
@@ -186,6 +214,44 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onPillarClick, onAlertClick
           ))}
         </div>
       </div>
+
+      {/* Keyboard shortcuts indicator */}
+      <div className="fixed bottom-20 right-4 text-caption text-gray-600 pointer-events-none">
+        Press <kbd className="px-2 py-1 bg-gray-800 rounded">?</kbd> for shortcuts
+      </div>
+
+      {/* Keyboard shortcuts help modal */}
+      {showKeyboardHelp && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowKeyboardHelp(false)}>
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white mb-4">Keyboard Shortcuts</h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-300">Go to Today</span>
+                <kbd className="px-2 py-1 bg-gray-800 rounded text-xs">T</kbd>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300">Go to Sprint</span>
+                <kbd className="px-2 py-1 bg-gray-800 rounded text-xs">S</kbd>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300">Open AI Coach</span>
+                <kbd className="px-2 py-1 bg-gray-800 rounded text-xs">A</kbd>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300">Show this help</span>
+                <kbd className="px-2 py-1 bg-gray-800 rounded text-xs">Shift + ?</kbd>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowKeyboardHelp(false)}
+              className="mt-4 w-full bg-cyan-600 hover:bg-cyan-700 text-white py-2 px-4 rounded"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
