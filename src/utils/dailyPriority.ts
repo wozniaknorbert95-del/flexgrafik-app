@@ -13,18 +13,37 @@ interface DailyPriorityResult {
  * Algorithm: Prioritize stuck tasks (80-99%) > high priority > overdue > oldest
  */
 export function generateDailyPriority(appData: AppData): DailyPriorityResult | null {
+  // SAFETY CHECK: Verify data structure exists
+  if (!appData || !appData.pillars || !Array.isArray(appData.pillars)) {
+    console.warn('⚠️ Invalid app data structure for daily priority');
+    return null;
+  }
+
   const allTasks: Array<{ task: Task; pillar: Pillar }> = [];
 
-  // Collect all incomplete tasks
+  // Collect all incomplete tasks with safety checks
   appData.pillars.forEach(pillar => {
+    if (!pillar || !pillar.phases || !Array.isArray(pillar.phases)) {
+      console.warn(`⚠️ Invalid pillar structure: ${pillar?.name || 'unknown'}`);
+      return;
+    }
+
     pillar.phases.forEach(phase => {
+      if (!phase || !phase.tasks || !Array.isArray(phase.tasks)) {
+        console.warn(`⚠️ Invalid phase structure: ${phase?.name || 'unknown'}`);
+        return;
+      }
+
       phase.tasks
-        .filter(task => task.progress < 100)
+        .filter(task => task && typeof task.progress === 'number' && task.progress < 100)
         .forEach(task => allTasks.push({ task, pillar }));
     });
   });
 
-  if (allTasks.length === 0) return null;
+  if (allTasks.length === 0) {
+    console.log('✅ No incomplete tasks found');
+    return null;
+  }
 
   // Score each task (higher = more urgent)
   const scored = allTasks.map(({ task, pillar }) => {
@@ -84,12 +103,21 @@ export function generateDailyPriority(appData: AppData): DailyPriorityResult | n
  * Get top 3 priorities for "Today" view
  */
 export function getTopPriorities(appData: AppData, count: number = 3): DailyPriorityResult[] {
+  // SAFETY CHECK
+  if (!appData || !appData.pillars || !Array.isArray(appData.pillars)) {
+    return [];
+  }
+
   const allTasks: Array<{ task: Task; pillar: Pillar }> = [];
 
   appData.pillars.forEach(pillar => {
+    if (!pillar?.phases || !Array.isArray(pillar.phases)) return;
+
     pillar.phases.forEach(phase => {
+      if (!phase?.tasks || !Array.isArray(phase.tasks)) return;
+
       phase.tasks
-        .filter(task => task.progress < 100)
+        .filter(task => task && typeof task.progress === 'number' && task.progress < 100)
         .forEach(task => allTasks.push({ task, pillar }));
     });
   });

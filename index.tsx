@@ -1,8 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import './src/styles/design-tokens.css';
-import './src/styles/typography.css';
-import './src/styles/accessibility.css';
+import './src/index.css';
 import App from './App';
 import { A11yStatus } from './components/A11yStatus';
 
