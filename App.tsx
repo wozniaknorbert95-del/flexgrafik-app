@@ -538,7 +538,7 @@ const App: React.FC = () => {
   const stuckCount = data?.pillars?.filter(p => p.ninety_percent_alert).length || 0;
 
   return (
-    <div className="min-h-screen bg-cyber-black text-gray-200 font-sans selection:bg-cyber-magenta selection:text-white pb-safe">
+    <div className="min-h-screen pb-safe" style={{ backgroundColor: 'var(--background)', color: 'var(--text-primary)', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif' }}>
       {renderView()}
 
       {/* Show Nav unless in Finish Mode */}

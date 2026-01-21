@@ -121,50 +121,49 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
   };
 
   return (
-    <div className="pb-24 pt-4 px-4 max-w-md mx-auto animate-fade-in">
+    <div className="pb-24 pt-6 px-6 max-w-md mx-auto fade-in" style={{ backgroundColor: 'var(--background)' }}>
       {/* Header */}
-      <div className="mb-6 border-b border-gray-800 pb-4">
+      <div className="mb-8">
         <button
           onClick={onBack}
-          className="text-cyber-cyan hover:text-cyber-magenta transition-colors mb-2"
+          className="btn btn-ghost mb-4"
+          style={{ padding: '8px 0', fontSize: '16px' }}
         >
-          ← Powrót
+          ← Back
         </button>
-        <h1 className="text-xl font-bold text-cyber-cyan tracking-widest uppercase mb-1">Ustawienia</h1>
-        <p className="text-xs text-gray-400 font-mono">Konfiguracja aplikacji</p>
+        <h1 className="heading-1 mb-2">Settings</h1>
+        <p className="caption">Configure your experience</p>
       </div>
 
       {/* Voice Settings Section */}
       <div className="space-y-6">
-        <h2 className="text-sm font-bold text-gray-300 uppercase tracking-widest mb-4">🔊 Powiadomienia Głosowe</h2>
+        <div className="card">
+          <h2 className="heading-3 mb-4">Voice Notifications</h2>
 
-        {/* Enable/Disable Toggle */}
-        <div className="bg-cyber-panel border border-gray-800 rounded-lg p-4">
-          <div className="flex items-center justify-between">
+          {/* Enable/Disable Toggle */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <h3 className="body font-medium mb-1">Enable voice notifications</h3>
+                <p className="caption">Receive audio alerts and reminders</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={voice.enabled}
+                  onChange={handleVoiceToggle}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-light rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+
+            {/* Volume Slider */}
             <div>
-              <h3 className="text-sm font-bold text-white mb-1">Włącz powiadomienia głosowe</h3>
-              <p className="text-xs text-gray-400">Otrzymuj głosowe alerty i powiadomienia</p>
-            </div>
-            <button
-              onClick={handleVoiceToggle}
-              className={`w-12 h-6 rounded-full transition-colors relative ${
-                voice.enabled ? 'bg-cyber-magenta' : 'bg-gray-600'
-              }`}
-            >
-              <div className={`w-5 h-5 bg-white rounded-full transition-transform absolute top-0.5 ${
-                voice.enabled ? 'translate-x-6' : 'translate-x-0.5'
-              }`} />
-            </button>
-          </div>
-        </div>
-
-        {/* Volume Slider */}
-        <div className="bg-cyber-panel border border-gray-800 rounded-lg p-4">
-          <div className="mb-3">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-sm font-bold text-white">Głośność</h3>
-              <span className="text-xs text-cyber-cyan font-mono">{voice.volume}%</span>
-            </div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="body font-medium">Volume</span>
+                <span className="caption font-mono">{voice.volume}%</span>
+              </div>
             <input
               type="range"
               min="0"
@@ -203,11 +202,12 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
           >
             🎵 Test powiadomienia głosowego
           </button>
-          <p className="text-xs text-gray-400 mt-2 text-center">
-            Sprawdź jak będą brzmieć powiadomienia
+          <p className="caption mt-2 text-center">
+            Test how notifications will sound
           </p>
         </div>
       </div>
+    </div>
 
       {/* AI Coach Settings Section */}
       <div className="space-y-6">

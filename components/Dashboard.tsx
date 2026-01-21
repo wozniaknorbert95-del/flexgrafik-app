@@ -26,51 +26,50 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onPillarClick, onAlertClick
   };
 
   return (
-    <div className="pb-24 pt-4 px-4 max-w-md mx-auto animate-fade-in" style={{ backgroundColor: 'var(--cyber-black)' }}>
+    <div className="pb-24 pt-6 px-6 max-w-md mx-auto fade-in" style={{ backgroundColor: 'var(--background)' }}>
       {/* Header */}
-      <div className="mb-6 border-b border-cyber-magenta pb-4">
-        <h1 className="cyber-h1">FLEXGRAFIK COMMAND CENTER</h1>
-        <p className="cyber-small font-mono">
+      <div className="mb-8">
+        <h1 className="heading-1">FlexGrafik</h1>
+        <p className="small text-center">
           {new Date().toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
       </div>
 
       {/* Alerts Section */}
       {(stuckProjects.length > 0 || checkinNeeded) && (
-        <div className="mb-8 space-y-3">
-          <h2 className="cyber-h2 mb-4">⚠️ ACTIVE ALERTS</h2>
+        <div className="mb-8 space-y-4">
           {stuckProjects.map(p => (
             <div
               key={p.id}
               onClick={() => onAlertClick('stuck', p.id)}
-              className="card cursor-pointer glow-magenta"
+              className="card cursor-pointer"
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">🔴</span>
-                  <div>
-                    <p className="cyber-small font-bold" style={{ color: 'var(--danger)' }}>{p.name} STUCK</p>
-                    <p className="cyber-small" style={{ color: 'var(--danger)' }}>{p.days_stuck} DNI BEZ PROGRESU</p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className="status-indicator status-error">Stuck</span>
+                    <span className="caption">{p.days_stuck} days without progress</span>
                   </div>
+                  <p className="body font-medium">{p.name}</p>
                 </div>
-                <span className="cyber-small glow-magenta" style={{ backgroundColor: 'var(--danger)', color: '#000', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold' }}>FINISH</span>
+                <button className="btn btn-primary ml-4">Resume</button>
               </div>
             </div>
           ))}
           {checkinNeeded && (
             <div
               onClick={() => onAlertClick('checkin')}
-              className="card cursor-pointer glow-gold"
+              className="card cursor-pointer"
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">🔔</span>
-                  <div>
-                    <p className="cyber-small font-bold" style={{ color: 'var(--cyber-gold)' }}>DAILY CHECK-IN</p>
-                    <p className="cyber-small" style={{ color: 'var(--cyber-gold)' }}>BRAK AKTYWNOŚCI DZISIAJ</p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className="status-indicator status-info">Check-in</span>
+                    <span className="caption">Daily progress tracking</span>
                   </div>
+                  <p className="body font-medium">Complete today's check-in</p>
                 </div>
-                <span className="cyber-small glow-gold" style={{ backgroundColor: 'var(--cyber-gold)', color: '#000', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold' }}>LOG</span>
+                <button className="btn btn-secondary ml-4">Check In</button>
               </div>
             </div>
           )}
@@ -88,12 +87,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onPillarClick, onAlertClick
                 {
                   component: 'Dashboard',
                   action: 'generateDailyPriorities',
-                  userMessage: 'Nie udało się pobrać priorytetów AI.'
+                  userMessage: 'Could not fetch AI priorities.'
                 }
               );
 
               if (priorities) {
-                addToast(`🤖 AI Coach: ${priorities}`, 'info');
+                addToast(`AI Coach: ${priorities}`, 'success');
                 if (data.settings.voice.enabled) {
                   voiceNotify(priorities, 'normal');
                 }
@@ -101,46 +100,59 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onPillarClick, onAlertClick
               setAiLoading(false);
             }}
             disabled={aiLoading}
-            className="btn-primary w-full mb-4"
+            className="btn btn-primary w-full"
           >
             {aiLoading ? (
               <>
-                <div className="loading-spinner mr-2" style={{width: '16px', height: '16px'}}></div>
-                AI MYŚLI...
+                <div className="loading-spinner mr-2"></div>
+                Thinking...
               </>
             ) : (
-              '🤖 AI PRIORYTETY NA DZIŚ'
+              'Get AI Priorities'
             )}
           </button>
         </div>
       )}
 
-      {/* Pillars Grid */}
+      {/* Projects Grid */}
       <div className="mb-8">
-        <h2 className="cyber-h2 mb-4">📊 FIRMOWE FILARY ({data.pillars.length})</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+        <h2 className="heading-2 mb-6">Projects ({data.pillars.length})</h2>
+        <div className="grid grid-cols-2 gap-4">
           {data.pillars.map(pillar => {
             const statusData = getStatusData(pillar);
+            const getStatusColor = () => {
+              switch (statusData.status) {
+                case 'done': return 'var(--success)';
+                case 'in-progress': return 'var(--primary)';
+                case 'stuck': return 'var(--danger)';
+                default: return 'var(--text-secondary)';
+              }
+            };
+
             return (
               <div
                 key={pillar.id}
                 onClick={() => onPillarClick(pillar.id)}
-                className="pillar-card cursor-pointer"
-                data-status={statusData.status}
+                className="card cursor-pointer"
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                  <span style={{ fontWeight: 'bold', fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%', color: 'var(--text-primary)' }}>{pillar.name}</span>
-                  {pillar.ninety_percent_alert && <span style={{ fontSize: '18px' }}>⚠️</span>}
+                <div className="flex justify-between items-start mb-3">
+                  <h3 className="heading-3 flex-1 truncate">{pillar.name}</h3>
+                  {pillar.ninety_percent_alert && (
+                    <span className="status-indicator status-error ml-2">Stuck</span>
+                  )}
                 </div>
 
-                <div style={{ marginTop: 'auto' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
-                    <span style={{ color: statusData.color === 'text-cyber-gold' ? 'var(--cyber-gold)' : statusData.color === 'text-cyber-cyan' ? 'var(--cyber-cyan)' : 'var(--danger)' }}>{pillar.completion}%</span>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="caption">Progress</span>
+                    <span className="small font-medium" style={{ color: getStatusColor() }}>
+                      {pillar.completion}%
+                    </span>
                   </div>
-                  <div className="progress-bar-container">
+                  <div className="progress-container">
                     <div
-                      className="progress-bar-fill"
-                      style={{ width: `${pillar.completion}%` }}
+                      className="progress-fill"
+                      style={{ width: `${pillar.completion}%`, backgroundColor: getStatusColor() }}
                     ></div>
                   </div>
                 </div>
@@ -152,22 +164,23 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onPillarClick, onAlertClick
 
       {/* Sprint Overview */}
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <h3 className="cyber-h3">📅 SPRINT TYDZIEŃ {data.sprint.week}</h3>
-          <span className="cyber-small font-mono glow-magenta" style={{ color: 'var(--cyber-magenta)' }}>{data.sprint.progress.filter(d => d.checked).length}/7</span>
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="heading-3">Sprint Week {data.sprint.week}</h3>
+          <span className="caption font-mono font-medium" style={{ color: 'var(--primary)' }}>
+            {data.sprint.progress.filter(d => d.checked).length}/7 days
+          </span>
         </div>
-        <p className="cyber-body mb-4 italic" style={{ color: 'var(--cyber-cyan)' }}>"{data.sprint.goal}"</p>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '2px' }}>
+        <p className="body mb-4 italic text-center" style={{ color: 'var(--text-secondary)' }}>
+          "{data.sprint.goal}"
+        </p>
+        <div className="flex justify-between gap-1">
           {data.sprint.progress.map((day, idx) => (
             <div
               key={idx}
+              className="h-2 flex-1 rounded transition-all duration-300"
               style={{
-                height: '8px',
-                flex: 1,
-                borderRadius: '4px',
-                transition: 'all 0.3s ease',
-                backgroundColor: day.checked ? 'var(--cyber-magenta)' : 'var(--cyber-mid-gray)',
-                boxShadow: day.checked ? '0 0 8px rgba(255, 0, 255, 0.6)' : 'none'
+                backgroundColor: day.checked ? 'var(--primary)' : 'var(--surface-secondary)',
+                boxShadow: day.checked ? '0 0 4px rgba(0, 122, 255, 0.3)' : 'none'
               }}
             />
           ))}

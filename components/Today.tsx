@@ -56,54 +56,56 @@ const Today: React.FC<TodayProps> = ({ data, onToggleTask, onAddTask, onStartTim
   }, [data.pillars]);
 
   return (
-    <div className="pb-24 pt-4 px-4 max-w-md mx-auto animate-fade-in" style={{ backgroundColor: 'var(--cyber-black)' }}>
-      <h1 className="cyber-h1 mb-6" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span>🎯</span> DZISIAJ
-      </h1>
+    <div className="pb-24 pt-6 px-6 max-w-md mx-auto fade-in" style={{ backgroundColor: 'var(--background)' }}>
+      <div className="mb-8 text-center">
+        <h1 className="heading-1 mb-2">Today</h1>
+        <p className="small">Focus on what matters most</p>
+      </div>
 
       {activeStuckProject && (
-        <div className="mb-8 card glow-magenta" style={{ position: 'relative', overflow: 'hidden', borderColor: 'var(--danger)' }}>
-          <div style={{ position: 'absolute', top: '0', right: '0', padding: '8px', opacity: 0.2, fontSize: '48px' }}>🔥</div>
-          <h2 className="cyber-h2 mb-2" style={{ color: 'var(--danger)' }}>🔴 MUST CLOSE (90% Stuck)</h2>
-          <p className="cyber-body font-bold mb-4" style={{ color: 'var(--text-primary)', fontSize: '18px' }}>{activeStuckProject.name}</p>
+        <div className="mb-8 card" style={{ borderColor: 'var(--danger)' }}>
+          <div className="flex items-start gap-4 mb-4">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: 'rgba(255, 59, 48, 0.1)' }}>
+              <span className="text-2xl">⚠️</span>
+            </div>
+            <div className="flex-1">
+              <h2 className="heading-3 mb-1" style={{ color: 'var(--danger)' }}>Resume Project</h2>
+              <p className="body mb-2">{activeStuckProject.name} is 90% complete</p>
+              <p className="caption">{activeStuckProject.days_stuck} days without progress</p>
+            </div>
+          </div>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+          <div className="space-y-3 mb-6">
             {mustCloseTasks.length > 0 ? mustCloseTasks.map((task, idx) => (
-              <div key={`must-${task.pillarId}-${task.name}-${idx}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                 <button
-                  onClick={() => onToggleTask(task.pillarId, task.name)}
-                  style={{
-                    marginTop: '2px',
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '4px',
-                    border: `2px solid var(--danger)`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    backgroundColor: 'transparent',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 0, 64, 0.1)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  {task.done && <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--danger)', borderRadius: '2px' }} />}
-                </button>
-                <span className="cyber-body" style={{ color: 'var(--text-secondary)' }}>{task.name}</span>
+              <div key={`must-${task.pillarId}-${task.name}-${idx}`} className="flex items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: 'var(--surface-secondary)' }}>
+                <input
+                  type="checkbox"
+                  checked={task.done}
+                  onChange={() => onToggleTask(task.pillarId, task.name)}
+                  className="w-5 h-5 rounded border-2"
+                  style={{ borderColor: 'var(--danger)', accentColor: 'var(--danger)' }}
+                />
+                <span className="body flex-1" style={{ textDecoration: task.done ? 'line-through' : 'none', color: task.done ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
+                  {task.name}
+                </span>
               </div>
-            )) : <p className="cyber-body" style={{ color: 'var(--success)' }}>Wszystkie zadania krytyczne zrobione!</p>}
+            )) : (
+              <div className="text-center py-6">
+                <span className="text-4xl mb-2 block">🎉</span>
+                <p className="body" style={{ color: 'var(--success)' }}>All critical tasks completed!</p>
+              </div>
+            )}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div className="cyber-small" style={{ color: 'var(--danger)', marginBottom: '4px' }}>⏱️ 2h estimated for final push</div>
+          <div className="text-center">
+            <p className="caption mb-4" style={{ color: 'var(--text-secondary)' }}>
+              About 2 hours needed to complete
+            </p>
             <button
               onClick={onStartTimer}
-              className="btn-primary"
-              style={{ background: 'linear-gradient(135deg, var(--danger) 0%, #CC0040 100%)', borderColor: 'var(--danger)', boxShadow: '0 0 20px rgba(255, 0, 64, 0.5)' }}
+              className="btn btn-primary"
             >
-              START 25min FOCUS ⏱️
+              Start Focus Session
             </button>
           </div>
         </div>
@@ -111,92 +113,81 @@ const Today: React.FC<TodayProps> = ({ data, onToggleTask, onAddTask, onStartTim
 
       {!activeStuckProject && (
         <div className="mb-6">
-           <h2 className="cyber-h2 mb-3" style={{ color: 'var(--cyber-gold)' }}>🟡 BUILD TASKS</h2>
-           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <h2 className="heading-2 mb-4">Available Tasks</h2>
+          <div className="space-y-3">
             {otherTasks.map((task, idx) => (
-                <div key={`build-${task.pillarId}-${task.name}-${idx}`} className="card">
-                    <div className="cyber-small mb-1" style={{ color: 'var(--text-muted)' }}>{task.pillarName}</div>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                         <button
-                            onClick={() => onToggleTask(task.pillarId, task.name)}
-                            style={{
-                              marginTop: '2px',
-                              width: '20px',
-                              height: '20px',
-                              borderRadius: '4px',
-                              border: `2px solid var(--cyber-gold)`,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0,
-                              backgroundColor: 'transparent',
-                              cursor: 'pointer',
-                              transition: 'all 0.3s ease'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 215, 0, 0.1)'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                          >
-                            {task.done && <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--cyber-gold)', borderRadius: '2px' }} />}
-                        </button>
-                        <span className="cyber-body" style={{ color: 'var(--text-secondary)' }}>{task.name}</span>
-                    </div>
+              <div key={`build-${task.pillarId}-${task.name}-${idx}`} className="card">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="body mb-1">{task.name}</p>
+                    <p className="caption" style={{ color: 'var(--text-tertiary)' }}>{task.pillarName}</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={task.done}
+                    onChange={() => onToggleTask(task.pillarId, task.name)}
+                    className="w-5 h-5 rounded"
+                    style={{ accentColor: 'var(--primary)' }}
+                  />
                 </div>
+              </div>
             ))}
             {otherTasks.length === 0 && (
-                <div className="empty-state">
-                    <div className="glitch-text">NO ACTIVE TASKS</div>
-                    <p className="cyber-small">Dodaj nowe zadania w Filarach</p>
-                </div>
+              <div className="text-center py-12">
+                <span className="text-4xl mb-4 block">✨</span>
+                <h3 className="heading-3 mb-2">All caught up!</h3>
+                <p className="body" style={{ color: 'var(--text-secondary)' }}>
+                  No tasks available. Add new tasks in Projects.
+                </p>
+              </div>
             )}
-           </div>
+          </div>
         </div>
       )}
 
       {/* Quick Add Task Section */}
-      <div className="mb-6 card glow-cyan">
-        <h3 className="cyber-h3 mb-3" style={{ color: 'var(--cyber-cyan)' }}>➕ SZYBKIE DODANIE ZADANIA</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <select
-            value={selectedPillar}
-            onChange={(e) => setSelectedPillar(Number(e.target.value))}
-            className="select-cyber"
-          >
-            {data.pillars.map(pillar => (
-              <option key={pillar.id} value={pillar.id}>
-                {pillar.name} ({pillar.completion}%)
-              </option>
-            ))}
-          </select>
+      <div className="mb-6 card">
+        <h3 className="heading-3 mb-4">Add New Task</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="caption block mb-2">Project</label>
+            <select
+              value={selectedPillar}
+              onChange={(e) => setSelectedPillar(Number(e.target.value))}
+              className="select"
+              style={{ width: '100%' }}
+            >
+              {data.pillars.map(pillar => (
+                <option key={pillar.id} value={pillar.id}>
+                  {pillar.name} ({pillar.completion}% complete)
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div>
+            <label className="caption block mb-2">Task Name</label>
             <input
               type="text"
-              placeholder="Nowe zadanie na dziś..."
+              placeholder="What needs to be done?"
               value={newTaskText}
               onChange={(e) => setNewTaskText(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && addQuickTask()}
-              className="input-cyber"
-              style={{ flex: 1 }}
+              className="input"
+              style={{ width: '100%' }}
             />
-            <button
-              onClick={addQuickTask}
-              disabled={!newTaskText.trim()}
-              className="btn-secondary"
-            >
-              ➕ Dodaj
-            </button>
           </div>
+
+          <button
+            onClick={addQuickTask}
+            disabled={!newTaskText.trim()}
+            className="btn btn-primary"
+            style={{ width: '100%' }}
+          >
+            Add Task
+          </button>
         </div>
       </div>
-
-      {activeStuckProject && (
-        <div className="card glow-gold" style={{ textAlign: 'center', borderColor: 'var(--warning)' }}>
-            <p className="cyber-body mb-2" style={{ color: 'var(--warning)' }}>⚠️ PRIORYTET</p>
-            <p className="cyber-small" style={{ color: 'var(--warning)' }}>
-              "{activeStuckProject.name}" jest prawie gotowy (90%+). Rozważ dokończenie go najpierw!
-            </p>
-        </div>
-      )}
     </div>
   );
 };
