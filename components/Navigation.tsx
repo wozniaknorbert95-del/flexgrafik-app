@@ -10,47 +10,55 @@ interface NavigationProps {
 const Navigation: React.FC<NavigationProps> = ({ currentView, setView, stuckCount }) => {
   const getButtonClass = (view: ViewState) => {
     const isActive = currentView === view;
-    return `flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
-      isActive ? 'text-cyber-magenta' : 'text-gray-500 hover:text-gray-300'
-    }`;
+    return `nav-button ${isActive ? 'active' : ''}`;
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-cyber-dark border-t border-gray-800 z-50 px-2 shadow-lg">
-      <div className="flex justify-between items-center h-full max-w-md mx-auto">
+    <nav className="bottom-nav">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%', maxWidth: '28rem', margin: '0 auto', padding: '0 8px' }}>
         <button onClick={() => setView('home')} className={getButtonClass('home')}>
-          <span className="text-xl">🏠</span>
-          <span className="text-[10px] font-medium tracking-wider">HOME</span>
+          <span style={{ fontSize: '20px' }}>🏠</span>
+          <span style={{ fontSize: '10px', fontWeight: '500', letterSpacing: '0.1em' }}>HOME</span>
         </button>
         <button onClick={() => setView('today')} className={getButtonClass('today')}>
-          <span className="text-xl">🎯</span>
-          <span className="text-[10px] font-medium tracking-wider">TODAY</span>
+          <span style={{ fontSize: '20px' }}>🎯</span>
+          <span style={{ fontSize: '10px', fontWeight: '500', letterSpacing: '0.1em' }}>TODAY</span>
         </button>
         <button
           onClick={() => setView('finish')}
-          className={`${getButtonClass('finish')} relative`}
+          className={getButtonClass('finish')}
+          style={{ position: 'relative' }}
         >
-          <span className="text-xl">🔥</span>
-          <span className="text-[10px] font-medium tracking-wider">FINISH</span>
+          <span style={{ fontSize: '20px' }}>🔥</span>
+          <span style={{ fontSize: '10px', fontWeight: '500', letterSpacing: '0.1em' }}>FINISH</span>
           {stuckCount > 0 && (
-            <span className="absolute top-1 right-4 w-2 h-2 bg-cyber-red rounded-full animate-pulse" />
+            <span style={{
+              position: 'absolute',
+              top: '4px',
+              right: '16px',
+              width: '8px',
+              height: '8px',
+              backgroundColor: 'var(--danger)',
+              borderRadius: '50%',
+              animation: 'pulse-magenta 2s infinite'
+            }} />
           )}
         </button>
         <button onClick={() => setView('sprint')} className={getButtonClass('sprint')}>
-          <span className="text-xl">📅</span>
-          <span className="text-[10px] font-medium tracking-wider">SPRINT</span>
+          <span style={{ fontSize: '20px' }}>📅</span>
+          <span style={{ fontSize: '10px', fontWeight: '500', letterSpacing: '0.1em' }}>SPRINT</span>
         </button>
         <button onClick={() => setView('settings')} className={getButtonClass('settings')}>
-          <span className="text-xl">⚙️</span>
-          <span className="text-[10px] font-medium tracking-wider">SETTINGS</span>
+          <span style={{ fontSize: '20px' }}>⚙️</span>
+          <span style={{ fontSize: '10px', fontWeight: '500', letterSpacing: '0.1em' }}>SETTINGS</span>
         </button>
         <button onClick={() => setView('rules')} className={getButtonClass('rules')}>
-          <span className="text-xl">📋</span>
-          <span className="text-[10px] font-medium tracking-wider">RULES</span>
+          <span style={{ fontSize: '20px' }}>📋</span>
+          <span style={{ fontSize: '10px', fontWeight: '500', letterSpacing: '0.1em' }}>RULES</span>
         </button>
         <button onClick={() => setView('ai_coach')} className={getButtonClass('ai_coach')}>
-          <span className="text-xl">🤖</span>
-          <span className="text-[10px] font-medium tracking-wider">AI COACH</span>
+          <span style={{ fontSize: '20px' }}>🤖</span>
+          <span style={{ fontSize: '10px', fontWeight: '500', letterSpacing: '0.1em' }}>AI COACH</span>
         </button>
       </div>
     </nav>

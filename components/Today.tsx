@@ -56,36 +56,52 @@ const Today: React.FC<TodayProps> = ({ data, onToggleTask, onAddTask, onStartTim
   }, [data.pillars]);
 
   return (
-    <div className="pb-24 pt-4 px-4 max-w-md mx-auto animate-fade-in">
-      <h1 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+    <div className="pb-24 pt-4 px-4 max-w-md mx-auto animate-fade-in" style={{ backgroundColor: 'var(--cyber-black)' }}>
+      <h1 className="cyber-h1 mb-6" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span>🎯</span> DZISIAJ
       </h1>
 
       {activeStuckProject && (
-        <div className="mb-8 border border-cyber-red bg-red-950/30 rounded-lg p-4 relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-2 opacity-20 text-6xl">🔥</div>
-          <h2 className="text-cyber-red font-bold text-sm uppercase tracking-wider mb-2">🔴 MUST CLOSE (90% Stuck)</h2>
-          <p className="text-white font-bold text-lg mb-4">{activeStuckProject.name}</p>
+        <div className="mb-8 card glow-magenta" style={{ position: 'relative', overflow: 'hidden', borderColor: 'var(--danger)' }}>
+          <div style={{ position: 'absolute', top: '0', right: '0', padding: '8px', opacity: 0.2, fontSize: '48px' }}>🔥</div>
+          <h2 className="cyber-h2 mb-2" style={{ color: 'var(--danger)' }}>🔴 MUST CLOSE (90% Stuck)</h2>
+          <p className="cyber-body font-bold mb-4" style={{ color: 'var(--text-primary)', fontSize: '18px' }}>{activeStuckProject.name}</p>
           
-          <div className="space-y-3 mb-6">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
             {mustCloseTasks.length > 0 ? mustCloseTasks.map((task, idx) => (
-              <div key={`must-${task.pillarId}-${task.name}-${idx}`} className="flex items-start gap-3">
-                 <button 
+              <div key={`must-${task.pillarId}-${task.name}-${idx}`} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                 <button
                   onClick={() => onToggleTask(task.pillarId, task.name)}
-                  className="mt-0.5 w-5 h-5 rounded border border-cyber-red flex items-center justify-center flex-shrink-0 hover:bg-red-900/50"
+                  style={{
+                    marginTop: '2px',
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '4px',
+                    border: `2px solid var(--danger)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 0, 64, 0.1)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  {task.done && <div className="w-3 h-3 bg-cyber-red rounded-sm" />}
+                  {task.done && <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--danger)', borderRadius: '2px' }} />}
                 </button>
-                <span className="text-gray-200 text-sm">{task.name}</span>
+                <span className="cyber-body" style={{ color: 'var(--text-secondary)' }}>{task.name}</span>
               </div>
-            )) : <p className="text-green-400 text-sm">Wszystkie zadania krytyczne zrobione!</p>}
+            )) : <p className="cyber-body" style={{ color: 'var(--success)' }}>Wszystkie zadania krytyczne zrobione!</p>}
           </div>
 
-          <div className="flex flex-col gap-2">
-            <div className="text-xs text-red-300 mb-1">⏱️ 2h estimated for final push</div>
-            <button 
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="cyber-small" style={{ color: 'var(--danger)', marginBottom: '4px' }}>⏱️ 2h estimated for final push</div>
+            <button
               onClick={onStartTimer}
-              className="bg-cyber-red text-black font-bold py-3 rounded shadow-[0_0_15px_rgba(239,68,68,0.4)] hover:scale-[1.02] transition-transform active:scale-95"
+              className="btn-primary"
+              style={{ background: 'linear-gradient(135deg, var(--danger) 0%, #CC0040 100%)', borderColor: 'var(--danger)', boxShadow: '0 0 20px rgba(255, 0, 64, 0.5)' }}
             >
               START 25min FOCUS ⏱️
             </button>
@@ -95,25 +111,41 @@ const Today: React.FC<TodayProps> = ({ data, onToggleTask, onAddTask, onStartTim
 
       {!activeStuckProject && (
         <div className="mb-6">
-           <h2 className="text-cyber-gold font-bold text-sm uppercase tracking-wider mb-3">🟡 BUILD TASKS</h2>
-           <div className="space-y-4">
+           <h2 className="cyber-h2 mb-3" style={{ color: 'var(--cyber-gold)' }}>🟡 BUILD TASKS</h2>
+           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {otherTasks.map((task, idx) => (
-                <div key={`build-${task.pillarId}-${task.name}-${idx}`} className="bg-cyber-panel border border-gray-800 p-4 rounded-lg">
-                    <div className="text-xs text-gray-500 mb-1">{task.pillarName}</div>
-                    <div className="flex items-start gap-3">
-                         <button 
+                <div key={`build-${task.pillarId}-${task.name}-${idx}`} className="card">
+                    <div className="cyber-small mb-1" style={{ color: 'var(--text-muted)' }}>{task.pillarName}</div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                         <button
                             onClick={() => onToggleTask(task.pillarId, task.name)}
-                            className="mt-0.5 w-5 h-5 rounded border border-cyber-gold flex items-center justify-center flex-shrink-0"
-                            >
-                            {task.done && <div className="w-3 h-3 bg-cyber-gold rounded-sm" />}
+                            style={{
+                              marginTop: '2px',
+                              width: '20px',
+                              height: '20px',
+                              borderRadius: '4px',
+                              border: `2px solid var(--cyber-gold)`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                              backgroundColor: 'transparent',
+                              cursor: 'pointer',
+                              transition: 'all 0.3s ease'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 215, 0, 0.1)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                          >
+                            {task.done && <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--cyber-gold)', borderRadius: '2px' }} />}
                         </button>
-                        <span className="text-gray-200">{task.name}</span>
+                        <span className="cyber-body" style={{ color: 'var(--text-secondary)' }}>{task.name}</span>
                     </div>
                 </div>
             ))}
             {otherTasks.length === 0 && (
-                <div className="text-center py-10 text-gray-500">
-                    Brak aktywnych zadań. Dodaj nowe w Filarach.
+                <div className="empty-state">
+                    <div className="glitch-text">NO ACTIVE TASKS</div>
+                    <p className="cyber-small">Dodaj nowe zadania w Filarach</p>
                 </div>
             )}
            </div>
@@ -121,13 +153,13 @@ const Today: React.FC<TodayProps> = ({ data, onToggleTask, onAddTask, onStartTim
       )}
 
       {/* Quick Add Task Section */}
-      <div className="mb-6 bg-cyber-panel border border-gray-800 rounded-lg p-4">
-        <h3 className="text-cyber-gold font-bold text-sm uppercase tracking-wider mb-3">➕ SZYBKIE DODANIE ZADANIA</h3>
-        <div className="flex flex-col gap-3">
+      <div className="mb-6 card glow-cyan">
+        <h3 className="cyber-h3 mb-3" style={{ color: 'var(--cyber-cyan)' }}>➕ SZYBKIE DODANIE ZADANIA</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <select
             value={selectedPillar}
             onChange={(e) => setSelectedPillar(Number(e.target.value))}
-            className="bg-cyber-dark border border-gray-700 rounded px-3 py-2 text-gray-200 text-sm focus:border-cyber-cyan focus:outline-none"
+            className="select-cyber"
           >
             {data.pillars.map(pillar => (
               <option key={pillar.id} value={pillar.id}>
@@ -136,19 +168,20 @@ const Today: React.FC<TodayProps> = ({ data, onToggleTask, onAddTask, onStartTim
             ))}
           </select>
 
-          <div className="flex gap-2">
+          <div style={{ display: 'flex', gap: '8px' }}>
             <input
               type="text"
               placeholder="Nowe zadanie na dziś..."
               value={newTaskText}
               onChange={(e) => setNewTaskText(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && addQuickTask()}
-              className="flex-1 bg-cyber-dark border border-gray-700 rounded px-3 py-2 text-gray-200 text-sm focus:border-cyber-cyan focus:outline-none"
+              className="input-cyber"
+              style={{ flex: 1 }}
             />
             <button
               onClick={addQuickTask}
               disabled={!newTaskText.trim()}
-              className="bg-cyber-magenta text-black font-bold px-4 py-2 rounded hover:scale-[1.02] transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-secondary"
             >
               ➕ Dodaj
             </button>
@@ -157,9 +190,9 @@ const Today: React.FC<TodayProps> = ({ data, onToggleTask, onAddTask, onStartTim
       </div>
 
       {activeStuckProject && (
-        <div className="bg-yellow-900/30 border border-yellow-600/50 rounded-lg p-4 text-center">
-            <p className="text-yellow-400 text-sm mb-2">⚠️ PRIORYTET</p>
-            <p className="text-xs text-yellow-300">
+        <div className="card glow-gold" style={{ textAlign: 'center', borderColor: 'var(--warning)' }}>
+            <p className="cyber-body mb-2" style={{ color: 'var(--warning)' }}>⚠️ PRIORYTET</p>
+            <p className="cyber-small" style={{ color: 'var(--warning)' }}>
               "{activeStuckProject.name}" jest prawie gotowy (90%+). Rozważ dokończenie go najpierw!
             </p>
         </div>

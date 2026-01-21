@@ -2,41 +2,496 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Cyberpunk theme colors */
+/* =====================================================
+   CYBERPUNK FOUNDATION - FLEXGRAFIK RPG AESTHETIC
+   ===================================================== */
+
 :root {
-  --cyber-black: #050505;
+  /* Primary Cyberpunk Palette */
+  --cyber-black: #000000;
+  --cyber-magenta: #FF00FF;
+  --cyber-cyan: #00FFFF;
+  --cyber-gold: #FFD700;
+  --cyber-dark-gray: #1a1a1a;
+  --cyber-mid-gray: #333333;
+  --cyber-neon-red: #FF0040;
+
+  /* Text Hierarchy */
+  --text-primary: #FFFFFF;
+  --text-secondary: #CCCCCC;
+  --text-muted: #888888;
+
+  /* Semantic Colors */
+  --success: var(--cyber-gold);
+  --warning: var(--cyber-magenta);
+  --danger: var(--cyber-neon-red);
+  --info: var(--cyber-cyan);
+
+  /* Legacy Support */
   --cyber-dark: #0a0a0a;
   --cyber-panel: #121212;
-  --cyber-magenta: #ff00ff;
-  --cyber-cyan: #00ffff;
-  --cyber-gold: #ffd700;
   --cyber-green: #10b981;
   --cyber-red: #ef4444;
   --cyber-gray: #6b7280;
 }
 
+/* =====================================================
+   TYPOGRAPHY - CYBERPUNK FONT HIERARCHY
+   ===================================================== */
+
 body {
   background-color: var(--cyber-black);
-  color: #e5e7eb;
+  color: var(--text-secondary);
   -webkit-tap-highlight-color: transparent;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', 'Rajdhani', 'Orbitron', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
-::-webkit-scrollbar {
-  width: 4px;
+h1, .h1 {
+  font-size: 28px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--cyber-gold);
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+  margin-bottom: 16px;
 }
 
-::-webkit-scrollbar-track {
-  background: var(--cyber-dark);
+h2, .h2 {
+  font-size: 20px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--cyber-cyan);
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+  margin-bottom: 12px;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 2px;
+h3, .h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--cyber-magenta);
+  margin-bottom: 8px;
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+p, .body-text {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.small-text {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* =====================================================
+   NEON GLOW EFFECTS - CYBERPUNK SIGNATURE
+   ===================================================== */
+
+.glow-magenta {
+  box-shadow:
+    0 0 10px rgba(255, 0, 255, 0.4),
+    0 0 20px rgba(255, 0, 255, 0.2),
+    inset 0 0 10px rgba(255, 0, 255, 0.1);
+}
+
+.glow-cyan {
+  box-shadow:
+    0 0 10px rgba(0, 255, 255, 0.4),
+    0 0 20px rgba(0, 255, 255, 0.2);
+}
+
+.glow-gold {
+  box-shadow:
+    0 0 15px rgba(255, 215, 0, 0.6),
+    0 0 30px rgba(255, 215, 0, 0.3);
+}
+
+.glow-magenta:hover {
+  box-shadow:
+    0 0 20px rgba(255, 0, 255, 0.8),
+    0 0 40px rgba(255, 0, 255, 0.4);
+}
+
+.glow-cyan:hover {
+  box-shadow:
+    0 0 20px rgba(0, 255, 255, 0.8),
+    0 0 40px rgba(0, 255, 255, 0.4);
+}
+
+/* =====================================================
+   CARDS & SURFACES - CYBERPUNK CONTAINERS
+   ===================================================== */
+
+.card {
+  background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
+  border: 1px solid rgba(255, 0, 255, 0.3);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 0, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  border-color: rgba(255, 0, 255, 0.6);
+  transform: translateY(-2px);
+}
+
+.pillar-card {
+  background: radial-gradient(circle at top left, #1a1a1a, #000000);
+  border: 2px solid;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.3s ease;
+}
+
+/* Status-based border colors */
+.pillar-card[data-status="done"] {
+  border-color: var(--cyber-gold);
+}
+.pillar-card[data-status="in-progress"] {
+  border-color: var(--cyber-cyan);
+}
+.pillar-card[data-status="stuck"] {
+  border-color: var(--cyber-magenta);
+  animation: pulse-magenta 2s infinite;
+}
+
+/* Animated scanline overlay */
+.pillar-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent,
+    var(--cyber-cyan),
+    transparent
+  );
+  animation: scanline 3s linear infinite;
+  opacity: 0;
+}
+
+.pillar-card:hover::before {
+  opacity: 1;
+}
+
+/* =====================================================
+   BUTTONS - CYBERPUNK CTAs
+   ===================================================== */
+
+.btn-primary {
+  background: linear-gradient(135deg, #FF00FF 0%, #CC00CC 100%);
+  color: #000;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: 2px solid #FF00FF;
+  padding: 12px 24px;
+  border-radius: 4px;
+  box-shadow:
+    0 0 20px rgba(255, 0, 255, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #FF33FF 0%, #FF00FF 100%);
+  box-shadow:
+    0 0 30px rgba(255, 0, 255, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow:
+    0 0 15px rgba(255, 0, 255, 0.6),
+    inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--cyber-cyan);
+  border: 2px solid var(--cyber-cyan);
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-secondary:hover {
+  background: rgba(0, 255, 255, 0.1);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-trophy {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  color: #000;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: 2px solid #FFD700;
+  padding: 12px 24px;
+  border-radius: 4px;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-trophy:hover {
+  background: linear-gradient(135deg, #FFE033 0%, #FFD700 100%);
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.9);
+  transform: translateY(-2px);
+}
+
+/* =====================================================
+   PROGRESS BARS - NEON CYBERPUNK
+   ===================================================== */
+
+.progress-bar-container {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 0, 255, 0.3);
+  border-radius: 4px;
+  height: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg,
+    var(--cyber-magenta) 0%,
+    var(--cyber-cyan) 100%
+  );
+  box-shadow:
+    0 0 10px rgba(255, 0, 255, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: width 0.5s ease;
+  position: relative;
+}
+
+/* Animated shimmer */
+.progress-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+/* =====================================================
+   NAVIGATION - BOTTOM NAV CYBERPUNK
+   ===================================================== */
+
+.bottom-nav {
+  background: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
+  border-top: 2px solid var(--cyber-magenta);
+  box-shadow:
+    0 -4px 20px rgba(255, 0, 255, 0.3),
+    inset 0 1px 0 rgba(255, 0, 255, 0.2);
+  padding: 12px 0;
+}
+
+.nav-button {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  position: relative;
+  padding: 8px;
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-button.active {
+  color: var(--cyber-magenta);
+  text-shadow: 0 0 10px rgba(255, 0, 255, 0.8);
+}
+
+.nav-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  height: 2px;
+  background: var(--cyber-magenta);
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.8);
+}
+
+.nav-button:hover:not(.active) {
+  color: var(--cyber-cyan);
+}
+
+/* =====================================================
+   INPUTS & FORMS - CYBERPUNK FORMS
+   ===================================================== */
+
+.input-cyber {
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(0, 255, 255, 0.3);
+  color: var(--text-primary);
+  padding: 12px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.input-cyber:focus {
+  outline: none;
+  border-color: var(--cyber-cyan);
+  box-shadow:
+    0 0 15px rgba(0, 255, 255, 0.5),
+    inset 0 0 5px rgba(0, 255, 255, 0.2);
+}
+
+.input-cyber::placeholder {
+  color: var(--text-muted);
+}
+
+/* =====================================================
+   LOADING & MICRO-INTERACTIONS
+   ===================================================== */
+
+.loading-spinner {
+  border: 3px solid rgba(255, 0, 255, 0.2);
+  border-top-color: var(--cyber-magenta);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+
+.glitch-text {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--cyber-magenta);
+  text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+  animation: glitch 2s infinite;
+}
+
+/* =====================================================
+   TOAST NOTIFICATIONS - REPLACE ALERT()
+   ===================================================== */
+
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #1a1a1a, #0a0a0a);
+  border: 2px solid var(--cyber-magenta);
+  padding: 16px 24px;
+  border-radius: 8px;
+  box-shadow:
+    0 0 30px rgba(255, 0, 255, 0.6),
+    0 4px 6px rgba(0, 0, 0, 0.5);
+  animation: slideIn 0.3s ease;
+  z-index: 9999;
+  max-width: 300px;
+  color: var(--text-primary);
+}
+
+.toast-success {
+  border-color: var(--cyber-gold);
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+}
+
+.toast-error {
+  border-color: var(--cyber-neon-red);
+  box-shadow: 0 0 30px rgba(255, 0, 64, 0.6);
+}
+
+/* =====================================================
+   ANIMATIONS - CYBERPUNK EFFECTS
+   ===================================================== */
+
+@keyframes scanline {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(200px); }
+}
+
+@keyframes shimmer {
+  100% { left: 100%; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-magenta {
+  0%, 100% {
+    border-color: var(--cyber-magenta);
+    box-shadow: 0 0 10px rgba(255, 0, 255, 0.4);
+  }
+  50% {
+    border-color: #FF33FF;
+    box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+  }
+}
+
+@keyframes glitch {
+  0%, 100% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
 }
 
 @keyframes fadeIn {
@@ -50,6 +505,70 @@ body {
   }
 }
 
+/* =====================================================
+   ACCESSIBILITY & MOBILE
+   ===================================================== */
+
+@media (max-width: 768px) {
+  .h1 { font-size: 24px; }
+  .h2 { font-size: 18px; }
+  .card, .pillar-card {
+    margin: 8px;
+    padding: 12px;
+  }
+}
+
+/* Focus indicators for keyboard navigation */
+.btn-primary:focus,
+.btn-secondary:focus,
+.btn-trophy:focus,
+.input-cyber:focus,
+.nav-button:focus {
+  outline: 2px solid var(--cyber-cyan);
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 4px rgba(0, 255, 255, 0.3),
+    var(--tw-ring-shadows);
+}
+
+/* Ensure minimum touch targets */
+button, .clickable {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* =====================================================
+   SCROLLBAR & UTILITIES
+   ===================================================== */
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--cyber-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 0, 255, 0.5);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 0, 255, 0.8);
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+/* Utility classes */
+.text-cyber-magenta { color: var(--cyber-magenta); }
+.text-cyber-cyan { color: var(--cyber-cyan); }
+.text-cyber-gold { color: var(--cyber-gold); }
+.bg-cyber-dark { background-color: var(--cyber-dark-gray); }
+.border-cyber-magenta { border-color: var(--cyber-magenta); }

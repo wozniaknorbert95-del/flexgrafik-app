@@ -15,12 +15,17 @@ import AICoach from './components/screens/AICoach';
 import { debouncedSave, safeLoad, migrateData } from './utils/storageUtils';
 import { handleError } from './utils/errorHandler';
 import { useDebounce } from './hooks/useDebounce';
+import { useToast } from './hooks/useToast';
+import ToastContainer from './components/ToastContainer';
 
 // Voice notification removed - now handled by centralized utility
 
 const App: React.FC = () => {
   // 1. Initialize with default data immediately to prevent black screen (undefined data)
   const [data, setData] = useState<AppData>(INITIAL_DATA);
+
+  // Toast notification system
+  const { toasts, addToast, removeToast } = useToast();
   const [currentView, setCurrentView] = useState<ViewState>('home');
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -390,7 +395,7 @@ const App: React.FC = () => {
 
     switch (currentView) {
       case 'home':
-        return <Dashboard data={data} onPillarClick={handlePillarClick} onAlertClick={handleAlertClick} />;
+        return <Dashboard data={data} onPillarClick={handlePillarClick} onAlertClick={handleAlertClick} addToast={addToast} />;
       case 'today':
         return <Today
           data={data}
@@ -526,7 +531,7 @@ const App: React.FC = () => {
           onBack={() => setCurrentView('home')}
         />;
       default:
-        return <Dashboard data={data} onPillarClick={handlePillarClick} onAlertClick={handleAlertClick} />;
+        return <Dashboard data={data} onPillarClick={handlePillarClick} onAlertClick={handleAlertClick} addToast={addToast} />;
     }
   };
 
@@ -535,15 +540,17 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-cyber-black text-gray-200 font-sans selection:bg-cyber-magenta selection:text-white pb-safe">
       {renderView()}
-      
+
       {/* Show Nav unless in Finish Mode */}
       {currentView !== 'finish' && (
-        <Navigation 
-          currentView={currentView} 
-          setView={setCurrentView} 
+        <Navigation
+          currentView={currentView}
+          setView={setCurrentView}
           stuckCount={stuckCount}
         />
       )}
+
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 };
