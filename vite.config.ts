@@ -17,10 +17,10 @@ export default defineConfig(({ mode }) => {
         emptyOutDir: true, // Clear output dir before build
         rollupOptions: {
           output: {
-            // Force new hash on every build for cache busting
-            entryFileNames: `assets/[name]-[hash].js`,
-            chunkFileNames: `assets/[name]-[hash].js`,
-            assetFileNames: `assets/[name]-[hash].[ext]`,
+            // FORCE NEW HASH EVERY BUILD - Add timestamp to bust all caches
+            entryFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
+            chunkFileNames: `assets/[name]-[hash]-${Date.now()}.js`,
+            assetFileNames: `assets/[name]-[hash]-${Date.now()}.[ext]`,
             manualChunks: {
               'react-vendor': ['react', 'react-dom']
             }
