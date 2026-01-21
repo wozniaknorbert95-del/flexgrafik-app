@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { AppData } from '../types';
 import { generateDailyPriorities, chatWithAI } from '../services/aiService';
 import { getSystemPrompt } from '../prompts/systemPrompt';
 import { useVoiceNotify } from '../utils/voiceUtils';
 import { withErrorHandling, handleError } from '../utils/errorHandler';
+import { GlassCard } from './ui/GlassCard';
+import { PremiumButton } from './ui/PremiumButton';
+import { ANIMATION_VARIANTS } from '../constants/design';
 
 // Strategy validation and management utilities
 const validateStrategy = (json: unknown): boolean => {
@@ -131,35 +135,63 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
   };
 
   return (
-    <div className="pb-24 pt-4 px-4 max-w-6xl mx-auto animate-fade-in">
-      {/* Glassmorphism Sticky Header */}
-      <div className="sticky top-0 z-20 mb-8 pb-6 backdrop-blur-xl bg-dark-bg bg-opacity-80 border-b-2 border-neon-cyan border-opacity-20">
-        <button
+    <motion.div 
+      className="pb-24 pt-6 px-6 max-w-6xl mx-auto"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      {/* Premium Sticky Header */}
+      <motion.div 
+        className="sticky top-0 z-20 mb-8 pb-6 backdrop-blur-xl bg-[var(--color-background-primary)]/80 border-b border-[var(--color-border-subtle)]"
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4 }}
+      >
+        <PremiumButton
+          variant="ghost"
+          size="sm"
           onClick={onBack}
-          className="inline-flex items-center gap-2 text-neon-cyan hover:text-neon-magenta transition-all hover:scale-105 mb-4 font-bold uppercase tracking-wide"
+          className="mb-4"
         >
-          ← POWRÓT
-        </button>
+          ← BACK
+        </PremiumButton>
         
         {/* Holographic Header */}
-        <h1 className="text-5xl font-extrabold uppercase tracking-wider mb-2 text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan via-neon-magenta to-gold">
+        <h1 className="text-4xl md:text-5xl font-extrabold uppercase tracking-[0.3em] mb-2 text-gradient-gold">
           Settings
         </h1>
-        <p className="text-xs text-gray-500 font-mono uppercase tracking-widest">
+        <p className="text-xs text-[var(--color-text-muted)] font-mono uppercase tracking-[0.3em]">
           /// SYSTEM CONFIGURATION TERMINAL
         </p>
-      </div>
+      </motion.div>
 
       {/* Voice Settings Section - WIDGET GRID */}
-      <div className="mb-12">
+      <motion.div 
+        className="mb-12"
+        variants={ANIMATION_VARIANTS.fadeInUp}
+        initial="initial"
+        animate="animate"
+      >
         {/* Section Header with Gradient */}
-        <h2 className="text-2xl font-extrabold uppercase tracking-wider mb-6 text-transparent bg-clip-text bg-gradient-to-r from-neon-magenta to-neon-cyan">
-          🔊 Voice Notifications
-        </h2>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-1 h-8 bg-gradient-to-b from-[var(--color-accent-magenta)] to-[var(--color-accent-cyan)] rounded-full" />
+          <h2 className="text-2xl font-extrabold uppercase tracking-wider text-gradient-gold">
+            🔊 Voice Notifications
+          </h2>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          variants={ANIMATION_VARIANTS.staggerContainer}
+          initial="initial"
+          animate="animate"
+        >
           {/* Enable/Disable Toggle - WIDGET CARD */}
-          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(255,0,255,0.15)] transition-all duration-300 hover:border-neon-magenta hover:border-opacity-30">
+          <motion.div
+            variants={ANIMATION_VARIANTS.fadeInUp}
+          >
+            <GlassCard variant="hover-glow" glowColor="magenta" className="p-6 h-full">
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">Voice Alerts</h3>
@@ -188,10 +220,12 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
                 {voice.enabled ? 'ACTIVE' : 'INACTIVE'}
               </span>
             </div>
-          </div>
+            </GlassCard>
+          </motion.div>
 
           {/* Volume Slider - WIDGET CARD */}
-          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(0,243,255,0.15)] transition-all duration-300">
+          <motion.div variants={ANIMATION_VARIANTS.fadeInUp}>
+            <GlassCard variant="hover-glow" glowColor="cyan" className="p-6 h-full">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-white uppercase tracking-wide">Volume</h3>
               <span className="text-2xl font-mono font-bold text-neon-cyan">{voice.volume}%</span>
@@ -218,10 +252,12 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
               <span className="text-green-400">OPTIMAL</span>
               <span>MAX</span>
             </div>
-          </div>
+            </GlassCard>
+          </motion.div>
 
           {/* Speed Slider - WIDGET CARD */}
-          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(255,0,255,0.15)] transition-all duration-300">
+          <motion.div variants={ANIMATION_VARIANTS.fadeInUp}>
+            <GlassCard variant="hover-glow" glowColor="magenta" className="p-6 h-full">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-white uppercase tracking-wide">Speech Rate</h3>
               <span className="text-2xl font-mono font-bold text-neon-magenta">{voice.speed.toFixed(1)}x</span>
@@ -249,33 +285,58 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
               <span className="text-neon-cyan">NORMAL</span>
               <span>FAST</span>
             </div>
-          </div>
+            </GlassCard>
+          </motion.div>
 
           {/* Test Button - WIDGET CARD (Spans 2 columns on desktop) */}
-          <div className="md:col-span-2 bg-[#0a0a0a] rounded-3xl p-6 border border-neon-magenta border-opacity-20 hover:shadow-[0_0_25px_rgba(255,0,255,0.25)] transition-all duration-300">
-            <button
-              onClick={handleTestVoice}
-              className="w-full bg-gradient-to-r from-neon-magenta to-neon-cyan hover:scale-[1.02] active:scale-95 text-black font-extrabold py-4 px-6 rounded-2xl transition-all duration-300 uppercase tracking-widest shadow-[0_0_20px_rgba(255,0,255,0.4)]"
-            >
-              🎵 Test Voice Notification
-            </button>
-            <p className="text-xs text-gray-500 mt-3 text-center font-mono uppercase tracking-wider">
-              /// Verify audio output settings
-            </p>
-          </div>
-        </div>
-      </div>
+          <motion.div 
+            className="md:col-span-2"
+            variants={ANIMATION_VARIANTS.fadeInUp}
+          >
+            <GlassCard variant="gradient-border" glowColor="magenta" className="p-6">
+              <PremiumButton
+                variant="primary"
+                size="lg"
+                fullWidth
+                glowColor="magenta"
+                onClick={handleTestVoice}
+              >
+                <span className="text-xl">🎵</span>
+                <span>Test Voice Notification</span>
+              </PremiumButton>
+              <p className="text-xs text-[var(--color-text-muted)] mt-3 text-center font-mono uppercase tracking-wider">
+                /// Verify audio output settings
+              </p>
+            </GlassCard>
+          </motion.div>
+        </motion.div>
+      </motion.div>
 
       {/* AI Coach Settings Section - WIDGET GRID */}
-      <div className="mb-12">
+      <motion.div 
+        className="mb-12"
+        variants={ANIMATION_VARIANTS.fadeInUp}
+        initial="initial"
+        animate="animate"
+        transition={{ delay: 0.1 }}
+      >
         {/* Section Header with Gradient */}
-        <h2 className="text-2xl font-extrabold uppercase tracking-wider mb-6 text-transparent bg-clip-text bg-gradient-to-r from-gold to-neon-magenta">
-          🤖 AI Coach
-        </h2>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-1 h-8 bg-gradient-to-b from-[var(--color-accent-gold)] to-[var(--color-accent-magenta)] rounded-full" />
+          <h2 className="text-2xl font-extrabold uppercase tracking-wider text-gradient-gold">
+            🤖 AI Coach
+          </h2>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          variants={ANIMATION_VARIANTS.staggerContainer}
+          initial="initial"
+          animate="animate"
+        >
           {/* Enable/Disable AI Toggle - WIDGET CARD */}
-          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(255,215,0,0.15)] transition-all duration-300 hover:border-gold border-opacity-30">
+          <motion.div variants={ANIMATION_VARIANTS.fadeInUp}>
+            <GlassCard variant="hover-glow" glowColor="gold" className="p-6 h-full">
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h3 className="text-lg font-bold text-white mb-2 uppercase tracking-wide">AI Assistant</h3>
@@ -283,7 +344,7 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
               </div>
               
               {/* Cyberpunk Toggle Switch */}
-              <button
+              <motion.button
                 onClick={() => onUpdateSettings({
                   ...data.settings,
                   ai: { ...ai, enabled: !ai.enabled }
@@ -293,11 +354,16 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
                     ? 'bg-gold shadow-[0_0_15px_rgba(255,215,0,0.6)]' 
                     : 'bg-gray-700'
                 }`}
+                whileTap={{ scale: 0.95 }}
               >
-                <div className={`w-6 h-6 bg-white rounded-full transition-all duration-300 absolute top-0.5 shadow-lg ${
-                  ai.enabled ? 'translate-x-7' : 'translate-x-0.5'
-                }`} />
-              </button>
+                <motion.div 
+                  className="w-6 h-6 bg-white rounded-full absolute top-0.5 shadow-lg"
+                  animate={{
+                    x: ai.enabled ? 28 : 2
+                  }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                />
+              </motion.button>
             </div>
             
             {/* Status Indicator */}
@@ -307,10 +373,15 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
                 {ai.enabled ? 'ONLINE' : 'OFFLINE'}
               </span>
             </div>
-          </div>
+            </GlassCard>
+          </motion.div>
 
           {/* API Key Input - WIDGET CARD */}
-          <div className="md:col-span-2 bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(255,0,255,0.15)] transition-all duration-300">
+          <motion.div 
+            className="md:col-span-2"
+            variants={ANIMATION_VARIANTS.fadeInUp}
+          >
+            <GlassCard variant="hover-glow" glowColor="magenta" className="p-6">
             <h3 className="text-lg font-bold text-white mb-4 uppercase tracking-wide">Groq API Key</h3>
             
             {/* Cyberpunk Input */}
@@ -330,42 +401,53 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
             <p className="text-xs text-gray-500 font-mono">
               Get free key: <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="text-neon-cyan hover:text-gold transition-colors underline">console.groq.com</a> (30 req/min free tier)
             </p>
-          </div>
+            </GlassCard>
+          </motion.div>
 
           {/* AI Test Button - WIDGET CARD */}
-          <div className="md:col-span-2 bg-[#0a0a0a] rounded-3xl p-6 border border-gold border-opacity-20 hover:shadow-[0_0_25px_rgba(255,215,0,0.25)] transition-all duration-300">
-            <button
-              onClick={async () => {
-                if (!ai.apiKey) {
-                  alert('Add API Key first');
-                  return;
-                }
-                setLoading(true);
-                const response = await withErrorHandling(
-                  () => generateDailyPriorities(data),
-                  {
-                    component: 'Settings',
-                    action: 'testAI',
-                    userMessage: 'Failed to test AI.'
+          <motion.div 
+            className="md:col-span-2"
+            variants={ANIMATION_VARIANTS.fadeInUp}
+          >
+            <GlassCard variant="gradient-border" glowColor="gold" className="p-6">
+              <PremiumButton
+                variant="primary"
+                size="lg"
+                fullWidth
+                glowColor="gold"
+                loading={loading}
+                disabled={!ai.enabled}
+                onClick={async () => {
+                  if (!ai.apiKey) {
+                    alert('Add API Key first');
+                    return;
                   }
-                );
+                  setLoading(true);
+                  const response = await withErrorHandling(
+                    () => generateDailyPriorities(data),
+                    {
+                      component: 'Settings',
+                      action: 'testAI',
+                      userMessage: 'Failed to test AI.'
+                    }
+                  );
 
-                if (response) {
-                  alert(`AI: ${response}`);
-                  if (voice.enabled) {
-                    voiceNotify(response, 'normal');
+                  if (response) {
+                    alert(`AI: ${response}`);
+                    if (voice.enabled) {
+                      voiceNotify(response, 'normal');
+                    }
                   }
-                }
-                setLoading(false);
-              }}
-              disabled={loading || !ai.enabled}
-              className="w-full bg-gradient-to-r from-gold to-neon-magenta hover:scale-[1.02] active:scale-95 disabled:from-gray-700 disabled:to-gray-700 disabled:cursor-not-allowed text-black font-extrabold py-4 px-6 rounded-2xl transition-all duration-300 uppercase tracking-widest shadow-[0_0_20px_rgba(255,215,0,0.4)]"
-            >
-              {loading ? '⏳ AI THINKING...' : '🧪 Test AI Priority Generator'}
-            </button>
-          </div>
-        </div>
-      </div>
+                  setLoading(false);
+                }}
+              >
+                <span className="text-xl">🧪</span>
+                <span>{loading ? 'AI THINKING...' : 'Test AI Priority Generator'}</span>
+              </PremiumButton>
+            </GlassCard>
+          </motion.div>
+        </motion.div>
+      </motion.div>
 
       {/* AI Coach Personality Section - WIDGET GRID */}
       <div className="mb-12">

@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { AppData, Pillar } from '../types';
 import { generateDailyPriorities } from '../services/aiService';
 import { useVoiceNotify } from '../utils/voiceUtils';
 import { handleError, withErrorHandling } from '../utils/errorHandler';
 import { generateDailyPriority } from '../utils/dailyPriority';
-import { Button } from './ui/Button';
+import { PremiumButton } from './ui/PremiumButton';
+import { GlassCard } from './ui/GlassCard';
+import { Skeleton } from './ui/Skeleton';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { ANIMATION_VARIANTS } from '../constants/design';
 
 interface DashboardProps {
   data: AppData;
@@ -18,282 +22,283 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onPillarClick, onAlertClick
   const stuckProjects = data.pillars.filter(p => p.ninety_percent_alert);
   const checkinNeeded = !data.user.last_checkin || new Date(data.user.last_checkin).getDate() !== new Date().getDate();
   const [aiLoading, setAiLoading] = useState(false);
-  const [lastTaskToggle, setLastTaskToggle] = useState<Record<string, number>>({});
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const voiceNotify = useVoiceNotify(data.settings.voice);
 
   // AI-powered daily priority
   const dailyPriority = generateDailyPriority(data);
 
-  // Add keyboard shortcuts for power users
+  // Keyboard shortcuts
   useKeyboardShortcuts([
-    {
-      key: 't',
-      action: () => setView?.('today'),
-      description: 'Go to Today view'
-    },
-    {
-      key: 's',
-      action: () => setView?.('sprint'),
-      description: 'Go to Sprint view'
-    },
-    {
-      key: 'a',
-      action: () => setView?.('ai_coach'),
-      description: 'Open AI Coach'
-    },
-    {
-      key: '?',
-      shiftKey: true,
-      action: () => setShowKeyboardHelp(true),
-      description: 'Show keyboard shortcuts'
-    }
+    { key: 't', action: () => setView?.('today'), description: 'Go to Today view' },
+    { key: 's', action: () => setView?.('sprint'), description: 'Go to Sprint view' },
+    { key: 'a', action: () => setView?.('ai_coach'), description: 'Open AI Coach' },
+    { key: '?', shiftKey: true, action: () => setShowKeyboardHelp(true), description: 'Show shortcuts' }
   ]);
 
   const getStatusColor = (p: Pillar) => {
-    if (p.ninety_percent_alert) return 'border-cyber-red text-cyber-red shadow-[0_0_8px_rgba(239,68,68,0.4)]';
-    if (p.completion === 100) return 'border-cyber-green text-cyber-green';
-    if (p.status === 'in_progress') return 'border-cyber-gold text-cyber-gold';
-    return 'border-gray-700 text-gray-500';
+    if (p.ninety_percent_alert) return { border: 'border-red-500', text: 'text-red-400', glow: 'shadow-[0_0_15px_rgba(239,68,68,0.4)]' };
+    if (p.completion === 100) return { border: 'border-green-500', text: 'text-green-400', glow: '' };
+    if (p.status === 'in_progress') return { border: 'border-[var(--color-accent-gold)]', text: 'text-[var(--color-accent-gold)]', glow: '' };
+    return { border: 'border-gray-700', text: 'text-gray-500', glow: '' };
   };
 
   return (
-    <div className="pb-24 pt-6 px-6 max-w-md mx-auto animate-fade-in" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      {/* Header - Cyberpunk neon gradient */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold uppercase tracking-widest">
-          <span className="text-glow-magenta">Flex</span>
-          <span className="text-glow-cyan">Grafik</span>
+    <motion.div 
+      className="pb-24 pt-6 px-6 max-w-6xl mx-auto"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      {/* Premium Header with Gold Gradient */}
+      <motion.div 
+        className="mb-8"
+        variants={ANIMATION_VARIANTS.fadeInUp}
+        initial="initial"
+        animate="animate"
+      >
+        <h1 className="text-5xl md:text-6xl font-extrabold uppercase tracking-widest mb-3">
+          <span className="text-gradient-gold">FlexGrafik</span>
         </h1>
-        <p className="text-gray-400 text-xs mt-2 uppercase tracking-wide">Accountability OS</p>
-      </div>
+        <p className="text-[var(--color-text-tertiary)] text-sm uppercase tracking-[0.3em] font-medium">
+          Accountability OS • Premium Edition
+        </p>
+      </motion.div>
 
-      {/* Primary CTA - Dominant but not obnoxious */}
-      <div className="mb-6">
-        <Button
+      {/* Primary CTA */}
+      <motion.div 
+        className="mb-8"
+        variants={ANIMATION_VARIANTS.fadeInUp}
+        initial="initial"
+        animate="animate"
+        transition={{ delay: 0.1 }}
+      >
+        <PremiumButton
           variant="primary"
           size="lg"
           fullWidth
-          className="h-14"
+          glowColor="magenta"
           onClick={() => onPillarClick(stuckProjects.length > 0 ? stuckProjects[0].id : data.pillars[0]?.id)}
         >
-          <span className="flex items-center gap-3">
-            <span className="text-2xl">🎯</span>
-            <span>Start Today's Priority</span>
-          </span>
-        </Button>
-      </div>
+          {dailyPriority ? (
+            <>
+              <span className="text-2xl">🎯</span>
+              <span>Today's Priority: {dailyPriority.task.name}</span>
+            </>
+          ) : (
+            <>
+              <span className="text-2xl">⚡</span>
+              <span>Start Your Day</span>
+            </>
+          )}
+        </PremiumButton>
+      </motion.div>
 
-      {/* DAILY PRIORITY AI CARD */}
-      {dailyPriority && (
-        <div className="mb-6 bg-gradient-to-r from-fuchsia-900/20 to-purple-900/20 border border-fuchsia-500/30 rounded-lg p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1">
-              <p className="text-caption text-fuchsia-400 uppercase tracking-wide mb-1">
-                AI Recommended Priority
-              </p>
-              <h3 className="text-h3 text-white mb-2">
-                {dailyPriority.task.name}
-              </h3>
-              <p className="text-caption text-gray-400 mb-1">
-                {dailyPriority.reason}
-              </p>
-              <p className="text-caption text-gray-500">
-                {dailyPriority.pillar.name} • {dailyPriority.task.progress}% complete
-              </p>
+      {/* Alerts Section */}
+      {(stuckProjects.length > 0 || checkinNeeded) && (
+        <motion.div
+          variants={ANIMATION_VARIANTS.fadeInUp}
+          initial="initial"
+          animate="animate"
+          transition={{ delay: 0.2 }}
+          className="mb-8"
+        >
+          <GlassCard variant="gradient-border" glowColor="magenta" className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <motion.div 
+                className="w-3 h-3 rounded-full bg-[var(--color-accent-magenta)]"
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  opacity: [1, 0.5, 1]
+                }}
+                transition={{ 
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              />
+              <h2 className="text-lg font-bold uppercase tracking-wider text-glow-magenta">
+                Active Alerts
+              </h2>
             </div>
-            <Button
+            
+            <motion.div 
+              className="space-y-3"
+              variants={ANIMATION_VARIANTS.staggerContainer}
+              initial="initial"
+              animate="animate"
+            >
+              {stuckProjects.map((project, idx) => (
+                <motion.div
+                  key={project.id}
+                  variants={ANIMATION_VARIANTS.fadeInUp}
+                  className="glass-card p-4 cursor-pointer hover:bg-[var(--color-glass-medium)] transition-all"
+                  onClick={() => onPillarClick(project.id)}
+                  whileHover={{ x: 4 }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">⚠️</span>
+                      <div>
+                        <h3 className="font-semibold text-white">{project.name}</h3>
+                        <p className="text-xs text-[var(--color-text-tertiary)]">
+                          Stuck at {project.completion}% • {project.days_stuck || 0} days
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-red-400">{project.completion}%</div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+              
+              {checkinNeeded && (
+                <motion.div
+                  variants={ANIMATION_VARIANTS.fadeInUp}
+                  className="glass-card p-4 cursor-pointer hover:bg-[var(--color-glass-medium)] transition-all"
+                  onClick={() => onAlertClick('checkin')}
+                  whileHover={{ x: 4 }}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">📋</span>
+                    <div>
+                      <h3 className="font-semibold text-white">Daily Check-in Required</h3>
+                      <p className="text-xs text-[var(--color-text-tertiary)]">
+                        Keep your streak alive
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          </GlassCard>
+        </motion.div>
+      )}
+
+      {/* Projects Grid */}
+      <motion.div
+        variants={ANIMATION_VARIANTS.fadeInUp}
+        initial="initial"
+        animate="animate"
+        transition={{ delay: 0.3 }}
+      >
+        <h2 className="text-xl font-bold uppercase tracking-wider mb-6 text-glow-cyan">
+          Projects
+        </h2>
+        
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          variants={ANIMATION_VARIANTS.staggerContainer}
+          initial="initial"
+          animate="animate"
+        >
+          {data.pillars.map((pillar) => {
+            const status = getStatusColor(pillar);
+            return (
+              <motion.div
+                key={pillar.id}
+                variants={ANIMATION_VARIANTS.fadeInUp}
+              >
+                <GlassCard
+                  variant="hover-glow"
+                  glowColor="cyan"
+                  className={`p-6 cursor-pointer ${status.glow}`}
+                  onClick={() => onPillarClick(pillar.id)}
+                  whileHover={{ y: -4 }}
+                >
+                  {/* Project Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <h3 className="text-lg font-bold text-white uppercase tracking-wide">
+                      {pillar.name}
+                    </h3>
+                    {pillar.ninety_percent_alert && (
+                      <span className="px-2 py-1 rounded-full bg-red-500/20 border border-red-500/50 text-red-400 text-xs font-bold uppercase">
+                        Stuck
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Progress */}
+                  <div className="mb-4">
+                    <div className="flex justify-between items-baseline mb-2">
+                      <span className="text-xs text-[var(--color-text-tertiary)] uppercase tracking-wider">
+                        Progress
+                      </span>
+                      <span className={`text-3xl font-bold ${status.text}`}>
+                        {pillar.completion}%
+                      </span>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div className="h-2 bg-black/50 rounded-full overflow-hidden">
+                      <motion.div
+                        className="h-full bg-gradient-to-r from-[var(--color-accent-cyan)] to-[var(--color-accent-magenta)]"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pillar.completion}%` }}
+                        transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
+                        style={{ 
+                          boxShadow: '0 0 10px var(--color-accent-cyan)'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Tasks Count */}
+                  <div className="flex items-center justify-between text-xs text-[var(--color-text-tertiary)]">
+                    <span>{pillar.tasks.length} tasks</span>
+                    <span className="uppercase tracking-wider">{pillar.status}</span>
+                  </div>
+                </GlassCard>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      </motion.div>
+
+      {/* Keyboard Shortcuts Help Modal */}
+      {showKeyboardHelp && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          onClick={() => setShowKeyboardHelp(false)}
+        >
+          <motion.div
+            className="glass-card p-8 max-w-md w-full"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-2xl font-bold mb-6 text-gradient-gold">Keyboard Shortcuts</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--color-text-secondary)]">Today View</span>
+                <kbd className="px-3 py-1 bg-black/50 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] font-mono">T</kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--color-text-secondary)]">Sprint View</span>
+                <kbd className="px-3 py-1 bg-black/50 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] font-mono">S</kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[var(--color-text-secondary)]">AI Coach</span>
+                <kbd className="px-3 py-1 bg-black/50 rounded border border-[var(--color-accent-cyan)] text-[var(--color-accent-cyan)] font-mono">A</kbd>
+              </div>
+            </div>
+            <PremiumButton
               variant="secondary"
               size="sm"
-              onClick={() => {
-                // Navigate to Today view to work on this task
-                onPillarClick(dailyPriority.pillar.id);
-              }}
-            >
-              Start
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Active Alerts - Glassmorphism with neon border */}
-      {(stuckProjects.length > 0 || checkinNeeded) && (
-        <div className="glass-panel rounded-lg p-4 mb-6 border-2 border-neon-magenta/30">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-neon-magenta animate-pulse border-glow"/>
-            <h2 className="text-sm font-bold text-neon-magenta uppercase tracking-widest">
-              🚨 ACTIVE ALERTS
-            </h2>
-          </div>
-
-          <div className="space-y-2">
-            {stuckProjects.map(p => (
-              <div
-                key={p.id}
-                onClick={() => onAlertClick('stuck', p.id)}
-                className="flex items-start gap-3 py-2 border-l-2 border-red-500/30 pl-3 mb-2 cursor-pointer hover:bg-gray-800/30 transition-colors rounded"
-              >
-                <span className="text-red-400 text-xs font-mono uppercase">STUCK</span>
-                <div className="flex-1">
-                  <p className="text-gray-300 text-sm font-medium">{p.name}</p>
-                  <p className="text-gray-500 text-xs">{p.days_stuck} days without progress</p>
-                </div>
-                <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); onAlertClick('stuck', p.id); }}>
-                  Resume
-                </Button>
-              </div>
-            ))}
-            {checkinNeeded && (
-              <div
-                onClick={() => onAlertClick('checkin')}
-                className="flex items-start gap-3 py-2 border-l-2 border-cyan-500/30 pl-3 cursor-pointer hover:bg-gray-800/30 transition-colors rounded"
-              >
-                <span className="text-cyan-400 text-xs font-mono uppercase">CHECK-IN</span>
-                <div className="flex-1">
-                  <p className="text-gray-300 text-sm font-medium">Complete today's check-in</p>
-                  <p className="text-gray-500 text-xs">Daily progress tracking</p>
-                </div>
-                <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); onAlertClick('checkin'); }}>
-                  Check In
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* AI Priorities Button */}
-      {data.settings.ai?.enabled && data.settings.ai.apiKey && (
-        <div className="mb-8">
-          <Button
-            variant="secondary"
-            size="md"
-            fullWidth
-            loading={aiLoading}
-            onClick={async () => {
-              setAiLoading(true);
-              const priorities = await withErrorHandling(
-                () => generateDailyPriorities(data),
-                {
-                  component: 'Dashboard',
-                  action: 'generateDailyPriorities',
-                  userMessage: 'Could not fetch AI priorities.'
-                }
-              );
-
-              if (priorities) {
-                addToast(`AI Coach: ${priorities}`, 'success');
-                if (data.settings.voice.enabled) {
-                  voiceNotify(priorities, 'normal');
-                }
-              }
-              setAiLoading(false);
-            }}
-          >
-            Get AI Priorities
-          </Button>
-        </div>
-      )}
-
-      {/* Projects - Grid with depth */}
-      <div className="mb-6">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
-          Projects ({data.pillars.length})
-        </h2>
-
-        <div className="grid grid-cols-2 gap-3">
-          {data.pillars.map(pillar => (
-            <div
-              key={pillar.id}
-              onClick={() => onPillarClick(pillar.id)}
-              className="glass-panel rounded-lg p-4 cursor-pointer group transition-all duration-300 hover:border-neon-cyan hover:border-glow-cyan"
-            >
-              <h3 className="text-white font-bold mb-2 group-hover:text-glow-cyan transition-all truncate uppercase tracking-wide text-sm">
-                {pillar.name}
-              </h3>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-3xl font-bold text-gray-500 group-hover:text-neon-cyan transition-colors">
-                  {pillar.completion}%
-                </span>
-                {pillar.ninety_percent_alert && (
-                  <span className="text-xs px-2 py-1 rounded-full bg-gold/10 border border-gold text-gold">
-                    ⚠️ STUCK
-                  </span>
-                )}
-              </div>
-
-              {/* Progress bar with neon glow */}
-              <div className="mt-2 progress-bar">
-                <div
-                  className="progress-bar-fill"
-                  style={{ width: `${pillar.completion}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Sprint Overview */}
-      <div className="bg-gray-900/30 border border-gray-800 rounded-lg p-4">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-h3">Sprint Week {data.sprint.week}</h3>
-          <span className="caption font-mono font-medium" style={{ color: 'var(--color-primary)' }}>
-            {data.sprint.progress.filter(d => d.checked).length}/7 days
-          </span>
-        </div>
-        <p className="text-body mb-4 italic" style={{ color: 'var(--text-secondary)' }}>
-          "{data.sprint.goal}"
-        </p>
-        <div className="flex justify-between gap-1">
-          {data.sprint.progress.map((day, idx) => (
-            <div 
-              key={idx} 
-              className={`h-1.5 flex-1 rounded-full ${day.checked ? 'bg-cyber-magenta shadow-[0_0_5px_#ff00ff]' : 'bg-gray-800'}`}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Keyboard shortcuts indicator */}
-      <div className="fixed bottom-20 right-4 text-caption text-gray-600 pointer-events-none">
-        Press <kbd className="px-2 py-1 bg-gray-800 rounded">?</kbd> for shortcuts
-      </div>
-
-      {/* Keyboard shortcuts help modal */}
-      {showKeyboardHelp && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowKeyboardHelp(false)}>
-          <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-white mb-4">Keyboard Shortcuts</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-300">Go to Today</span>
-                <kbd className="px-2 py-1 bg-gray-800 rounded text-xs">T</kbd>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-300">Go to Sprint</span>
-                <kbd className="px-2 py-1 bg-gray-800 rounded text-xs">S</kbd>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-300">Open AI Coach</span>
-                <kbd className="px-2 py-1 bg-gray-800 rounded text-xs">A</kbd>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-300">Show this help</span>
-                <kbd className="px-2 py-1 bg-gray-800 rounded text-xs">Shift + ?</kbd>
-              </div>
-            </div>
-            <button
+              fullWidth
+              className="mt-6"
               onClick={() => setShowKeyboardHelp(false)}
-              className="mt-4 w-full bg-cyan-600 hover:bg-cyan-700 text-white py-2 px-4 rounded"
             >
               Close
-            </button>
-          </div>
-        </div>
+            </PremiumButton>
+          </motion.div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 };
 
-export default React.memo(Dashboard);
+export default Dashboard;
