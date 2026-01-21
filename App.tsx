@@ -265,6 +265,40 @@ const App: React.FC = () => {
     });
   };
 
+  const handleAddTask = (pillarId: number, taskName: string, taskType: 'build' | 'close' = 'build') => {
+    setData(prev => {
+      const newPillars = prev.pillars.map(p => {
+        if (p.id !== pillarId) return p;
+
+        // Check if task already exists
+        const existingTask = p.tasks.find(t => t.name === taskName);
+        if (existingTask) return p; // Don't add duplicate
+
+        const newTasks = [
+          ...p.tasks,
+          {
+            name: taskName,
+            type: taskType,
+            done: false
+          }
+        ];
+
+        // Recalculate completion
+        const total = newTasks.length;
+        const done = newTasks.filter(t => t.done).length;
+        const completion = total === 0 ? 0 : Math.round((done / total) * 100);
+
+        return {
+          ...p,
+          tasks: newTasks,
+          completion
+        };
+      });
+
+      return { ...prev, pillars: newPillars };
+    });
+  };
+
   const handleSprintDayToggle = (idx: number) => {
     setData(prev => {
       const newProgress = [...prev.sprint.progress];
@@ -358,11 +392,12 @@ const App: React.FC = () => {
       case 'home':
         return <Dashboard data={data} onPillarClick={handlePillarClick} onAlertClick={handleAlertClick} />;
       case 'today':
-        return <Today 
-          data={data} 
-          onToggleTask={handleToggleTask} 
-          onStartTimer={() => setCurrentView('finish')} 
-          isTimerRunning={false} 
+        return <Today
+          data={data}
+          onToggleTask={handleToggleTask}
+          onAddTask={handleAddTask}
+          onStartTimer={() => setCurrentView('finish')}
+          isTimerRunning={false}
         />;
       case 'finish':
         return <FinishMode 

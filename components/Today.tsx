@@ -1,17 +1,29 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AppData, Task } from '../types';
 
 interface TodayProps {
   data: AppData;
   onToggleTask: (pillarId: number, taskName: string) => void;
+  onAddTask: (pillarId: number, taskName: string, taskType?: 'build' | 'close') => void;
   onStartTimer: () => void;
   isTimerRunning: boolean;
 }
 
-const Today: React.FC<TodayProps> = ({ data, onToggleTask, onStartTimer }) => {
+const Today: React.FC<TodayProps> = ({ data, onToggleTask, onAddTask, onStartTimer }) => {
+  // Quick add task state
+  const [newTaskText, setNewTaskText] = useState('');
+  const [selectedPillar, setSelectedPillar] = useState<number>(data.pillars[0]?.id || 1);
+
+  const addQuickTask = () => {
+    if (!newTaskText.trim()) return;
+
+    onAddTask(selectedPillar, newTaskText.trim(), 'build');
+    setNewTaskText('');
+  };
+
   // Logic: Prioritize tasks from >90% projects ("Close" type)
   // If block exists, show block message
-  
+
   const stuckProjects = data.pillars.filter(p => p.ninety_percent_alert);
   const activeStuckProject = stuckProjects.length > 0 ? stuckProjects[0] : null;
 
@@ -107,6 +119,42 @@ const Today: React.FC<TodayProps> = ({ data, onToggleTask, onStartTimer }) => {
            </div>
         </div>
       )}
+
+      {/* Quick Add Task Section */}
+      <div className="mb-6 bg-cyber-panel border border-gray-800 rounded-lg p-4">
+        <h3 className="text-cyber-gold font-bold text-sm uppercase tracking-wider mb-3">➕ SZYBKIE DODANIE ZADANIA</h3>
+        <div className="flex flex-col gap-3">
+          <select
+            value={selectedPillar}
+            onChange={(e) => setSelectedPillar(Number(e.target.value))}
+            className="bg-cyber-dark border border-gray-700 rounded px-3 py-2 text-gray-200 text-sm focus:border-cyber-cyan focus:outline-none"
+          >
+            {data.pillars.map(pillar => (
+              <option key={pillar.id} value={pillar.id}>
+                {pillar.name} ({pillar.completion}%)
+              </option>
+            ))}
+          </select>
+
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Nowe zadanie na dziś..."
+              value={newTaskText}
+              onChange={(e) => setNewTaskText(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && addQuickTask()}
+              className="flex-1 bg-cyber-dark border border-gray-700 rounded px-3 py-2 text-gray-200 text-sm focus:border-cyber-cyan focus:outline-none"
+            />
+            <button
+              onClick={addQuickTask}
+              disabled={!newTaskText.trim()}
+              className="bg-cyber-magenta text-black font-bold px-4 py-2 rounded hover:scale-[1.02] transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ➕ Dodaj
+            </button>
+          </div>
+        </div>
+      </div>
 
       {activeStuckProject && (
         <div className="bg-yellow-900/30 border border-yellow-600/50 rounded-lg p-4 text-center">
