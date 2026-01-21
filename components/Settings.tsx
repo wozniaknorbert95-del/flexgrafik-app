@@ -450,15 +450,30 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
       </motion.div>
 
       {/* AI Coach Personality Section - WIDGET GRID */}
-      <div className="mb-12">
+      <motion.div 
+        className="mb-12"
+        variants={ANIMATION_VARIANTS.fadeInUp}
+        initial="initial"
+        animate="animate"
+        transition={{ delay: 0.2 }}
+      >
         {/* Section Header with Gradient */}
-        <h2 className="text-2xl font-extrabold uppercase tracking-wider mb-6 text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-gold">
-          🎭 AI Personality
-        </h2>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-1 h-8 bg-gradient-to-b from-[var(--color-accent-cyan)] to-[var(--color-accent-gold)] rounded-full" />
+          <h2 className="text-2xl font-extrabold uppercase tracking-wider text-gradient-gold">
+            🎭 AI Personality
+          </h2>
+        </div>
 
-        <div className="grid grid-cols-1 gap-6">
+        <motion.div 
+          className="grid grid-cols-1 gap-6"
+          variants={ANIMATION_VARIANTS.staggerContainer}
+          initial="initial"
+          animate="animate"
+        >
           {/* System Prompt Editor - FULL WIDTH WIDGET */}
-          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(0,243,255,0.15)] transition-all duration-300">
+          <motion.div variants={ANIMATION_VARIANTS.fadeInUp}>
+            <GlassCard variant="hover-glow" glowColor="cyan" className="p-6">
             <h3 className="text-lg font-bold text-white mb-3 uppercase tracking-wide">System Prompt</h3>
             <p className="text-xs text-gray-500 mb-4 font-mono uppercase tracking-wider">
               /// Customize AI behavior and personality
@@ -521,20 +536,33 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
                 {loading ? '⏳ Testing...' : '🧪 Test Prompt'}
               </button>
             </div>
-          </div>
-        </div>
-      </div>
+            </GlassCard>
+          </motion.div>
+        </motion.div>
+      </motion.div>
 
       {/* Strategy Management Section - WIDGET GRID */}
-      <div className="mb-12">
+      <motion.div 
+        className="mb-12"
+        variants={ANIMATION_VARIANTS.fadeInUp}
+        initial="initial"
+        animate="animate"
+        transition={{ delay: 0.1 }}
+      >
         {/* Section Header with Gradient */}
         <h2 className="text-2xl font-extrabold uppercase tracking-wider mb-6 text-transparent bg-clip-text bg-gradient-to-r from-neon-magenta to-neon-cyan">
           📋 Strategy Management
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          variants={ANIMATION_VARIANTS.staggerContainer}
+          initial="initial"
+          animate="animate"
+        >
           {/* Export Strategy - WIDGET CARD */}
-          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(0,243,255,0.15)] transition-all duration-300">
+          <motion.div variants={ANIMATION_VARIANTS.fadeInUp}>
+            <GlassCard variant="hover-glow" glowColor="cyan" className="p-6">
             <h3 className="text-lg font-bold text-white mb-3 uppercase tracking-wide">💾 Export Strategy</h3>
             <p className="text-xs text-gray-500 mb-4 leading-relaxed">
               Download current strategic plan as JSON for backup or editing
@@ -569,10 +597,12 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
             >
               💾 Export JSON
             </button>
-          </div>
+            </GlassCard>
+          </motion.div>
 
           {/* Import Strategy - WIDGET CARD (Spans 2 columns) */}
-          <div className="md:col-span-2 bg-[#0a0a0a] rounded-3xl p-6 border border-red-500 border-opacity-20 hover:shadow-[0_0_20px_rgba(239,68,68,0.15)] transition-all duration-300">
+          <motion.div className="md:col-span-2" variants={ANIMATION_VARIANTS.fadeInUp}>
+            <GlassCard variant="hover-glow" className="p-6" style={{ borderColor: 'rgba(239, 68, 68, 0.3)' }}>
             <h3 className="text-lg font-bold text-white mb-3 uppercase tracking-wide">📥 Import Strategy</h3>
             <p className="text-xs text-red-400 mb-4 font-bold uppercase tracking-wider">
               ⚠️ Warning: This will replace your current plan (irreversible!)
@@ -636,10 +666,12 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
             >
               📥 Import & Replace
             </button>
-          </div>
+            </GlassCard>
+          </motion.div>
 
           {/* Quick Stats - WIDGET CARD */}
-          <div className="md:col-span-2 bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(255,0,255,0.15)] transition-all duration-300">
+          <motion.div className="md:col-span-2" variants={ANIMATION_VARIANTS.fadeInUp}>
+            <GlassCard variant="hover-glow" glowColor="magenta" className="p-6">
             <h3 className="text-lg font-bold text-white mb-4 uppercase tracking-wide">🎯 Quick Stats</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-black/50 rounded-2xl p-4 text-center border border-neon-magenta border-opacity-20 hover:border-neon-magenta border-opacity-50 transition-all">
@@ -659,20 +691,33 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
                 <div className="text-xs text-gray-500 uppercase tracking-wider font-mono">AI Chats</div>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
+            </GlassCard>
+          </motion.div>
+        </motion.div>
+      </motion.div>
 
       {/* Data Management Section - WIDGET GRID */}
-      <div className="mb-12">
+      <motion.div 
+        className="mb-12"
+        variants={ANIMATION_VARIANTS.fadeInUp}
+        initial="initial"
+        animate="animate"
+        transition={{ delay: 0.2 }}
+      >
         {/* Section Header with Gradient */}
         <h2 className="text-2xl font-extrabold uppercase tracking-wider mb-6 text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-neon-cyan">
           💾 Data Management
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          variants={ANIMATION_VARIANTS.staggerContainer}
+          initial="initial"
+          animate="animate"
+        >
           {/* Export Backup - WIDGET CARD */}
-          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(0,243,255,0.15)] transition-all duration-300">
+          <motion.div variants={ANIMATION_VARIANTS.fadeInUp}>
+            <GlassCard variant="hover-glow" glowColor="cyan" className="p-6">
             <button
               onClick={() => {
                 const data = localStorage.getItem('flexgrafik-data');
@@ -690,10 +735,12 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
             >
               💾 Export<br/>Backup
             </button>
-          </div>
+            </GlassCard>
+          </motion.div>
 
           {/* Import Backup - WIDGET CARD */}
-          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-10 hover:shadow-[0_0_20px_rgba(156,163,175,0.15)] transition-all duration-300">
+          <motion.div variants={ANIMATION_VARIANTS.fadeInUp}>
+            <GlassCard variant="hover-glow" glowColor="magenta" className="p-6">
             <label className="block">
               <input
                 type="file"
@@ -723,10 +770,12 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
                 📥 Import<br/>Backup
               </button>
             </label>
-          </div>
+            </GlassCard>
+          </motion.div>
 
           {/* Clear Data - WIDGET CARD */}
-          <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-red-500 border-opacity-20 hover:shadow-[0_0_20px_rgba(239,68,68,0.15)] transition-all duration-300">
+          <motion.div variants={ANIMATION_VARIANTS.fadeInUp}>
+            <GlassCard variant="hover-glow" className="p-6" style={{ borderColor: 'rgba(239, 68, 68, 0.3)' }}>
             <button
               onClick={() => {
                 const confirmed = confirm('Are you sure you want to clear all data? This cannot be undone.');
@@ -739,14 +788,20 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
             >
               🗑️ Clear All<br/>Data
             </button>
-          </div>
-        </div>
-      </div>
+            </GlassCard>
+          </motion.div>
+        </motion.div>
+      </motion.div>
 
       {/* System Info Section */}
-      <div className="mb-12">
+      <motion.div 
+        className="mb-12"
+        variants={ANIMATION_VARIANTS.fadeInUp}
+        initial="initial"
+        animate="animate"
+      >
         {/* System Info - WIDGET CARD */}
-        <div className="bg-[#0a0a0a] rounded-3xl p-6 border border-white border-opacity-5">
+        <GlassCard className="p-6">
           <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-3">ℹ️ System Information</h3>
           <ul className="text-xs text-gray-600 space-y-2 font-mono">
             <li className="flex items-start gap-2">
@@ -766,9 +821,9 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
               <span>Strategies are fully backward compatible</span>
             </li>
           </ul>
-        </div>
-      </div>
-    </div>
+        </GlassCard>
+      </motion.div>
+    </motion.div>
   );
 };
 
