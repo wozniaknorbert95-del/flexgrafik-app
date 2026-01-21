@@ -14,8 +14,13 @@ export default defineConfig(({ mode }) => {
       build: {
         outDir: 'dist',
         sourcemap: false, // Reduce bundle size for production
+        emptyOutDir: true, // Clear output dir before build
         rollupOptions: {
           output: {
+            // Force new hash on every build for cache busting
+            entryFileNames: `assets/[name]-[hash].js`,
+            chunkFileNames: `assets/[name]-[hash].js`,
+            assetFileNames: `assets/[name]-[hash].[ext]`,
             manualChunks: {
               'react-vendor': ['react', 'react-dom']
             }
