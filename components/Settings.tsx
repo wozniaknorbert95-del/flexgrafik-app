@@ -487,6 +487,72 @@ const Settings: React.FC<SettingsProps> = ({ data, onUpdateSettings, onBack }) =
           </div>
         </div>
 
+        {/* Data Management Section */}
+        <h2 className="text-sm font-bold text-gray-300 uppercase tracking-widest mb-4 mt-8">💾 Data Management</h2>
+
+        <div className="space-y-3">
+          <button
+            onClick={() => {
+              const data = localStorage.getItem('flexgrafik-data');
+              if (!data) return;
+
+              const blob = new Blob([data], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `flexgrafik-backup-${new Date().toISOString().split('T')[0]}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="w-full bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-colors"
+          >
+            💾 Export Backup
+          </button>
+
+          <label className="block">
+            <input
+              type="file"
+              accept=".json"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                  try {
+                    const data = JSON.parse(event.target?.result as string);
+                    localStorage.setItem('flexgrafik-data', JSON.stringify(data));
+                    window.location.reload();
+                  } catch (error) {
+                    alert('Invalid backup file');
+                  }
+                };
+                reader.readAsText(file);
+              }}
+              className="hidden"
+            />
+            <button
+              onClick={() => document.querySelector('input[type="file"]')?.click()}
+              className="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+            >
+              📥 Import Backup
+            </button>
+          </label>
+
+          <button
+            onClick={() => {
+              const confirmed = confirm('Are you sure you want to clear all data? This cannot be undone.');
+              if (confirmed) {
+                localStorage.clear();
+                window.location.reload();
+              }
+            }}
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+          >
+            🗑️ Clear All Data
+          </button>
+        </div>
+
         {/* Voice Info */}
         <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-4">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">ℹ️ Informacje</h3>

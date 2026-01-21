@@ -3,6 +3,8 @@ import { AppData, Pillar } from '../types';
 import { generateDailyPriorities } from '../services/aiService';
 import { useVoiceNotify } from '../utils/voiceUtils';
 import { handleError, withErrorHandling } from '../utils/errorHandler';
+import { generateDailyPriority } from '../src/utils/dailyPriority';
+import { Button } from './ui/Button';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 interface DashboardProps {
@@ -19,6 +21,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onPillarClick, onAlertClick
   const [lastTaskToggle, setLastTaskToggle] = useState<Record<string, number>>({});
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const voiceNotify = useVoiceNotify(data.settings.voice);
+
+  // AI-powered daily priority
+  const dailyPriority = generateDailyPriority(data);
 
   // Add keyboard shortcuts for power users
   useKeyboardShortcuts([
@@ -76,6 +81,38 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onPillarClick, onAlertClick
           Start Today's Priority
         </Button>
       </div>
+
+      {/* DAILY PRIORITY AI CARD */}
+      {dailyPriority && (
+        <div className="mb-6 bg-gradient-to-r from-fuchsia-900/20 to-purple-900/20 border border-fuchsia-500/30 rounded-lg p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <p className="text-caption text-fuchsia-400 uppercase tracking-wide mb-1">
+                AI Recommended Priority
+              </p>
+              <h3 className="text-h3 text-white mb-2">
+                {dailyPriority.task.name}
+              </h3>
+              <p className="text-caption text-gray-400 mb-1">
+                {dailyPriority.reason}
+              </p>
+              <p className="text-caption text-gray-500">
+                {dailyPriority.pillar.name} • {dailyPriority.task.progress}% complete
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                // Navigate to Today view to work on this task
+                onPillarClick(dailyPriority.pillar.id);
+              }}
+            >
+              Start
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Alerts Section - Subtle, not aggressive */}
       {(stuckProjects.length > 0 || checkinNeeded) && (
