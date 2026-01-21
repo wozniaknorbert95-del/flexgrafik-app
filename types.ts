@@ -1,9 +1,24 @@
 export type TaskType = 'build' | 'close';
+export type TaskPriority = 'critical' | 'high' | 'medium' | 'low';
+export type TaskStatus = 'not-started' | 'in-progress' | 'near-completion' | 'done';
 
 export interface Task {
+  id: string; // Add unique ID for tracking
   name: string;
-  type: TaskType;
-  done: boolean;
+  type: TaskType; // Keep existing 'build' | 'close'
+
+  // NEW FIELDS - CORE FUNCTIONALITY:
+  progress: number; // 0-100 percentage
+  priority: TaskPriority; // For AI sorting
+  status: TaskStatus; // Auto-calculated from progress
+
+  // OPTIONAL FIELDS:
+  dueDate?: string; // ISO date string
+  createdAt: string; // Track when task was added
+  completedAt?: string; // Track when task finished
+
+  // DEPRECATED (keep for migration):
+  done: boolean; // Will be calculated from progress >= 100
 }
 
 export interface DoneDefinition {

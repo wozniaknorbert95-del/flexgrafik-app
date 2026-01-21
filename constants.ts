@@ -1,4 +1,5 @@
 import { AppData, Pillar, Phase, IfThenRule, Sprint } from './types';
+import { migrateOldTasks } from './utils/migrateData';
 
 const INITIAL_PILLARS: Pillar[] = [
     {
@@ -12,11 +13,11 @@ const INITIAL_PILLARS: Pillar[] = [
         "live": "SEO + analytics + formularze działają",
         "battle": "10 userów przetestowało + feedback"
       },
-      "tasks": [
+      "tasks": migrateOldTasks([
         {"name": "Flexgrafik.nl finalne poprawki", "type": "close", "done": true},
         {"name": "ZZPackage quiz działa", "type": "close", "done": true},
         {"name": "App.flexgrafik opublikowana", "type": "close", "done": true}
-      ]
+      ])
     },
     {
       "id": 2,
@@ -29,12 +30,12 @@ const INITIAL_PILLARS: Pillar[] = [
         "live": "Checkout działa + płatności",
         "battle": "1 testowa transakcja"
       },
-      "tasks": [
+      "tasks": migrateOldTasks([
         {"name": "Opisy pakietów", "type": "build", "done": true},
         {"name": "Pricing table", "type": "build", "done": true},
         {"name": "FAQ sekcja", "type": "close", "done": false},
         {"name": "Test checkout", "type": "close", "done": false}
-      ]
+      ])
     },
     {
       "id": 3,
@@ -47,11 +48,11 @@ const INITIAL_PILLARS: Pillar[] = [
         "live": "Automatyczne email replies",
         "battle": "5 leadów przetestowało flow"
       },
-      "tasks": [
+      "tasks": migrateOldTasks([
         {"name": "Formularz kontaktowy", "type": "build", "done": false},
         {"name": "Email automation", "type": "build", "done": false},
         {"name": "Test flow", "type": "close", "done": false}
-      ]
+      ])
     },
     {
       "id": 4,
@@ -66,13 +67,13 @@ const INITIAL_PILLARS: Pillar[] = [
         "live": "Opublikowana na app.flexgrafik.nl",
         "battle": "10 userów + feedback + 1 iteracja"
       },
-      "tasks": [
+      "tasks": migrateOldTasks([
         {"name": "Backend ranking", "type": "build", "done": true},
         {"name": "Frontend UI", "type": "build", "done": true},
         {"name": "Deploy na hosting", "type": "close", "done": false},
         {"name": "10 test userów", "type": "close", "done": false},
         {"name": "Feedback iteracja", "type": "close", "done": false}
-      ]
+      ])
     },
     {
       "id": 5,
@@ -85,11 +86,11 @@ const INITIAL_PILLARS: Pillar[] = [
         "live": "3 case studies opublikowane + 5 reviews",
         "battle": "Social proof w kampaniach reklamowych"
       },
-      "tasks": [
+      "tasks": migrateOldTasks([
         {"name": "Google Business Profile", "type": "build", "done": false},
         {"name": "Case study template", "type": "build", "done": false},
         {"name": "Zbieranie reviews", "type": "build", "done": false}
-      ]
+      ])
     },
     {
       "id": 6,
@@ -102,11 +103,11 @@ const INITIAL_PILLARS: Pillar[] = [
         "live": "Kampania testowa live",
         "battle": "50 leadów w bazie + 5 konwersji"
       },
-      "tasks": [
+      "tasks": migrateOldTasks([
         {"name": "Quiz interaktywny", "type": "build", "done": false},
         {"name": "Landing page", "type": "build", "done": false},
         {"name": "FB Ads setup", "type": "build", "done": false}
-      ]
+      ])
     },
     {
       "id": 7,
@@ -119,11 +120,11 @@ const INITIAL_PILLARS: Pillar[] = [
         "live": "Migracja na VPS + PostgreSQL",
         "battle": "Tool calling + pgvector działają"
       },
-      "tasks": [
+      "tasks": migrateOldTasks([
         {"name": "Jadzia v1 na VPS", "type": "close", "done": false},
         {"name": "PostgreSQL setup", "type": "close", "done": false},
         {"name": "Tool calling", "type": "close", "done": false}
-      ]
+      ])
     },
     {
       "id": 8,
@@ -136,11 +137,11 @@ const INITIAL_PILLARS: Pillar[] = [
         "live": "Cotygodniowy sprint aktywny",
         "battle": "4 tygodnie bez porzucenia projektu"
       },
-      "tasks": [
+      "tasks": migrateOldTasks([
         {"name": "Setup tablicy", "type": "build", "done": false},
         {"name": "Sprint template", "type": "build", "done": false},
         {"name": "Accountability partner", "type": "build", "done": false}
-      ]
+      ])
     }
 ];
 

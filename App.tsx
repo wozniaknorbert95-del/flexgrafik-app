@@ -12,42 +12,28 @@ import Settings from './components/Settings';
 import Rules from './components/Rules';
 import AICoach from './components/screens/AICoach';
 // Remove top-level notificationCenter import to fix circular dependency
-import { debouncedSave, safeLoad, migrateData } from './utils/storageUtils';
+import { loadAppData, saveAppData } from './utils/storageUtils';
 import { handleError } from './utils/errorHandler';
 import { useDebounce } from './hooks/useDebounce';
-import { useToast } from './hooks/useToast';
-import ToastContainer from './components/ToastContainer';
 
 // Voice notification removed - now handled by centralized utility
 
 const App: React.FC = () => {
   // 1. Initialize with default data immediately to prevent black screen (undefined data)
   const [data, setData] = useState<AppData>(INITIAL_DATA);
-
-  // Toast notification system
-  const { toasts, addToast, removeToast } = useToast();
   const [currentView, setCurrentView] = useState<ViewState>('home');
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [notificationCenter, setNotificationCenter] = useState<any>(null);
   const [lastRuleExecution, setLastRuleExecution] = useState<Record<string, number>>({});
 
-  // 2. Initialize Data Effect (Fix for empty LocalStorage)
+  // 2. Initialize Data Effect (Enhanced with automatic migration)
   useEffect(() => {
     const initializeData = () => {
       try {
-        const loadedData = safeLoad('flexgrafik-data-v1', null);
-
-        if (loadedData) {
-          // Attempt to migrate old data structure if needed
-          const migratedData = migrateData(loadedData);
-          setData(migratedData);
-          console.log("Loaded and migrated data from LocalStorage");
-        } else {
-          // LocalStorage is empty, initialize it
-          console.log("LocalStorage empty. Initializing with default data.");
-          setData(INITIAL_DATA);
-        }
+        const loadedData = loadAppData();
+        setData(loadedData);
+        console.log("✅ App data loaded successfully");
       } catch (error) {
         handleError(error, {
           component: 'App',
@@ -66,7 +52,7 @@ const App: React.FC = () => {
   // 3. Persistence Effect - Only run if loaded to avoid overwriting LS with initial state on mount
   useEffect(() => {
     if (isLoaded) {
-      debouncedSave('flexgrafik-data-v1', data);
+      saveAppData(data);
     }
   }, [data, isLoaded]);
 
@@ -270,40 +256,6 @@ const App: React.FC = () => {
     });
   };
 
-  const handleAddTask = (pillarId: number, taskName: string, taskType: 'build' | 'close' = 'build') => {
-    setData(prev => {
-      const newPillars = prev.pillars.map(p => {
-        if (p.id !== pillarId) return p;
-
-        // Check if task already exists
-        const existingTask = p.tasks.find(t => t.name === taskName);
-        if (existingTask) return p; // Don't add duplicate
-
-        const newTasks = [
-          ...p.tasks,
-          {
-            name: taskName,
-            type: taskType,
-            done: false
-          }
-        ];
-
-        // Recalculate completion
-        const total = newTasks.length;
-        const done = newTasks.filter(t => t.done).length;
-        const completion = total === 0 ? 0 : Math.round((done / total) * 100);
-
-        return {
-          ...p,
-          tasks: newTasks,
-          completion
-        };
-      });
-
-      return { ...prev, pillars: newPillars };
-    });
-  };
-
   const handleSprintDayToggle = (idx: number) => {
     setData(prev => {
       const newProgress = [...prev.sprint.progress];
@@ -395,14 +347,13 @@ const App: React.FC = () => {
 
     switch (currentView) {
       case 'home':
-        return <Dashboard data={data} onPillarClick={handlePillarClick} onAlertClick={handleAlertClick} addToast={addToast} />;
+        return <Dashboard data={data} onPillarClick={handlePillarClick} onAlertClick={handleAlertClick} />;
       case 'today':
-        return <Today
-          data={data}
-          onToggleTask={handleToggleTask}
-          onAddTask={handleAddTask}
-          onStartTimer={() => setCurrentView('finish')}
-          isTimerRunning={false}
+        return <Today 
+          data={data} 
+          onToggleTask={handleToggleTask} 
+          onStartTimer={() => setCurrentView('finish')} 
+          isTimerRunning={false} 
         />;
       case 'finish':
         return <FinishMode 
@@ -531,26 +482,24 @@ const App: React.FC = () => {
           onBack={() => setCurrentView('home')}
         />;
       default:
-        return <Dashboard data={data} onPillarClick={handlePillarClick} onAlertClick={handleAlertClick} addToast={addToast} />;
+        return <Dashboard data={data} onPillarClick={handlePillarClick} onAlertClick={handleAlertClick} />;
     }
   };
 
   const stuckCount = data?.pillars?.filter(p => p.ninety_percent_alert).length || 0;
 
   return (
-    <div className="min-h-screen pb-safe" style={{ backgroundColor: 'var(--background)', color: 'var(--text-primary)', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif' }}>
+    <div className="min-h-screen bg-cyber-black text-gray-200 font-sans selection:bg-cyber-magenta selection:text-white pb-safe">
       {renderView()}
-
+      
       {/* Show Nav unless in Finish Mode */}
       {currentView !== 'finish' && (
-        <Navigation
-          currentView={currentView}
-          setView={setCurrentView}
+        <Navigation 
+          currentView={currentView} 
+          setView={setCurrentView} 
           stuckCount={stuckCount}
         />
       )}
-
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 };

@@ -1,0 +1,101 @@
+/* ═══════════════════════════════════════════════
+   FLEXGRAFIK DESIGN TOKENS - VISUAL HIERARCHY SYSTEM
+   ═══════════════════════════════════════════════ */
+
+:root {
+  /* ─────────────────────────────────────────────
+     COLOR HIERARCHY (Cyberpunk, but controlled)
+     ───────────────────────────────────────────── */
+
+  /* PRIMARY ACTION - Magenta (use sparingly - only 1 per screen) */
+  --color-primary: #ff0080;
+  --color-primary-glow: rgba(255, 0, 128, 0.5);
+  --color-primary-dark: #cc0066;
+
+  /* SECONDARY ACTION - Cyan (supporting actions) */
+  --color-secondary: #00ffff;
+  --color-secondary-glow: rgba(0, 255, 255, 0.3);
+
+  /* TERTIARY/NEUTRAL - Gray (passive elements) */
+  --color-tertiary: #6b7280;
+  --color-tertiary-hover: #9ca3af;
+
+  /* STATUS COLORS (subtle, not aggressive) */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #3b82f6;
+
+  /* BACKGROUNDS */
+  --bg-primary: #000000;
+  --bg-elevated: #0a0a0a;
+  --bg-card: #111111;
+  --bg-hover: #1a1a1a;
+
+  /* TEXT HIERARCHY */
+  --text-primary: #ffffff;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+  --text-muted: #6b7280;
+
+  /* BORDERS */
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-emphasis: rgba(255, 255, 255, 0.2);
+  --border-glow: rgba(0, 255, 255, 0.3);
+
+  /* ─────────────────────────────────────────────
+     TYPOGRAPHY HIERARCHY
+     ───────────────────────────────────────────── */
+
+  /* SIZES (mobile-first) */
+  --text-xs: 0.75rem;    /* 12px */
+  --text-sm: 0.875rem;   /* 14px */
+  --text-base: 1rem;     /* 16px */
+  --text-lg: 1.125rem;   /* 18px */
+  --text-xl: 1.25rem;    /* 20px */
+  --text-2xl: 1.5rem;    /* 24px */
+  --text-3xl: 1.875rem;  /* 30px */
+  --text-4xl: 2.25rem;   /* 36px */
+
+  /* WEIGHTS */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  /* ─────────────────────────────────────────────
+     SPACING SYSTEM (8px base)
+     ───────────────────────────────────────────── */
+
+  --space-1: 0.25rem;  /* 4px */
+  --space-2: 0.5rem;   /* 8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px */
+  --space-6: 1.5rem;   /* 24px */
+  --space-8: 2rem;     /* 32px */
+  --space-12: 3rem;    /* 48px */
+  --space-16: 4rem;    /* 64px */
+
+  /* ─────────────────────────────────────────────
+     COMPONENT SIZES (consistent touch targets)
+     ───────────────────────────────────────────── */
+
+  --size-touch-min: 44px;  /* iOS/Android minimum */
+  --size-input-height: 48px;
+  --size-button-height: 44px;
+
+  /* ─────────────────────────────────────────────
+     EFFECTS
+     ───────────────────────────────────────────── */
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.7);
+  --shadow-glow-primary: 0 0 20px var(--color-primary-glow);
+  --shadow-glow-secondary: 0 0 15px var(--color-secondary-glow);
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+}
