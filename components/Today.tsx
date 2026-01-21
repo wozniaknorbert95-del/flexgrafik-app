@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { AppData, Task } from '../types';
 
 interface TodayProps {
@@ -15,13 +15,33 @@ const Today: React.FC<TodayProps> = ({ data, onToggleTask, onStartTimer }) => {
   const stuckProjects = data.pillars.filter(p => p.ninety_percent_alert);
   const activeStuckProject = stuckProjects.length > 0 ? stuckProjects[0] : null;
 
-  // Flatten tasks logic
-  const allTasks = data.pillars.flatMap(p => 
-    p.tasks.map(t => ({ ...t, pillarId: p.id, pillarName: p.name, isStuck: p.ninety_percent_alert }))
-  );
+  // Memoized task filtering with deduplication
+  const { mustCloseTasks, otherTasks } = useMemo(() => {
+    // Flatten tasks with pillar context
+    const allTasks = data.pillars.flatMap(p =>
+      p.tasks.map(t => ({
+        ...t,
+        pillarId: p.id,
+        pillarName: p.name,
+        isStuck: p.ninety_percent_alert
+      }))
+    );
 
-  const mustCloseTasks = allTasks.filter(t => t.isStuck && !t.done && t.type === 'close');
-  const otherTasks = allTasks.filter(t => !t.isStuck && !t.done).slice(0, 3); // Just show top 3 others if no emergency
+    // Deduplicate tasks by pillarId + taskName to prevent duplicates
+    const uniqueTasks = Array.from(
+      new Map(
+        allTasks.map(task => [`${task.pillarId}-${task.name}`, task])
+      ).values()
+    );
+
+    // Filter for must-close tasks (stuck projects, close type, not done)
+    const mustCloseTasks = uniqueTasks.filter(t => t.isStuck && !t.done && t.type === 'close');
+
+    // Filter for other build tasks (not stuck, not done, limit to 3)
+    const otherTasks = uniqueTasks.filter(t => !t.isStuck && !t.done).slice(0, 3);
+
+    return { mustCloseTasks, otherTasks };
+  }, [data.pillars]);
 
   return (
     <div className="pb-24 pt-4 px-4 max-w-md mx-auto animate-fade-in">
@@ -37,7 +57,7 @@ const Today: React.FC<TodayProps> = ({ data, onToggleTask, onStartTimer }) => {
           
           <div className="space-y-3 mb-6">
             {mustCloseTasks.length > 0 ? mustCloseTasks.map((task, idx) => (
-              <div key={idx} className="flex items-start gap-3">
+              <div key={`must-${task.pillarId}-${task.name}-${idx}`} className="flex items-start gap-3">
                  <button 
                   onClick={() => onToggleTask(task.pillarId, task.name)}
                   className="mt-0.5 w-5 h-5 rounded border border-cyber-red flex items-center justify-center flex-shrink-0 hover:bg-red-900/50"
@@ -66,7 +86,7 @@ const Today: React.FC<TodayProps> = ({ data, onToggleTask, onStartTimer }) => {
            <h2 className="text-cyber-gold font-bold text-sm uppercase tracking-wider mb-3">🟡 BUILD TASKS</h2>
            <div className="space-y-4">
             {otherTasks.map((task, idx) => (
-                <div key={idx} className="bg-cyber-panel border border-gray-800 p-4 rounded-lg">
+                <div key={`build-${task.pillarId}-${task.name}-${idx}`} className="bg-cyber-panel border border-gray-800 p-4 rounded-lg">
                     <div className="text-xs text-gray-500 mb-1">{task.pillarName}</div>
                     <div className="flex items-start gap-3">
                          <button 
@@ -89,9 +109,11 @@ const Today: React.FC<TodayProps> = ({ data, onToggleTask, onStartTimer }) => {
       )}
 
       {activeStuckProject && (
-        <div className="bg-gray-900/50 border border-gray-700 border-dashed rounded-lg p-4 text-center">
-            <p className="text-gray-400 text-sm mb-2">⚠️ BLOKADA</p>
-            <p className="text-xs text-gray-500">Nie możesz dodać nowych zadań dopóki "{activeStuckProject.name}" nie jest BattleDone.</p>
+        <div className="bg-yellow-900/30 border border-yellow-600/50 rounded-lg p-4 text-center">
+            <p className="text-yellow-400 text-sm mb-2">⚠️ PRIORYTET</p>
+            <p className="text-xs text-yellow-300">
+              "{activeStuckProject.name}" jest prawie gotowy (90%+). Rozważ dokończenie go najpierw!
+            </p>
         </div>
       )}
     </div>
