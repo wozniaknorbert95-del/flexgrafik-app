@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>CSS Direct Test</title>
+  <style>
+    :root {
+      --color-primary: #ff0080;
+      --color-secondary: #00ffff;
+    }
+    body {
+      background: #000;
+      color: #fff;
+      font-family: monospace;
+      padding: 20px;
+    }
+    .test-button {
+      background: linear-gradient(to right, #db2777, #c026d3);
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      box-shadow: 0 0 20px rgba(255, 0, 128, 0.5);
+    }
+    .test-neon {
+      color: #00ffff;
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+    }
+  </style>
+</head>
+<body>
+  <h1>Direct CSS Test (No Build System)</h1>
+  <p>This tests if basic styling works without Vite/React.</p>
+
+  <button class="test-button">Test Button (should be magenta gradient)</button>
+
+  <p class="test-neon">Test Neon Text (should glow cyan)</p>
+
+  <hr>
+
+  <h2>CSS Variable Test:</h2>
+  <div id="var-test"></div>
+
+  <script>
+    const root = getComputedStyle(document.documentElement);
+    const primary = root.getPropertyValue('--color-primary');
+    document.getElementById('var-test').innerHTML =
+      `--color-primary = ${primary || 'NOT FOUND'}`;
+  </script>
+</body>
+</html>
