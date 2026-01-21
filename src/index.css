@@ -1,12 +1,12 @@
+/* Import design system FIRST (must precede all other statements) */
+@import './styles/design-tokens.css';
+@import './styles/typography.css';
+@import './styles/accessibility.css';
+
 /* Tailwind directives */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import design system */
-@import './styles/design-tokens.css';
-@import './styles/typography.css';
-@import './styles/accessibility.css';
 
 /* Global resets */
 * {
@@ -62,3 +62,105 @@ body {
 
 /* Remove tap highlight */
 -webkit-tap-highlight-color: transparent;
+
+/* ═══════════════════════════════════════════════
+   CYBERPUNK BASE LAYER - SCANLINES & GLOW EFFECTS
+   ═══════════════════════════════════════════════ */
+
+/* Scanline effect on body */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 255, 255, 0.03) 0px,
+    transparent 2px,
+    transparent 4px,
+    rgba(0, 255, 255, 0.03) 4px
+  );
+  z-index: 9999;
+  animation: scanlines 8s linear infinite;
+}
+
+@keyframes scanlines {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(4px); }
+}
+
+/* Neon text glow utility classes */
+.text-neon-cyan {
+  color: #00ffff;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.8),
+               0 0 20px rgba(0, 255, 255, 0.4);
+}
+
+.text-neon-magenta {
+  color: #ff0080;
+  text-shadow: 0 0 10px rgba(255, 0, 128, 0.8),
+               0 0 20px rgba(255, 0, 128, 0.4);
+}
+
+.text-neon-gold {
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.8),
+               0 0 20px rgba(255, 215, 0, 0.4);
+}
+
+/* Card glow effects */
+.card-glow-cyan {
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.2),
+              inset 0 0 20px rgba(0, 255, 255, 0.05);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+}
+
+.card-glow-magenta {
+  box-shadow: 0 0 20px rgba(255, 0, 128, 0.2),
+              inset 0 0 20px rgba(255, 0, 128, 0.05);
+  border: 1px solid rgba(255, 0, 128, 0.3);
+}
+
+/* Hover intensify effects */
+.hover-glow:hover {
+  filter: brightness(1.2);
+  transform: translateY(-2px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Cyberpunk borders */
+.border-cyber {
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  background: linear-gradient(
+    135deg,
+    rgba(0, 255, 255, 0.05) 0%,
+    transparent 100%
+  );
+}
+
+/* Progress ring animations */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 0, 128, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 0, 128, 0.8);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Dark theme overrides for any default elements */
+.bg-black { background-color: #000000 !important; }
+.text-white { color: #ffffff !important; }
+
+/* Ensure dark background on all containers */
+html, body, #app {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
