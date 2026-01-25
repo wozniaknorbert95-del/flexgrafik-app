@@ -26,6 +26,7 @@ const DashboardPremium: React.FC = () => {
   const [newGoalName, setNewGoalName] = useState('');
   const [newGoalType, setNewGoalType] = useState<'main' | 'secondary' | 'lab'>('secondary');
   const [createError, setCreateError] = useState<string>('');
+  const [showBacklogGoals, setShowBacklogGoals] = useState(false);
 
   // Ideas (PLAN 5.8)
   const [isIdeaCreateOpen, setIsIdeaCreateOpen] = useState(false);
@@ -60,6 +61,40 @@ const DashboardPremium: React.FC = () => {
   const activeGoalsCount = useMemo(() => {
     return data?.pillars?.filter((p) => p.status !== 'done').length || 0;
   }, [data?.pillars]);
+
+  // PLAN 5.2 / D-003: dashboard powinien eksponować max 3 aktywne cele (main/secondary/lab).
+  // Jeśli danych jest więcej (np. stary seed / import), pokazujemy pozostałe jako backlog (ukryte domyślnie),
+  // ale nie kasujemy danych.
+  const goalBuckets = useMemo(() => {
+    const all = Array.isArray(data?.pillars) ? data.pillars : [];
+    const notDone = all.filter((p: any) => p?.status !== 'done');
+    const done = all.filter((p: any) => p?.status === 'done');
+
+    const typeRank = (t: any): number => {
+      if (t === 'main') return 0;
+      if (t === 'secondary') return 1;
+      if (t === 'lab') return 2;
+      return 3;
+    };
+
+    const sorted = [...notDone].sort((a: any, b: any) => {
+      const byType = typeRank(a?.type) - typeRank(b?.type);
+      if (byType !== 0) return byType;
+      const byCompletion = Number(b?.completion ?? 0) - Number(a?.completion ?? 0);
+      if (byCompletion !== 0) return byCompletion;
+      const aMs = new Date(a?.last_activity_date ?? 0).getTime();
+      const bMs = new Date(b?.last_activity_date ?? 0).getTime();
+      return (Number.isFinite(bMs) ? bMs : 0) - (Number.isFinite(aMs) ? aMs : 0);
+    });
+
+    const active = sorted.slice(0, 3);
+    const backlog = sorted.slice(3);
+    return { active, backlog, done };
+  }, [data?.pillars]);
+
+  const activePillarsForDisplay = goalBuckets.active;
+  const backlogPillarsForDisplay = goalBuckets.backlog;
+  const hiddenBacklogCount = backlogPillarsForDisplay.length;
 
   const pillarNameById = useMemo(() => {
     const map = new Map<number, string>();
@@ -570,7 +605,10 @@ const DashboardPremium: React.FC = () => {
             >
               {isCreateOpen ? 'Close' : '➕ New mission'}
             </button>
-            <div className="text-xs text-gray-400">Active goals: {activeGoalsCount}/3</div>
+            <div className="text-xs text-gray-400">
+              Active goals: {activePillarsForDisplay.length}/3
+              {hiddenBacklogCount > 0 ? ` • Backlog: ${hiddenBacklogCount}` : ''}
+            </div>
           </div>
         </div>
 
@@ -648,9 +686,9 @@ const DashboardPremium: React.FC = () => {
           </div>
         )}
 
-        {/* Projects Grid */}
+        {/* Active goals grid (max 3) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data?.pillars?.map((pillar) => (
+          {activePillarsForDisplay.map((pillar) => (
             <motion.button
               key={pillar.id}
               className="glass-card p-12 cursor-pointer text-left w-full hover:scale-105 transition-all duration-300 shadow-xl relative overflow-hidden"
@@ -761,6 +799,45 @@ const DashboardPremium: React.FC = () => {
             </motion.button>
           ))}
         </div>
+
+        {/* Backlog goals (hidden by default) */}
+        {hiddenBacklogCount > 0 && (
+          <div className="mt-6">
+            <button
+              onClick={() => setShowBacklogGoals((v) => !v)}
+              className="px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-gray-200 hover:bg-white/10 text-sm font-bold uppercase tracking-wider"
+            >
+              {showBacklogGoals ? 'Hide backlog' : `Show backlog (${hiddenBacklogCount})`}
+            </button>
+
+            {showBacklogGoals && (
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {backlogPillarsForDisplay.map((pillar: any) => (
+                  <button
+                    key={`backlog_${pillar.id}`}
+                    className="glass-card p-5 text-left hover:bg-white/10 transition-all"
+                    style={{ borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.12)' }}
+                    onClick={() => handlePillarClick(pillar.id)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-white font-bold break-words line-clamp-2">
+                          {String(pillar.name || '').toUpperCase()}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          type: {pillar.type ?? 'secondary'} • status: {pillar.status}
+                        </div>
+                      </div>
+                      <div className="text-sm font-black text-neon-cyan flex-shrink-0">
+                        {Math.round(Number(pillar.completion ?? 0))}%
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </motion.div>
 
       {/* HIERARCHY LEVEL 4: Ideas Vault (PLAN 5.8) */}
