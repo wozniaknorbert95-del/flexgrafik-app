@@ -20,7 +20,7 @@ console.log(distFiles.join('\n'));
 if (fs.existsSync('dist/assets')) {
   console.log('\n📁 ASSETS FOLDER:');
   const assets = fs.readdirSync('dist/assets');
-  assets.forEach(file => {
+  assets.forEach((file) => {
     const filePath = path.join('dist/assets', file);
     const stats = fs.statSync(filePath);
     console.log(`  ${file}: ${(stats.size / 1024).toFixed(2)} KB`);
@@ -32,16 +32,16 @@ console.log('\n📄 INDEX.HTML CSS REFERENCES:');
 const indexHtml = fs.readFileSync('dist/index.html', 'utf-8');
 const cssMatches = indexHtml.match(/href="([^"]*\.css)"/g);
 if (cssMatches) {
-  cssMatches.forEach(match => console.log(`  ${match}`));
+  cssMatches.forEach((match) => console.log(`  ${match}`));
 } else {
   console.log('  ❌ NO CSS LINKS FOUND');
 }
 
 // Check CSS content
-const cssFiles = fs.readdirSync('dist/assets').filter(f => f.endsWith('.css'));
+const cssFiles = fs.readdirSync('dist/assets').filter((f) => f.endsWith('.css'));
 if (cssFiles.length > 0) {
   console.log('\n🎨 CSS FILE ANALYSIS:');
-  cssFiles.forEach(file => {
+  cssFiles.forEach((file) => {
     const cssPath = path.join('dist/assets', file);
     const css = fs.readFileSync(cssPath, 'utf-8');
 

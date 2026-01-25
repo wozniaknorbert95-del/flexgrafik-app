@@ -1,55 +1,187 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pl">
-<head>
+  <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#050505" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="theme-color" content="#ff00ff" />
     <meta name="description" content="AI-powered accountability system for entrepreneurs" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="FlexGrafik" />
     <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🎯</text></svg>">
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🎯</text></svg>"
+    />
     <title>FlexGrafik OS</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
-      body { background-color: #050505; color: #e5e7eb; -webkit-tap-highlight-color: transparent; }
-      ::-webkit-scrollbar { width: 4px; }
-      ::-webkit-scrollbar-track { background: #0a0a0a; }
-      ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
-      .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-      @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+      body {
+        background-color: #050505;
+        color: #e5e7eb;
+        -webkit-tap-highlight-color: transparent;
+      }
+      ::-webkit-scrollbar {
+        width: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0a0a0a;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 2px;
+      }
+      .animate-fade-in {
+        animation: fadeIn 0.3s ease-out;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(5px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
     </style>
-<script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
-</head>
-<body class="pb-safe">
+    <script type="importmap">
+      {
+        "imports": {
+          "react/": "https://esm.sh/react@^19.2.3/",
+          "react": "https://esm.sh/react@^19.2.3",
+          "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+        }
+      }
+    </script>
+  </head>
+  <body class="pb-safe">
     <div id="app" class="min-h-screen relative"></div>
     <!-- Hidden div to ensure Tailwind includes critical classes -->
-    <div class="hidden bg-gradient-to-r from-pink-600 to-fuchsia-600 border-cyan-500 text-cyan-400 shadow-[0_0_20px_rgba(255,0,128,0.5)]"></div>
+    <div
+      class="hidden bg-gradient-to-r from-pink-600 to-fuchsia-600 border-cyan-500 text-cyan-400 shadow-[0_0_20px_rgba(255,0,128,0.5)]"
+    ></div>
 
     <script>
-        // Clear any existing vanilla JS app before React takes over
-        if (window.App) {
-            delete window.App;
+      // Clear any existing vanilla JS app before React takes over
+      if (window.App) {
+        delete window.App;
+      }
+      // Clear the app container to prevent conflicts
+      const appContainer = document.getElementById('app');
+      if (appContainer) {
+        appContainer.innerHTML = '';
+      }
+
+      // ============================================================
+      // SERVICE WORKER REGISTRATION (PWA)
+      // ============================================================
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker
+            .register('/sw.js')
+            .then((registration) => {
+              console.log('✅ Service Worker registered:', registration.scope);
+
+              // Check for updates every hour
+              setInterval(
+                () => {
+                  registration.update();
+                },
+                60 * 60 * 1000
+              );
+
+              // Listen for updates
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                console.log('🔄 Service Worker update found');
+
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    console.log('✨ New Service Worker installed - refresh to update');
+
+                    // Optional: Show update notification
+                    if (confirm('New version available! Reload to update?')) {
+                      newWorker.postMessage({ type: 'SKIP_WAITING' });
+                      window.location.reload();
+                    }
+                  }
+                });
+              });
+            })
+            .catch((error) => {
+              console.error('❌ Service Worker registration failed:', error);
+            });
+
+          // Reload page when new SW takes control
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('🔄 New Service Worker activated');
+            window.location.reload();
+          });
+        });
+      } else {
+        console.warn('⚠️ Service Workers not supported in this browser');
+      }
+
+      // ============================================================
+      // INSTALL PROMPT (A2HS - Add to Home Screen)
+      // ============================================================
+      let deferredPrompt;
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        console.log('💾 Install prompt available');
+        e.preventDefault();
+        deferredPrompt = e;
+
+        // Optional: Show custom install button
+        // showInstallButton();
+      });
+
+      window.addEventListener('appinstalled', () => {
+        console.log('✅ PWA installed successfully');
+        deferredPrompt = null;
+      });
+
+      // Function to trigger install prompt (call from UI button)
+      window.triggerInstallPrompt = async () => {
+        if (!deferredPrompt) {
+          console.log('Install prompt not available');
+          return;
         }
-        // Clear the app container to prevent conflicts
-        const appContainer = document.getElementById('app');
-        if (appContainer) {
-            appContainer.innerHTML = '';
-        }
+
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`Install prompt outcome: ${outcome}`);
+        deferredPrompt = null;
+      };
+
+      // ============================================================
+      // OFFLINE/ONLINE DETECTION
+      // ============================================================
+      window.addEventListener('online', () => {
+        console.log('🌐 Connection restored');
+        // Optional: Show notification or sync data
+      });
+
+      window.addEventListener('offline', () => {
+        console.log('📡 Connection lost - running offline');
+        // Optional: Show offline indicator
+      });
     </script>
-<script type="module" src="/index.tsx"></script>
-</body>
+    <script type="module" src="/index.tsx"></script>
+  </body>
 </html>

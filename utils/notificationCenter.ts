@@ -1,6 +1,8 @@
 import { AppData, NotificationHistory, CustomRule } from '../types';
-import { generateMotivation } from '../services/aiService';
-import { createVoiceNotify } from './voiceUtils';
+// AI motivation temporarily disabled
+// import { generateMotivation } from './aiMotivation';
+// Voice notifications temporarily disabled
+// import { createVoiceNotify } from './voiceUtils';
 import { handleError, safeEvalCondition } from './errorHandler';
 
 // Anti-spam tracking for notifications
@@ -15,7 +17,7 @@ class NotificationCenter {
   constructor(appData: AppData, updateData: (updater: (prev: AppData) => AppData) => void) {
     this.appData = appData;
     this.updateData = updateData;
-    this.voiceNotify = createVoiceNotify(appData.settings.voice);
+    this.voiceNotify = () => {}; // Voice notifications disabled
   }
 
   // Send notification through unified system
@@ -40,12 +42,12 @@ class NotificationCenter {
       timestamp: new Date().toISOString(),
       type,
       message,
-      ruleId
+      ruleId,
     };
 
-    this.updateData(prev => ({
+    this.updateData((prev) => ({
       ...prev,
-      notificationHistory: [notification, ...prev.notificationHistory.slice(0, 49)] // Keep last 50
+      notificationHistory: [notification, ...prev.notificationHistory.slice(0, 49)], // Keep last 50
     }));
 
     // Handle voice notifications
@@ -54,25 +56,18 @@ class NotificationCenter {
       this.voiceNotify(message, priority);
     }
 
-    // Handle AI responses for certain types
-    if (type === 'stuck' && this.appData.settings.ai.enabled && this.appData.settings.ai.apiKey) {
-      // Use error handling wrapper for AI operations
-      setTimeout(async () => {
-        const aiMotivation = await generateMotivation(
-          this.appData.pillars.find(p => p.ninety_percent_alert)?.name || '',
-          this.appData.pillars.find(p => p.ninety_percent_alert)?.days_stuck || 0,
-          this.appData
-        ).catch((error) => {
-          handleError(error, {
-            component: 'NotificationCenter',
-            action: 'generateMotivation',
-            userMessage: '🤖 AI Coach: Wierz w siebie! Masz umiejętności, żeby to dokończyć.',
-            shouldShowToUser: false
-          });
-          return 'Wierz w siebie! Masz umiejętności, żeby to dokończyć.';
-        });
-
-        this.send('ai', `🤖 AI Coach: ${aiMotivation}`, ruleId);
+    // Handle AI responses for certain types (simplified)
+    if (type === 'stuck') {
+      setTimeout(() => {
+        const motivationMessages = [
+          'Wierz w siebie! Masz umiejętności, żeby to dokończyć.',
+          'Jesteś tak blisko! Zrób jeszcze jeden krok.',
+          'Pomyśl o satysfakcji z ukończenia tego zadania.',
+          'Zasługujesz na sukces - do dzieła!',
+        ];
+        const randomMessage =
+          motivationMessages[Math.floor(Math.random() * motivationMessages.length)];
+        this.send('ai', `🤖 AI Coach: ${randomMessage}`, ruleId);
       }, 1000); // Small delay for better UX
     }
 
@@ -94,19 +89,27 @@ class NotificationCenter {
     let message = rule.message;
 
     // Handle AI-generated messages
-    if (rule.action === 'ai_voice' && this.appData.settings.ai.enabled && this.appData.settings.ai.apiKey) {
+    if (
+      rule.action === 'ai_voice' &&
+      this.appData.settings.ai.enabled &&
+      this.appData.settings.ai.apiKey
+    ) {
       const aiPrompt = rule.message.startsWith('AI: ') ? rule.message.substring(4) : rule.message;
 
       message = await generateMotivation(
-        aiPrompt.includes('stuck project') ? this.appData.pillars.find(p => p.ninety_percent_alert)?.name || '' : 'general',
-        aiPrompt.includes('stuck project') ? this.appData.pillars.find(p => p.ninety_percent_alert)?.days_stuck || 0 : 0,
+        aiPrompt.includes('stuck project')
+          ? this.appData.pillars.find((p) => p.ninety_percent_alert)?.name || ''
+          : 'general',
+        aiPrompt.includes('stuck project')
+          ? this.appData.pillars.find((p) => p.ninety_percent_alert)?.days_stuck || 0
+          : 0,
         this.appData
       ).catch((error) => {
         handleError(error, {
           component: 'NotificationCenter',
           action: 'executeRuleAction',
           userMessage: 'Przepraszam, AI jest niedostępne. Spróbuj ponownie później.',
-          shouldShowToUser: false
+          shouldShowToUser: false,
         });
         return 'Przepraszam, AI jest niedostępne. Spróbuj ponownie później.';
       });
@@ -141,7 +144,10 @@ class NotificationCenter {
 // Export singleton factory
 let notificationCenterInstance: NotificationCenter | null = null;
 
-export const getNotificationCenter = (appData: AppData, updateData: (updater: (prev: AppData) => AppData) => void) => {
+export const getNotificationCenter = (
+  appData: AppData,
+  updateData: (updater: (prev: AppData) => AppData) => void
+) => {
   if (!notificationCenterInstance) {
     notificationCenterInstance = new NotificationCenter(appData, updateData);
   }

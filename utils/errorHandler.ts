@@ -20,18 +20,21 @@ export class AppError extends Error {
 
 export const handleError = (error: unknown, context?: ErrorContext): void => {
   // Create standardized error object
-  const appError = error instanceof AppError ? error : new AppError(
-    error instanceof Error ? error.message : 'Unknown error occurred',
-    context,
-    error instanceof Error ? error : undefined
-  );
+  const appError =
+    error instanceof AppError
+      ? error
+      : new AppError(
+          error instanceof Error ? error.message : 'Unknown error occurred',
+          context,
+          error instanceof Error ? error : undefined
+        );
 
   // Log to console in development
   if (process.env.NODE_ENV === 'development') {
     console.error(`[${context?.component || 'Unknown'}] ${context?.action || 'Unknown action'}:`, {
       message: appError.message,
       context: appError.context,
-      originalError: appError.originalError
+      originalError: appError.originalError,
     });
   }
 
@@ -40,8 +43,7 @@ export const handleError = (error: unknown, context?: ErrorContext): void => {
 
   // Show user-friendly message if needed
   if (appError.context?.shouldShowToUser !== false) {
-    const userMessage = appError.context?.userMessage ||
-      getUserFriendlyMessage(appError.message);
+    const userMessage = appError.context?.userMessage || getUserFriendlyMessage(appError.message);
 
     // Use a toast notification instead of alert in the future
     alert(userMessage);
@@ -85,16 +87,20 @@ export const withErrorHandling = async <T>(
 export const safeEvalCondition = (condition: string, context: any): boolean => {
   try {
     // Basic sanitization - prevent dangerous operations
-    if (condition.includes('eval(') ||
-        condition.includes('Function(') ||
-        condition.includes('require(') ||
-        condition.includes('import(')) {
+    if (
+      condition.includes('eval(') ||
+      condition.includes('Function(') ||
+      condition.includes('require(') ||
+      condition.includes('import(')
+    ) {
       throw new Error('Unsafe condition: contains dangerous operations');
     }
 
     // Create safe evaluation function
     const safeEval = new Function(
-      'pillars', 'sprint', 'user',
+      'pillars',
+      'sprint',
+      'user',
       `
       try {
         // Basic validation

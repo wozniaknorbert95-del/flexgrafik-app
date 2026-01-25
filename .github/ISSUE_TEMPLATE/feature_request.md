@@ -21,6 +21,7 @@ A clear description of any alternative solutions or features you've considered.
 Add any other context or screenshots about the feature request here.
 
 **Priority Level** (optional)
+
 - [ ] Low - Nice to have
 - [ ] Medium - Would improve experience
 - [ ] High - Important for workflow

@@ -1,41 +1,85 @@
 {
-  "name": "FlexGrafik Accountability OS",
-  "short_name": "FlexGrafik",
-  "description": "AI-powered accountability system for entrepreneurs",
+  "name": "Mission Control - Special Operations Dashboard",
+  "short_name": "Mission Control",
+  "description": "AI-powered mission planning and accountability system for special operations",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#050505",
-  "theme_color": "#FF00FF",
+  "background_color": "#0a0a0a",
+  "theme_color": "#ff00ff",
   "orientation": "portrait-primary",
   "categories": ["productivity", "business", "utilities"],
+  "lang": "en-US",
+  "dir": "ltr",
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><text y='0.9em' font-size='400' fill='%23FF00FF'>🎯</text></svg>",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%230a0a0a'/><text x='256' y='380' font-size='350' text-anchor='middle' fill='%23ff00ff'>🎯</text></svg>",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><text y='0.9em' font-size='150' fill='%23FF00FF'>🎯</text></svg>",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%230a0a0a'/><text x='96' y='145' font-size='130' text-anchor='middle' fill='%23ff00ff'>🎯</text></svg>",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any"
     }
   ],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'><rect width='540' height='720' fill='%230a0a0a'/><text x='270' y='360' font-size='40' text-anchor='middle' fill='%23ff00ff'>Mission Control Dashboard</text></svg>",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ],
   "shortcuts": [
     {
-      "name": "Dashboard",
+      "name": "Mission Control",
       "short_name": "Home",
-      "description": "Main dashboard",
+      "description": "Main command center dashboard",
       "url": "/",
-      "icons": [{ "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🏠</text></svg>", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect width='96' height='96' fill='%230a0a0a'/><text x='48' y='72' font-size='60' text-anchor='middle' fill='%2300f3ff'>🏠</text></svg>",
+          "sizes": "96x96"
+        }
+      ]
     },
     {
-      "name": "AI Coach",
+      "name": "AI Assistant",
       "short_name": "AI",
-      "description": "Chat with AI Coach",
+      "description": "Strategic AI analysis and recommendations",
       "url": "/?view=ai_coach",
-      "icons": [{ "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🤖</text></svg>", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect width='96' height='96' fill='%230a0a0a'/><text x='48' y='72' font-size='60' text-anchor='middle' fill='%23ffd700'>🤖</text></svg>",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Focus Timer",
+      "short_name": "Timer",
+      "description": "Pomodoro focus session timer",
+      "url": "/?view=timer",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect width='96' height='96' fill='%230a0a0a'/><text x='48' y='72' font-size='60' text-anchor='middle' fill='%23ff00ff'>⏰</text></svg>",
+          "sizes": "96x96"
+        }
+      ]
     }
-  ]
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }

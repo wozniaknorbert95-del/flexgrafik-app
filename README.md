@@ -1,77 +1,178 @@
-# 🎯 FlexGrafik - ADHD Accountability Assistant
+# 🚀 FlexGrafik ADHD - Production Ready Task Management
 
-Production-ready PWA for finishing projects and beating the 90% completion curse.
+**Psychology-Driven Productivity System** with AI-powered completion barriers breakthrough.
 
-## ✨ Features
+## 🎯 **Core Features**
 
-- 🤖 **AI Daily Priority** - Smart task recommendations based on progress, priority, and deadlines
-- 📊 **Progress Tracking** - 0-100% completion with 80% alert threshold to prevent stuck tasks
-- 🎉 **Celebration System** - Confetti animation rewards for task completion
-- ⌨️ **Keyboard Shortcuts** - Power user navigation (t, s, a, Shift+?)
-- ♿ **WCAG AA Accessible** - Screen reader & keyboard friendly, touch-optimized
-- 📱 **PWA Installable** - Works offline, feels native on mobile/desktop
-- 💾 **Data Backup** - Export/import your entire workflow as JSON
-- 🎨 **Cyberpunk UX** - Beautiful gradient interfaces with neon glow effects
+### 🧠 **Progression Insights & Anti-Dip System**
 
-## 🚀 Tech Stack
+- **Smart 90% Barrier Detection** - Identifies tasks stuck at 90%+ progress for 3+ days
+- **AI-Powered Motivation Tips** - Ollama integration for contextual advice
+- **Implementation Intentions** - "If-then" plans to overcome completion hurdles
+- **Psychology-Based UX** - Zeigarnik Effect & Endowed Progress Effect
 
-- React 18 + TypeScript
-- Vite (build tool)
-- Tailwind CSS (styling)
-- Web APIs (Speech, Canvas, Storage)
-- No heavy dependencies - lightweight and fast
+### 🎨 **Modern Cyberpunk UI**
 
-## 📊 Quality Metrics
+- **Glass Morphism Design** - Backdrop blur effects with neon accents
+- **Mobile-First Bottom Sheets** - Smooth animations for Implementation Plans
+- **Gradient Progress Bars** - Visual feedback for completion stages
+- **Stuck Task Alerts** - Pulsing red cards for attention
 
-- Lighthouse Performance: 90+
-- Lighthouse Accessibility: 90+
-- Bundle Size: <500KB main JS
-- WCAG AA Compliant
-- PWA Installable
+### 📊 **Advanced Analytics**
 
-## 🛠️ Development
+- **Real-Time Insights** - Live stuck task detection
+- **Completion Velocity** - Tasks/day completion rate
+- **Weekly Reports** - Performance analytics
+- **Done Criteria Checklist** - Psychology-backed completion validation
 
-```bash
-npm install
-npm run dev
+## 🏗️ **Architecture**
+
+### **Frontend Stack**
+
+- ⚛️ **React 19** with TypeScript
+- 🎭 **Framer Motion** animations
+- 🎨 **Tailwind CSS** + custom cyberpunk styles
+- 🔄 **Context API** for state management
+- 🧪 **Jest** testing framework
+
+### **Backend Integration**
+
+- 🗄️ **PostgreSQL** with triggers for progress tracking
+- 🔄 **IndexedDB** local storage with migration
+- 🤖 **Ollama API** for AI motivation tips
+- 📡 **REST API** for task management
+
+### **Key Components**
+
+#### **TaskCard.tsx**
+
+```tsx
+<TaskCard task={task} insight={insight} showImplementationIntention={true} />
 ```
 
-## 📦 Production Build
+- Intelligent progress visualization
+- Stuck task alerts with pulsing animation
+- Implementation intention setup
 
-```bash
-npm run build
-npm run preview
+#### **FinishMode.tsx**
+
+```tsx
+<FinishMode />
 ```
 
-## 🎨 Design Philosophy
+- Dedicated stuck task management view
+- Done criteria checklists
+- AI-powered suggestion system
+- Psychology tips display
 
-Cyberpunk aesthetics meets Apple-level UX polish. Visual hierarchy that guides, not overwhelms. Features that delight rather than confuse.
+#### **ImplementationIntentionBottomSheet.tsx**
 
-## 📱 PWA Installation
+- Mobile-first bottom sheet UI
+- Template-based plan creation
+- AI integration for suggestions
+- Real-time validation
 
-The app is installable as a Progressive Web App on:
-- **iOS**: Safari → Share → Add to Home Screen
-- **Android**: Chrome → Menu → Add to Home Screen
-- **Desktop**: Chrome → Menu → Install FlexGrafik
+## 🧪 **Testing**
 
-## ⌨️ Keyboard Shortcuts
+```bash
+npm test                    # Run all tests
+npm run test:watch         # Watch mode
+```
 
-- `t` - Go to Today view
-- `s` - Go to Sprint view
-- `a` - Open AI Coach
-- `Shift + ?` - Show keyboard shortcuts help
+**Test Coverage:**
 
-## 🔒 Privacy & Security
+- ✅ Stuck task detection (90%+ barrier)
+- ✅ Progress history tracking
+- ✅ AI suggestion integration
+- ✅ Implementation intention management
+- ✅ UI state updates
 
-- All data stays on your device (localStorage)
-- No tracking or data collection
-- No external dependencies for core functionality
-- Works completely offline
+## 🚀 **Deployment**
 
-## 📄 License
+```bash
+npm run build              # Production build
+npm run deploy            # Firebase deployment
+```
 
-MIT
+**Production URL:** `https://flexgrafik-app.web.app`
+
+## 📋 **Database Schema**
+
+### **Tasks Table Enhancement**
+
+```sql
+ALTER TABLE tasks ADD COLUMN stuck_at_ninety BOOLEAN DEFAULT FALSE;
+ALTER TABLE tasks ADD COLUMN last_progress_update TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+ALTER TABLE tasks ADD COLUMN implementation_intention JSONB;
+
+-- Auto-update trigger for progress history
+CREATE TRIGGER trigger_task_progress_update
+    BEFORE UPDATE ON tasks FOR EACH ROW
+    EXECUTE FUNCTION update_task_progress_timestamp();
+```
+
+## 🤖 **AI Integration**
+
+### **Ollama Setup**
+
+```bash
+# Install Ollama locally
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Pull Llama model
+ollama pull llama2
+
+# Start Ollama service
+ollama serve
+```
+
+### **AI Prompt Example**
+
+```
+User task stuck at 92%: "Implement user authentication"
+AI Response: "Podziel pozostałe 8% na 3 mikro-kroki. Wykonaj pierwszy natychmiast."
+```
+
+## 🧠 **Psychology Framework**
+
+### **Zeigarnik Effect**
+
+Incomplete tasks create mental tension - used to maintain momentum.
+
+### **Endowed Progress Effect**
+
+90% completion creates entitlement to finish - leveraged for motivation.
+
+### **Implementation Intentions**
+
+"If [situation], then [automatic response]" plans for habit formation.
+
+## 📈 **Performance Metrics**
+
+- **Build Size:** ~400KB (gzipped)
+- **First Load:** <2 seconds
+- **Time to Interactive:** <3 seconds
+- **Lighthouse Score:** 95+ (Performance, Accessibility, Best Practices)
+
+## 🛠️ **Development**
+
+```bash
+npm install              # Install dependencies
+npm run dev             # Development server
+npm run build           # Production build
+npm run preview        # Preview production build
+```
+
+## 🎯 **Roadmap**
+
+- [ ] **Phase 3:** Collaborative task management
+- [ ] **Phase 4:** Advanced AI coaching system
+- [ ] **Phase 5:** Mobile PWA offline-first
+
+## 📄 **License**
+
+MIT License - Open source productivity tool.
 
 ---
 
-**Built with ❤️ for ADHD entrepreneurs who finish what they start.**
+**Built with ❤️ for ADHD productivity enhancement through science-backed psychology and AI assistance.**

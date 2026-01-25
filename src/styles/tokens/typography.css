@@ -1,0 +1,406 @@
+/* ============================================================================
+   FLEXGRAFIK ADHD OS - Typography System
+   ============================================================================
+   Consistent font scale, weights, and spacing for optimal readability
+   ============================================================================ */
+
+:root {
+  /* ==========================================================================
+     FONT FAMILIES - Modern, readable fonts with fallbacks
+     ========================================================================== */
+
+  /* Primary Font - Clean, modern sans-serif */
+  --font-family-primary:
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu',
+    'Cantarell', 'Open Sans', 'Helvetica Neue', sans-serif;
+
+  /* Monospace Font - For code, data, and technical content */
+  --font-family-mono:
+    'JetBrains Mono', 'Fira Code', 'Source Code Pro', 'Monaco', 'Consolas', 'Liberation Mono',
+    monospace;
+
+  /* Display Font - For headings and branding (optional) */
+  --font-family-display: 'Inter', var(--font-family-primary);
+
+  /* ==========================================================================
+     FONT SIZES - Consistent scale based on 1rem = 16px
+     ========================================================================== */
+
+  /* Extra Small */
+  --font-size-xs: 0.75rem; /* 12px */
+  --font-size-sm: 0.875rem; /* 14px */
+
+  /* Base sizes */
+  --font-size-base: 1rem; /* 16px */
+  --font-size-lg: 1.125rem; /* 18px */
+
+  /* Large sizes */
+  --font-size-xl: 1.25rem; /* 20px */
+  --font-size-2xl: 1.5rem; /* 24px */
+  --font-size-3xl: 1.875rem; /* 30px */
+  --font-size-4xl: 2.25rem; /* 36px */
+  --font-size-5xl: 3rem; /* 48px */
+
+  /* Extra large sizes */
+  --font-size-6xl: 3.75rem; /* 60px */
+  --font-size-7xl: 4.5rem; /* 72px */
+  --font-size-8xl: 6rem; /* 96px */
+  --font-size-9xl: 8rem; /* 128px */
+
+  /* ==========================================================================
+     LINE HEIGHTS - Optimal readability ratios
+     ========================================================================== */
+
+  /* Tight line heights for UI elements */
+  --line-height-tight: 1.25; /* 125% */
+  --line-height-snug: 1.375; /* 137.5% */
+
+  /* Normal line heights for body text */
+  --line-height-normal: 1.5; /* 150% */
+  --line-height-relaxed: 1.625; /* 162.5% */
+
+  /* Loose line heights for headings */
+  --line-height-loose: 1.75; /* 175% */
+
+  /* ==========================================================================
+     LETTER SPACING - Professional text spacing
+     ========================================================================== */
+
+  /* Tight spacing for uppercase text */
+  --letter-spacing-tighter: -0.05em;
+  --letter-spacing-tight: -0.025em;
+
+  /* Normal spacing */
+  --letter-spacing-normal: 0em;
+
+  /* Wide spacing for emphasis */
+  --letter-spacing-wide: 0.025em;
+  --letter-spacing-wider: 0.05em;
+  --letter-spacing-widest: 0.1em;
+
+  /* ==========================================================================
+     FONT WEIGHTS - Consistent weight scale
+     ========================================================================== */
+
+  /* Light weights */
+  --font-weight-thin: 100;
+  --font-weight-extralight: 200;
+  --font-weight-light: 300;
+
+  /* Normal weights */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+
+  /* Bold weights */
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+  --font-weight-black: 900;
+
+  /* ==========================================================================
+     TEXT TOKENS - Predefined text styles
+     ========================================================================== */
+
+  /* Display Text - Large, prominent headings */
+  --text-display-font-family: var(--font-family-display);
+  --text-display-font-size: var(--font-size-5xl);
+  --text-display-font-weight: var(--font-weight-bold);
+  --text-display-line-height: var(--line-height-tight);
+  --text-display-letter-spacing: var(--letter-spacing-tight);
+
+  /* Headline Text - Section headings */
+  --text-headline-font-family: var(--font-family-primary);
+  --text-headline-font-size: var(--font-size-4xl);
+  --text-headline-font-weight: var(--font-weight-bold);
+  --text-headline-line-height: var(--line-height-tight);
+  --text-headline-letter-spacing: var(--letter-spacing-tight);
+
+  /* Title Text - Component headings */
+  --text-title-font-family: var(--font-family-primary);
+  --text-title-font-size: var(--font-size-3xl);
+  --text-title-font-weight: var(--font-weight-semibold);
+  --text-title-line-height: var(--line-height-tight);
+  --text-title-letter-spacing: var(--letter-spacing-tight);
+
+  /* Subtitle Text - Secondary headings */
+  --text-subtitle-font-family: var(--font-family-primary);
+  --text-subtitle-font-size: var(--font-size-xl);
+  --text-subtitle-font-weight: var(--font-weight-medium);
+  --text-subtitle-line-height: var(--line-height-snug);
+  --text-subtitle-letter-spacing: var(--letter-spacing-normal);
+
+  /* Body Large - Primary body text */
+  --text-body-large-font-family: var(--font-family-primary);
+  --text-body-large-font-size: var(--font-size-lg);
+  --text-body-large-font-weight: var(--font-weight-normal);
+  --text-body-large-line-height: var(--line-height-relaxed);
+  --text-body-large-letter-spacing: var(--letter-spacing-normal);
+
+  /* Body - Standard body text */
+  --text-body-font-family: var(--font-family-primary);
+  --text-body-font-size: var(--font-size-base);
+  --text-body-font-weight: var(--font-weight-normal);
+  --text-body-line-height: var(--line-height-relaxed);
+  --text-body-letter-spacing: var(--letter-spacing-normal);
+
+  /* Body Small - Secondary body text */
+  --text-body-small-font-family: var(--font-family-primary);
+  --text-body-small-font-size: var(--font-size-sm);
+  --text-body-small-font-weight: var(--font-weight-normal);
+  --text-body-small-line-height: var(--line-height-normal);
+  --text-body-small-letter-spacing: var(--letter-spacing-normal);
+
+  /* Caption - Small descriptive text */
+  --text-caption-font-family: var(--font-family-primary);
+  --text-caption-font-size: var(--font-size-xs);
+  --text-caption-font-weight: var(--font-weight-normal);
+  --text-caption-line-height: var(--line-height-normal);
+  --text-caption-letter-spacing: var(--letter-spacing-normal);
+
+  /* Label - Form labels and UI labels */
+  --text-label-font-family: var(--font-family-primary);
+  --text-label-font-size: var(--font-size-sm);
+  --text-label-font-weight: var(--font-weight-medium);
+  --text-label-line-height: var(--line-height-tight);
+  --text-label-letter-spacing: var(--letter-spacing-wide);
+
+  /* Button - Button text */
+  --text-button-font-family: var(--font-family-primary);
+  --text-button-font-size: var(--font-size-sm);
+  --text-button-font-weight: var(--font-weight-semibold);
+  --text-button-line-height: var(--line-height-tight);
+  --text-button-letter-spacing: var(--letter-spacing-wide);
+
+  /* Code - Monospace text */
+  --text-code-font-family: var(--font-family-mono);
+  --text-code-font-size: var(--font-size-sm);
+  --text-code-font-weight: var(--font-weight-normal);
+  --text-code-line-height: var(--line-height-normal);
+  --text-code-letter-spacing: var(--letter-spacing-normal);
+
+  /* ==========================================================================
+     TEXT COLORS - Semantic text colors
+     ========================================================================== */
+
+  /* Text Colors */
+  --text-color-primary: var(--color-text-primary);
+  --text-color-secondary: var(--color-text-secondary);
+  --text-color-tertiary: var(--color-text-tertiary);
+  --text-color-inverse: var(--color-text-inverse);
+
+  /* Interactive Text Colors */
+  --text-color-interactive: var(--color-interactive-primary);
+  --text-color-interactive-hover: var(--color-primary-400);
+
+  /* Status Text Colors */
+  --text-color-success: var(--color-success-600);
+  --text-color-warning: var(--color-warning-600);
+  --text-color-error: var(--color-error-600);
+  --text-color-info: var(--color-info-600);
+
+  /* ==========================================================================
+     TEXT STYLES - Utility classes
+     ========================================================================== */
+}
+
+/* ==========================================================================
+   TEXT UTILITY CLASSES - Apply these to elements
+   ========================================================================== */
+
+.text-display {
+  font-family: var(--text-display-font-family);
+  font-size: var(--text-display-font-size);
+  font-weight: var(--text-display-font-weight);
+  line-height: var(--text-display-line-height);
+  letter-spacing: var(--text-display-letter-spacing);
+  color: var(--text-color-primary);
+}
+
+.text-headline {
+  font-family: var(--text-headline-font-family);
+  font-size: var(--text-headline-font-size);
+  font-weight: var(--text-headline-font-weight);
+  line-height: var(--text-headline-line-height);
+  letter-spacing: var(--text-headline-letter-spacing);
+  color: var(--text-color-primary);
+}
+
+.text-title {
+  font-family: var(--text-title-font-family);
+  font-size: var(--text-title-font-size);
+  font-weight: var(--text-title-font-weight);
+  line-height: var(--text-title-line-height);
+  letter-spacing: var(--text-title-letter-spacing);
+  color: var(--text-color-primary);
+}
+
+.text-subtitle {
+  font-family: var(--text-subtitle-font-family);
+  font-size: var(--text-subtitle-font-size);
+  font-weight: var(--text-subtitle-font-weight);
+  line-height: var(--text-subtitle-line-height);
+  letter-spacing: var(--text-subtitle-letter-spacing);
+  color: var(--text-color-secondary);
+}
+
+.text-body-large {
+  font-family: var(--text-body-large-font-family);
+  font-size: var(--text-body-large-font-size);
+  font-weight: var(--text-body-large-font-weight);
+  line-height: var(--text-body-large-line-height);
+  letter-spacing: var(--text-body-large-letter-spacing);
+  color: var(--text-color-primary);
+}
+
+.text-body {
+  font-family: var(--text-body-font-family);
+  font-size: var(--text-body-font-size);
+  font-weight: var(--text-body-font-weight);
+  line-height: var(--text-body-line-height);
+  letter-spacing: var(--text-body-letter-spacing);
+  color: var(--text-color-primary);
+}
+
+.text-body-small {
+  font-family: var(--text-body-small-font-family);
+  font-size: var(--text-body-small-font-size);
+  font-weight: var(--text-body-small-font-weight);
+  line-height: var(--text-body-small-line-height);
+  letter-spacing: var(--text-body-small-letter-spacing);
+  color: var(--text-color-secondary);
+}
+
+.text-caption {
+  font-family: var(--text-caption-font-family);
+  font-size: var(--text-caption-font-size);
+  font-weight: var(--text-caption-font-weight);
+  line-height: var(--text-caption-line-height);
+  letter-spacing: var(--text-caption-letter-spacing);
+  color: var(--text-color-tertiary);
+}
+
+.text-label {
+  font-family: var(--text-label-font-family);
+  font-size: var(--text-label-font-size);
+  font-weight: var(--text-label-font-weight);
+  line-height: var(--text-label-line-height);
+  letter-spacing: var(--text-label-letter-spacing);
+  color: var(--text-color-primary);
+}
+
+.text-button {
+  font-family: var(--text-button-font-family);
+  font-size: var(--text-button-font-size);
+  font-weight: var(--text-button-font-weight);
+  line-height: var(--text-button-line-height);
+  letter-spacing: var(--text-button-letter-spacing);
+  color: inherit;
+}
+
+.text-code {
+  font-family: var(--text-code-font-family);
+  font-size: var(--text-code-font-size);
+  font-weight: var(--text-code-font-weight);
+  line-height: var(--text-code-line-height);
+  letter-spacing: var(--text-code-letter-spacing);
+  color: var(--text-color-primary);
+}
+
+/* ==========================================================================
+   SEMANTIC TEXT COLORS - Apply to any text element
+   ========================================================================== */
+
+.text-primary {
+  color: var(--text-color-primary);
+}
+.text-secondary {
+  color: var(--text-color-secondary);
+}
+.text-tertiary {
+  color: var(--text-color-tertiary);
+}
+.text-inverse {
+  color: var(--text-color-inverse);
+}
+
+.text-interactive {
+  color: var(--text-color-interactive);
+  transition: color 0.2s ease;
+}
+
+.text-interactive:hover {
+  color: var(--text-color-interactive-hover);
+}
+
+.text-success {
+  color: var(--text-color-success);
+}
+.text-warning {
+  color: var(--text-color-warning);
+}
+.text-error {
+  color: var(--text-color-error);
+}
+.text-info {
+  color: var(--text-color-info);
+}
+
+/* ==========================================================================
+   RESPONSIVE TYPOGRAPHY - Scales with viewport
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  :root {
+    /* Slightly smaller text on mobile for better readability */
+    --font-size-4xl: 2rem; /* 32px instead of 36px */
+    --font-size-5xl: 2.5rem; /* 40px instead of 48px */
+    --font-size-6xl: 3rem; /* 48px instead of 60px */
+  }
+}
+
+/* ==========================================================================
+   HIGH CONTRAST MODE - Accessibility improvements
+   ========================================================================== */
+
+@media (prefers-contrast: high) {
+  :root {
+    /* Increase font weights for better contrast */
+    --font-weight-normal: 500;
+    --font-weight-medium: 600;
+    --font-weight-semibold: 700;
+  }
+
+  /* Increase letter spacing for better readability */
+  .text-label,
+  .text-button {
+    letter-spacing: var(--letter-spacing-wider);
+  }
+}
+
+/* ==========================================================================
+   REDUCED MOTION - Accessibility considerations
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  /* Static text styles - no transitions on text color changes */
+  .text-interactive {
+    transition: none;
+  }
+}
+
+/* ==========================================================================
+   USAGE EXAMPLES:
+
+   <h1 class="text-display">Main Heading</h1>
+   <h2 class="text-headline">Section Heading</h2>
+   <h3 class="text-title">Component Title</h3>
+   <p class="text-body">Body text content</p>
+   <small class="text-caption">Caption text</small>
+   <label class="text-label">Form label</label>
+   <button class="text-button">Button text</button>
+   <code class="text-code">const code = "example";</code>
+
+   Colors:
+   <span class="text-success">Success message</span>
+   <span class="text-error">Error message</span>
+   ========================================================================== */

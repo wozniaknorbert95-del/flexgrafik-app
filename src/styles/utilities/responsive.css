@@ -1,0 +1,544 @@
+/* ============================================================================
+   FLEXGRAFIK ADHD OS - Responsive Utilities
+   ============================================================================
+   Mobile-first responsive design patterns and breakpoint utilities
+   ============================================================================ */
+
+:root {
+  /* ==========================================================================
+     BREAKPOINT TOKENS - Consistent responsive breakpoints
+     ========================================================================== */
+
+  /* Mobile First Breakpoints */
+  --breakpoint-sm: 640px; /* Small devices (phones) */
+  --breakpoint-md: 768px; /* Medium devices (tablets) */
+  --breakpoint-lg: 1024px; /* Large devices (laptops) */
+  --breakpoint-xl: 1280px; /* Extra large devices (desktops) */
+  --breakpoint-2xl: 1536px; /* 2X large devices (large desktops) */
+
+  /* ==========================================================================
+     RESPONSIVE DESIGN TOKENS - Scaling factors
+     ========================================================================== */
+
+  /* Font scaling for different screen sizes */
+  --responsive-text-scale-xs: 0.875; /* 87.5% on very small screens */
+  --responsive-text-scale-sm: 0.9375; /* 93.75% on small screens */
+  --responsive-text-scale-md: 1; /* 100% on medium screens */
+  --responsive-text-scale-lg: 1.0625; /* 106.25% on large screens */
+  --responsive-text-scale-xl: 1.125; /* 112.5% on extra large screens */
+
+  /* Spacing scaling for different screen sizes */
+  --responsive-space-scale-xs: 0.875; /* 87.5% on very small screens */
+  --responsive-space-scale-sm: 0.9375; /* 93.75% on small screens */
+  --responsive-space-scale-md: 1; /* 100% on medium screens */
+  --responsive-space-scale-lg: 1.0625; /* 106.25% on large screens */
+  --responsive-space-scale-xl: 1.125; /* 112.5% on extra large screens */
+}
+
+/* ==========================================================================
+   RESPONSIVE TEXT SCALING - Automatic font size adjustments
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  :root {
+    /* Reduce font sizes on very small screens */
+    --font-size-lg: calc(var(--font-size-base) * var(--responsive-text-scale-xs));
+    --font-size-xl: calc(var(--font-size-lg) * var(--responsive-text-scale-xs));
+    --font-size-2xl: calc(var(--font-size-xl) * var(--responsive-text-scale-xs));
+    --font-size-3xl: calc(var(--font-size-2xl) * var(--responsive-text-scale-xs));
+  }
+}
+
+@media (min-width: 641px) and (max-width: 768px) {
+  :root {
+    /* Slightly smaller fonts on small screens */
+    --font-size-lg: calc(var(--font-size-base) * var(--responsive-text-scale-sm));
+    --font-size-xl: calc(var(--font-size-lg) * var(--responsive-text-scale-sm));
+    --font-size-2xl: calc(var(--font-size-xl) * var(--responsive-text-scale-sm));
+  }
+}
+
+@media (min-width: 1025px) {
+  :root {
+    /* Slightly larger fonts on very large screens */
+    --font-size-lg: calc(var(--font-size-base) * var(--responsive-text-scale-lg));
+    --font-size-xl: calc(var(--font-size-lg) * var(--responsive-text-scale-lg));
+    --font-size-2xl: calc(var(--font-size-xl) * var(--responsive-text-scale-lg));
+  }
+}
+
+/* ==========================================================================
+   RESPONSIVE SPACING - Automatic spacing adjustments
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  :root {
+    /* Tighter spacing on mobile */
+    --space-component-padding-md: calc(
+      var(--space-component-padding-md) * var(--responsive-space-scale-xs)
+    );
+    --space-layout-gap-md: calc(var(--space-layout-gap-md) * var(--responsive-space-scale-xs));
+  }
+}
+
+@media (min-width: 1025px) {
+  :root {
+    /* More generous spacing on desktop */
+    --space-component-padding-md: calc(
+      var(--space-component-padding-md) * var(--responsive-space-scale-lg)
+    );
+    --space-layout-gap-md: calc(var(--space-layout-gap-md) * var(--responsive-space-scale-lg));
+  }
+}
+
+/* ==========================================================================
+   BREAKPOINT UTILITIES - Show/hide elements at breakpoints
+   ========================================================================== */
+
+/* Mobile First - Show on screen size and up */
+.sm-show {
+  display: none !important;
+}
+.md-show {
+  display: none !important;
+}
+.lg-show {
+  display: none !important;
+}
+.xl-show {
+  display: none !important;
+}
+.xl2-show {
+  display: none !important;
+}
+
+@media (min-width: 640px) {
+  .sm-show {
+    display: block !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .md-show {
+    display: block !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg-show {
+    display: block !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .xl-show {
+    display: block !important;
+  }
+}
+
+@media (min-width: 1536px) {
+  .xl2-show {
+    display: block !important;
+  }
+}
+
+/* Desktop First - Hide on screen size and down */
+.sm-hide {
+  display: block !important;
+}
+.md-hide {
+  display: block !important;
+}
+.lg-hide {
+  display: block !important;
+}
+.xl-hide {
+  display: block !important;
+}
+.xl2-hide {
+  display: block !important;
+}
+
+@media (max-width: 639px) {
+  .sm-hide {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .md-hide {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .lg-hide {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1279px) {
+  .xl-hide {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1535px) {
+  .xl2-hide {
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   FLEX DIRECTION RESPONSIVE - Stack on mobile
+   ========================================================================== */
+
+.flex-col-mobile {
+  flex-direction: column;
+}
+
+@media (min-width: 640px) {
+  .flex-col-mobile {
+    flex-direction: row;
+  }
+}
+
+.flex-col-tablet {
+  flex-direction: column;
+}
+
+@media (min-width: 768px) {
+  .flex-col-tablet {
+    flex-direction: row;
+  }
+}
+
+.flex-col-desktop {
+  flex-direction: column;
+}
+
+@media (min-width: 1024px) {
+  .flex-col-desktop {
+    flex-direction: row;
+  }
+}
+
+/* ==========================================================================
+   GRID RESPONSIVE - Adjust columns based on screen size
+   ========================================================================== */
+
+/* Auto-responsive grid */
+.grid-responsive {
+  display: grid;
+  gap: var(--space-layout-gap-md);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .grid-responsive {
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-responsive {
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  }
+}
+
+/* Specific responsive grids */
+.grid-responsive-2 {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .grid-responsive-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.grid-responsive-3 {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .grid-responsive-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-responsive-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.grid-responsive-4 {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .grid-responsive-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 768px) {
+  .grid-responsive-4 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-responsive-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ==========================================================================
+   CONTAINER RESPONSIVE - Adjust container sizes
+   ========================================================================== */
+
+.container-responsive {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+}
+
+@media (max-width: 640px) {
+  .container-responsive {
+    max-width: var(--container-sm);
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  .container-responsive {
+    max-width: var(--container-lg);
+  }
+}
+
+@media (min-width: 1025px) {
+  .container-responsive {
+    max-width: var(--container-2xl);
+  }
+}
+
+/* ==========================================================================
+   TEXT RESPONSIVE - Adjust text sizes responsively
+   ========================================================================== */
+
+.text-responsive-xs {
+  font-size: var(--font-size-sm);
+}
+
+@media (min-width: 640px) {
+  .text-responsive-xs {
+    font-size: var(--font-size-base);
+  }
+}
+
+.text-responsive-sm {
+  font-size: var(--font-size-base);
+}
+
+@media (min-width: 640px) {
+  .text-responsive-sm {
+    font-size: var(--font-size-lg);
+  }
+}
+
+.text-responsive-md {
+  font-size: var(--font-size-lg);
+}
+
+@media (min-width: 640px) {
+  .text-responsive-md {
+    font-size: var(--font-size-xl);
+  }
+}
+
+.text-responsive-lg {
+  font-size: var(--font-size-xl);
+}
+
+@media (min-width: 640px) {
+  .text-responsive-lg {
+    font-size: var(--font-size-2xl);
+  }
+}
+
+/* ==========================================================================
+   SPACING RESPONSIVE - Adjust spacing responsively
+   ========================================================================== */
+
+.space-responsive-xs {
+  gap: var(--space-2);
+}
+
+@media (min-width: 640px) {
+  .space-responsive-xs {
+    gap: var(--space-4);
+  }
+}
+
+.space-responsive-sm {
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .space-responsive-sm {
+    gap: var(--space-6);
+  }
+}
+
+.space-responsive-md {
+  gap: var(--space-6);
+}
+
+@media (min-width: 640px) {
+  .space-responsive-md {
+    gap: var(--space-8);
+  }
+}
+
+/* ==========================================================================
+   TOUCH-FRIENDLY RESPONSIVE - Larger targets on touch devices
+   ========================================================================== */
+
+@media (pointer: coarse) {
+  .touch-target-responsive {
+    min-height: var(--space-touch-target-preferred);
+    min-width: var(--space-touch-target-preferred);
+  }
+
+  .touch-spacing-responsive {
+    padding: var(--space-4);
+    margin: var(--space-2);
+  }
+}
+
+@media (pointer: fine) and (min-width: 1024px) {
+  .touch-target-responsive {
+    /* Smaller targets on desktop with precise pointing */
+    min-height: var(--space-touch-target-min);
+    min-width: var(--space-touch-target-min);
+  }
+
+  .touch-spacing-responsive {
+    padding: var(--space-3);
+    margin: var(--space-1);
+  }
+}
+
+/* ==========================================================================
+   PRINT STYLES - Optimize for printing
+   ========================================================================== */
+
+@media print {
+  .container-responsive {
+    max-width: none;
+    padding: 0;
+  }
+
+  .grid-responsive,
+  .grid-responsive-2,
+  .grid-responsive-3,
+  .grid-responsive-4 {
+    display: block !important;
+  }
+
+  .card,
+  .glass-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .text-responsive-xs,
+  .text-responsive-sm,
+  .text-responsive-md,
+  .text-responsive-lg {
+    font-size: var(--font-size-base) !important;
+  }
+}
+
+/* ==========================================================================
+   HIGH CONTRAST MODE - Enhanced visibility
+   ========================================================================== */
+
+@media (prefers-contrast: high) {
+  .text-responsive-xs,
+  .text-responsive-sm {
+    /* Ensure minimum contrast in high contrast mode */
+    font-weight: var(--font-weight-medium);
+  }
+}
+
+/* ==========================================================================
+   REDUCED MOTION - Respect user preferences
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .grid-responsive,
+  .container-responsive {
+    /* Static layouts for reduced motion */
+    transition: none;
+  }
+}
+
+/* ==========================================================================
+   ACCESSIBILITY RESPONSIVE - Enhanced accessibility on small screens
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .a11y-responsive {
+    /* Larger touch targets and better spacing for accessibility */
+    padding: var(--space-4);
+    margin: var(--space-2);
+    font-size: var(--font-size-lg);
+  }
+
+  .focus-visible:focus {
+    /* Enhanced focus indicators on mobile */
+    outline: 3px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+/* ==========================================================================
+   USAGE EXAMPLES:
+
+   Responsive visibility:
+   <div class="sm-hide md-show lg-hide">Show on medium screens only</div>
+
+   Responsive text:
+   <h1 class="text-responsive-lg">Scales with screen size</h1>
+
+   Responsive spacing:
+   <div class="grid space-responsive-md">
+     <div>Item 1</div>
+     <div>Item 2</div>
+   </div>
+
+   Responsive grid:
+   <div class="grid-responsive-3">
+     <div class="card">Card 1</div>
+     <div class="card">Card 2</div>
+     <div class="card">Card 3</div>
+   </div>
+
+   Touch-friendly responsive:
+   <button class="touch-target-responsive">Accessible button</button>
+
+   Container responsive:
+   <div class="container-responsive">
+     <p>Content that adjusts to screen size</p>
+   </div>
+
+   Flex responsive:
+   <div class="flex flex-col-mobile">
+     <div>Stacks on mobile, row on larger screens</div>
+     <div>Second item</div>
+   </div>
+   ========================================================================== */

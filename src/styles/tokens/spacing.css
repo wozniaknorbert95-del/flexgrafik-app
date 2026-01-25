@@ -1,0 +1,541 @@
+/* ============================================================================
+   FLEXGRAFIK ADHD OS - Spacing System
+   ============================================================================
+   8px grid-based spacing system for consistent layouts and components
+   ============================================================================ */
+
+:root {
+  /* ==========================================================================
+     BASE SPACING UNITS - 8px grid system
+     ========================================================================== */
+
+  /* Spacing scale - powers of 2 for consistency */
+  --space-px: 1px;
+  --space-0: 0;
+  --space-0-5: 0.125rem; /* 2px */
+  --space-1: 0.25rem; /* 4px */
+  --space-1-5: 0.375rem; /* 6px */
+  --space-2: 0.5rem; /* 8px */
+  --space-2-5: 0.625rem; /* 10px */
+  --space-3: 0.75rem; /* 12px */
+  --space-3-5: 0.875rem; /* 14px */
+  --space-4: 1rem; /* 16px */
+  --space-5: 1.25rem; /* 20px */
+  --space-6: 1.5rem; /* 24px */
+  --space-7: 1.75rem; /* 28px */
+  --space-8: 2rem; /* 32px */
+  --space-9: 2.25rem; /* 36px */
+  --space-10: 2.5rem; /* 40px */
+  --space-11: 2.75rem; /* 44px */
+  --space-12: 3rem; /* 48px */
+  --space-13: 3.25rem; /* 52px */
+  --space-14: 3.5rem; /* 56px */
+  --space-15: 3.75rem; /* 60px */
+  --space-16: 4rem; /* 64px */
+  --space-18: 4.5rem; /* 72px */
+  --space-20: 5rem; /* 80px */
+  --space-24: 6rem; /* 96px */
+  --space-28: 7rem; /* 112px */
+  --space-32: 8rem; /* 128px */
+  --space-36: 9rem; /* 144px */
+  --space-40: 10rem; /* 160px */
+  --space-44: 11rem; /* 176px */
+  --space-48: 12rem; /* 192px */
+  --space-52: 13rem; /* 208px */
+  --space-56: 14rem; /* 224px */
+  --space-60: 15rem; /* 240px */
+  --space-64: 16rem; /* 256px */
+  --space-72: 18rem; /* 288px */
+  --space-80: 20rem; /* 320px */
+  --space-96: 24rem; /* 384px */
+
+  /* ==========================================================================
+     SEMANTIC SPACING TOKENS - Purpose-driven spacing
+     ========================================================================== */
+
+  /* Component Spacing - Internal spacing within components */
+  --space-component-padding-xs: var(--space-2); /* 8px */
+  --space-component-padding-sm: var(--space-3); /* 12px */
+  --space-component-padding-md: var(--space-4); /* 16px */
+  --space-component-padding-lg: var(--space-6); /* 24px */
+  --space-component-padding-xl: var(--space-8); /* 32px */
+
+  /* Layout Spacing - Spacing between layout elements */
+  --space-layout-gap-xs: var(--space-2); /* 8px */
+  --space-layout-gap-sm: var(--space-4); /* 16px */
+  --space-layout-gap-md: var(--space-6); /* 24px */
+  --space-layout-gap-lg: var(--space-8); /* 32px */
+  --space-layout-gap-xl: var(--space-12); /* 48px */
+
+  /* Content Spacing - Spacing within content areas */
+  --space-content-margin-xs: var(--space-2); /* 8px */
+  --space-content-margin-sm: var(--space-4); /* 16px */
+  --space-content-margin-md: var(--space-6); /* 24px */
+  --space-content-margin-lg: var(--space-8); /* 32px */
+  --space-content-margin-xl: var(--space-12); /* 48px */
+
+  /* Element Spacing - Spacing between individual elements */
+  --space-element-gap-xs: var(--space-1); /* 4px */
+  --space-element-gap-sm: var(--space-2); /* 8px */
+  --space-element-gap-md: var(--space-3); /* 12px */
+  --space-element-gap-lg: var(--space-4); /* 16px */
+
+  /* ==========================================================================
+     SPECIFIC USE CASE SPACING - Component-specific spacing
+     ========================================================================== */
+
+  /* Button Spacing */
+  --space-button-padding-x: var(--space-4); /* 16px */
+  --space-button-padding-y: var(--space-2); /* 8px */
+  --space-button-gap: var(--space-2); /* 8px */
+
+  /* Input Spacing */
+  --space-input-padding-x: var(--space-3); /* 12px */
+  --space-input-padding-y: var(--space-2); /* 8px */
+  --space-input-gap: var(--space-2); /* 8px */
+
+  /* Card Spacing */
+  --space-card-padding: var(--space-6); /* 24px */
+  --space-card-gap: var(--space-4); /* 16px */
+
+  /* Modal Spacing */
+  --space-modal-padding: var(--space-6); /* 24px */
+  --space-modal-gap: var(--space-4); /* 16px */
+
+  /* Navigation Spacing */
+  --space-nav-padding-x: var(--space-4); /* 16px */
+  --space-nav-padding-y: var(--space-3); /* 12px */
+  --space-nav-gap: var(--space-2); /* 8px */
+
+  /* Form Spacing */
+  --space-form-field-gap: var(--space-4); /* 16px */
+  --space-form-section-gap: var(--space-6); /* 24px */
+  --space-form-group-gap: var(--space-8); /* 32px */
+
+  /* ==========================================================================
+     RESPONSIVE SPACING - Scales with viewport
+     ========================================================================== */
+
+  /* Mobile adjustments - tighter spacing on small screens */
+  --space-responsive-padding-xs: var(--space-2); /* 8px */
+  --space-responsive-padding-sm: var(--space-3); /* 12px */
+  --space-responsive-padding-md: var(--space-4); /* 16px */
+  --space-responsive-padding-lg: var(--space-5); /* 20px */
+  --space-responsive-padding-xl: var(--space-6); /* 24px */
+
+  /* Touch targets - minimum 44px for accessibility */
+  --space-touch-target-min: var(--space-11); /* 44px */
+  --space-touch-target-preferred: var(--space-12); /* 48px */
+}
+
+/* ==========================================================================
+   SPACING UTILITY CLASSES - Apply these to elements
+   ========================================================================== */
+
+/* Padding utilities */
+.p-xs {
+  padding: var(--space-2);
+}
+.p-sm {
+  padding: var(--space-3);
+}
+.p-md {
+  padding: var(--space-4);
+}
+.p-lg {
+  padding: var(--space-6);
+}
+.p-xl {
+  padding: var(--space-8);
+}
+
+.px-xs {
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+}
+.px-sm {
+  padding-left: var(--space-3);
+  padding-right: var(--space-3);
+}
+.px-md {
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+}
+.px-lg {
+  padding-left: var(--space-6);
+  padding-right: var(--space-6);
+}
+.px-xl {
+  padding-left: var(--space-8);
+  padding-right: var(--space-8);
+}
+
+.py-xs {
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+.py-sm {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+.py-md {
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-4);
+}
+.py-lg {
+  padding-top: var(--space-6);
+  padding-bottom: var(--space-6);
+}
+.py-xl {
+  padding-top: var(--space-8);
+  padding-bottom: var(--space-8);
+}
+
+.pt-xs {
+  padding-top: var(--space-2);
+}
+.pt-sm {
+  padding-top: var(--space-3);
+}
+.pt-md {
+  padding-top: var(--space-4);
+}
+.pt-lg {
+  padding-top: var(--space-6);
+}
+.pt-xl {
+  padding-top: var(--space-8);
+}
+
+.pr-xs {
+  padding-right: var(--space-2);
+}
+.pr-sm {
+  padding-right: var(--space-3);
+}
+.pr-md {
+  padding-right: var(--space-4);
+}
+.pr-lg {
+  padding-right: var(--space-6);
+}
+.pr-xl {
+  padding-right: var(--space-8);
+}
+
+.pb-xs {
+  padding-bottom: var(--space-2);
+}
+.pb-sm {
+  padding-bottom: var(--space-3);
+}
+.pb-md {
+  padding-bottom: var(--space-4);
+}
+.pb-lg {
+  padding-bottom: var(--space-6);
+}
+.pb-xl {
+  padding-bottom: var(--space-8);
+}
+
+.pl-xs {
+  padding-left: var(--space-2);
+}
+.pl-sm {
+  padding-left: var(--space-3);
+}
+.pl-md {
+  padding-left: var(--space-4);
+}
+.pl-lg {
+  padding-left: var(--space-6);
+}
+.pl-xl {
+  padding-left: var(--space-8);
+}
+
+/* Margin utilities */
+.m-xs {
+  margin: var(--space-2);
+}
+.m-sm {
+  margin: var(--space-3);
+}
+.m-md {
+  margin: var(--space-4);
+}
+.m-lg {
+  margin: var(--space-6);
+}
+.m-xl {
+  margin: var(--space-8);
+}
+
+.mx-xs {
+  margin-left: var(--space-2);
+  margin-right: var(--space-2);
+}
+.mx-sm {
+  margin-left: var(--space-3);
+  margin-right: var(--space-3);
+}
+.mx-md {
+  margin-left: var(--space-4);
+  margin-right: var(--space-4);
+}
+.mx-lg {
+  margin-left: var(--space-6);
+  margin-right: var(--space-6);
+}
+.mx-xl {
+  margin-left: var(--space-8);
+  margin-right: var(--space-8);
+}
+
+.my-xs {
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.my-sm {
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.my-md {
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.my-lg {
+  margin-top: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+.my-xl {
+  margin-top: var(--space-8);
+  margin-bottom: var(--space-8);
+}
+
+.mt-xs {
+  margin-top: var(--space-2);
+}
+.mt-sm {
+  margin-top: var(--space-3);
+}
+.mt-md {
+  margin-top: var(--space-4);
+}
+.mt-lg {
+  margin-top: var(--space-6);
+}
+.mt-xl {
+  margin-top: var(--space-8);
+}
+
+.mr-xs {
+  margin-right: var(--space-2);
+}
+.mr-sm {
+  margin-right: var(--space-3);
+}
+.mr-md {
+  margin-right: var(--space-4);
+}
+.mr-lg {
+  margin-right: var(--space-6);
+}
+.mr-xl {
+  margin-right: var(--space-8);
+}
+
+.mb-xs {
+  margin-bottom: var(--space-2);
+}
+.mb-sm {
+  margin-bottom: var(--space-3);
+}
+.mb-md {
+  margin-bottom: var(--space-4);
+}
+.mb-lg {
+  margin-bottom: var(--space-6);
+}
+.mb-xl {
+  margin-bottom: var(--space-8);
+}
+
+.ml-xs {
+  margin-left: var(--space-2);
+}
+.ml-sm {
+  margin-left: var(--space-3);
+}
+.ml-md {
+  margin-left: var(--space-4);
+}
+.ml-lg {
+  margin-left: var(--space-6);
+}
+.ml-xl {
+  margin-left: var(--space-8);
+}
+
+/* Gap utilities */
+.gap-xs {
+  gap: var(--space-2);
+}
+.gap-sm {
+  gap: var(--space-4);
+}
+.gap-md {
+  gap: var(--space-6);
+}
+.gap-lg {
+  gap: var(--space-8);
+}
+.gap-xl {
+  gap: var(--space-12);
+}
+
+/* ==========================================================================
+   COMPONENT-SPECIFIC SPACING - Predefined component spacing
+   ========================================================================== */
+
+.space-widget {
+  gap: var(--space-element-gap-md);
+}
+.space-section {
+  gap: var(--space-layout-gap-md);
+}
+.space-content {
+  gap: var(--space-content-margin-md);
+}
+
+/* Button spacing */
+.btn-spacing {
+  padding: var(--space-button-padding-y) var(--space-button-padding-x);
+  gap: var(--space-button-gap);
+}
+
+/* Input spacing */
+.input-spacing {
+  padding: var(--space-input-padding-y) var(--space-input-padding-x);
+}
+
+/* Card spacing */
+.card-spacing {
+  padding: var(--space-card-padding);
+  gap: var(--space-card-gap);
+}
+
+/* Form spacing */
+.form-field-spacing {
+  margin-bottom: var(--space-form-field-gap);
+}
+.form-section-spacing {
+  margin-bottom: var(--space-form-section-gap);
+}
+.form-group-spacing {
+  margin-bottom: var(--space-form-group-gap);
+}
+
+/* ==========================================================================
+   RESPONSIVE SPACING - Adjusts based on screen size
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  :root {
+    /* Tighter spacing on mobile */
+    --space-component-padding-lg: var(--space-4);
+    --space-component-padding-xl: var(--space-6);
+    --space-layout-gap-lg: var(--space-6);
+    --space-layout-gap-xl: var(--space-8);
+  }
+
+  /* Mobile-specific utilities */
+  .mobile-px {
+    padding-left: var(--space-responsive-padding-sm);
+    padding-right: var(--space-responsive-padding-sm);
+  }
+  .mobile-py {
+    padding-top: var(--space-responsive-padding-sm);
+    padding-bottom: var(--space-responsive-padding-sm);
+  }
+  .mobile-gap {
+    gap: var(--space-responsive-padding-sm);
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    /* More generous spacing on desktop */
+    --space-component-padding-lg: var(--space-8);
+    --space-component-padding-xl: var(--space-12);
+    --space-layout-gap-lg: var(--space-12);
+    --space-layout-gap-xl: var(--space-16);
+  }
+}
+
+/* ==========================================================================
+   TOUCH-FRIENDLY SPACING - Accessibility for touch devices
+   ========================================================================== */
+
+@media (pointer: coarse) {
+  :root {
+    /* Larger touch targets */
+    --space-button-padding-x: var(--space-5);
+    --space-button-padding-y: var(--space-3);
+    --space-input-padding-x: var(--space-4);
+    --space-input-padding-y: var(--space-3);
+  }
+
+  /* Touch-friendly buttons */
+  .touch-target {
+    min-height: var(--space-touch-target-min);
+    min-width: var(--space-touch-target-min);
+  }
+}
+
+/* ==========================================================================
+   HIGH CONTRAST MODE - Accessibility improvements
+   ========================================================================== */
+
+@media (prefers-contrast: high) {
+  :root {
+    /* Increase spacing for better visual separation */
+    --space-element-gap-xs: var(--space-2);
+    --space-element-gap-sm: var(--space-3);
+    --space-element-gap-md: var(--space-4);
+    --space-element-gap-lg: var(--space-6);
+  }
+}
+
+/* ==========================================================================
+   REDUCED MOTION - Accessibility considerations
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  /* Static spacing - no transitions on spacing changes */
+}
+
+/* ==========================================================================
+   USAGE EXAMPLES:
+
+   Layout spacing:
+   <div class="gap-md">...</div>
+   <section class="py-lg px-md">...</section>
+
+   Component spacing:
+   <button class="btn-spacing">Button</button>
+   <input class="input-spacing" />
+   <div class="card-spacing">Card content</div>
+
+   Form spacing:
+   <form class="space-y-4">
+     <div class="form-field-spacing">
+       <label class="text-label">Field Label</label>
+       <input class="input-spacing" />
+     </div>
+   </form>
+
+   Responsive spacing:
+   <div class="px-md mobile-px">Responsive padding</div>
+   ========================================================================== */

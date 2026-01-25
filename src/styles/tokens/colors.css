@@ -1,0 +1,252 @@
+/* ============================================================================
+   FLEXGRAFIK ADHD OS - Color System
+   ============================================================================
+   Cyberpunk-inspired color palette with semantic meanings and accessibility
+   ============================================================================ */
+
+:root {
+  /* ==========================================================================
+     PRIMARY COLORS - Core brand colors
+     ========================================================================== */
+
+  /* Primary - Electric Cyan */
+  --color-primary-50: #ecfeff;
+  --color-primary-100: #cffafe;
+  --color-primary-200: #a5f3fc;
+  --color-primary-300: #67e8f9;
+  --color-primary-400: #22d3ee;
+  --color-primary-500: #06b6d4; /* Main primary */
+  --color-primary-600: #0891b2;
+  --color-primary-700: #0e7490;
+  --color-primary-800: #155e75;
+  --color-primary-900: #164e63;
+  --color-primary-950: #083344;
+
+  /* Secondary - Electric Magenta */
+  --color-secondary-50: #fdf4ff;
+  --color-secondary-100: #fae8ff;
+  --color-secondary-200: #f5d0fe;
+  --color-secondary-300: #f0abfc;
+  --color-secondary-400: #e879f9;
+  --color-secondary-500: #d946ef; /* Main secondary */
+  --color-secondary-600: #c026d3;
+  --color-secondary-700: #a21caf;
+  --color-secondary-800: #86198f;
+  --color-secondary-900: #701a75;
+  --color-secondary-950: #4a044e;
+
+  /* Accent - Electric Blue */
+  --color-accent-50: #eff6ff;
+  --color-accent-100: #dbeafe;
+  --color-accent-200: #bfdbfe;
+  --color-accent-300: #93c5fd;
+  --color-accent-400: #60a5fa;
+  --color-accent-500: #3b82f6; /* Main accent */
+  --color-accent-600: #2563eb;
+  --color-accent-700: #1d4ed8;
+  --color-accent-800: #1e40af;
+  --color-accent-900: #1e3a8a;
+  --color-accent-950: #172554;
+
+  /* ==========================================================================
+     SEMANTIC COLORS - Meaningful colors for UI states
+     ========================================================================== */
+
+  /* Success - Electric Green */
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-200: #bbf7d0;
+  --color-success-300: #86efac;
+  --color-success-400: #4ade80;
+  --color-success-500: #22c55e; /* Main success */
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+  --color-success-800: #166534;
+  --color-success-900: #14532d;
+  --color-success-950: #052e16;
+
+  /* Warning - Electric Orange */
+  --color-warning-50: #fff7ed;
+  --color-warning-100: #ffedd5;
+  --color-warning-200: #fed7aa;
+  --color-warning-300: #fdba74;
+  --color-warning-400: #fb923c;
+  --color-warning-500: #f97316; /* Main warning */
+  --color-warning-600: #ea580c;
+  --color-warning-700: #c2410c;
+  --color-warning-800: #9a3412;
+  --color-warning-900: #7c2d12;
+  --color-warning-950: #431407;
+
+  /* Error - Electric Red */
+  --color-error-50: #fef2f2;
+  --color-error-100: #fee2e2;
+  --color-error-200: #fecaca;
+  --color-error-300: #fca5a5;
+  --color-error-400: #f87171;
+  --color-error-500: #ef4444; /* Main error */
+  --color-error-600: #dc2626;
+  --color-error-700: #b91c1c;
+  --color-error-800: #991b1b;
+  --color-error-900: #7f1d1d;
+  --color-error-950: #450a0a;
+
+  /* Info - Electric Indigo */
+  --color-info-50: #eef2ff;
+  --color-info-100: #e0e7ff;
+  --color-info-200: #c7d2fe;
+  --color-info-300: #a5b4fc;
+  --color-info-400: #818cf8;
+  --color-info-500: #6366f1; /* Main info */
+  --color-info-600: #4f46e5;
+  --color-info-700: #4338ca;
+  --color-info-800: #3730a3;
+  --color-info-900: #312e81;
+  --color-info-950: #1e1b4b;
+
+  /* ==========================================================================
+     NEUTRAL COLORS - Grays with proper contrast ratios
+     ========================================================================== */
+
+  /* Pure White & Black */
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /* Neutral Gray Scale - WCAG AA compliant */
+  --color-neutral-50: #fafafa; /* 20.8:1 on black */
+  --color-neutral-100: #f5f5f5; /* 18.4:1 on black */
+  --color-neutral-200: #e5e5e5; /* 11.9:1 on black */
+  --color-neutral-300: #d4d4d4; /* 9.1:1 on black */
+  --color-neutral-400: #a3a3a3; /* 5.2:1 on black */
+  --color-neutral-500: #737373; /* 3.4:1 on black */
+  --color-neutral-600: #525252; /* 2.6:1 on black */
+  --color-neutral-700: #404040; /* 2.0:1 on black */
+  --color-neutral-800: #262626; /* 1.5:1 on black */
+  --color-neutral-900: #171717; /* 1.2:1 on black */
+  --color-neutral-950: #0a0a0a; /* 1.0:1 on black */
+
+  /* ==========================================================================
+     SPECIAL COLORS - UI-specific colors
+     ========================================================================== */
+
+  /* Glass Effect Colors */
+  --color-glass-light: rgba(255, 255, 255, 0.05);
+  --color-glass-medium: rgba(255, 255, 255, 0.08);
+  --color-glass-heavy: rgba(255, 255, 255, 0.12);
+
+  /* Glow Effects */
+  --color-glow-primary: rgba(6, 182, 212, 0.5);
+  --color-glow-secondary: rgba(217, 70, 239, 0.5);
+  --color-glow-accent: rgba(59, 130, 246, 0.5);
+
+  /* Border Colors */
+  --color-border-light: rgba(255, 255, 255, 0.1);
+  --color-border-medium: rgba(255, 255, 255, 0.2);
+  --color-border-heavy: rgba(255, 255, 255, 0.3);
+
+  /* ==========================================================================
+     LEGACY ALIASES - Backward compatibility
+     ========================================================================== */
+
+  /* Old Tailwind-style names (deprecated, use semantic names) */
+  --color-gray-50: var(--color-neutral-50);
+  --color-gray-100: var(--color-neutral-100);
+  --color-gray-200: var(--color-neutral-200);
+  --color-gray-300: var(--color-neutral-300);
+  --color-gray-400: var(--color-neutral-400);
+  --color-gray-500: var(--color-neutral-500);
+  --color-gray-600: var(--color-neutral-600);
+  --color-gray-700: var(--color-neutral-700);
+  --color-gray-800: var(--color-neutral-800);
+  --color-gray-900: var(--color-neutral-900);
+  --color-gray-950: var(--color-neutral-950);
+
+  /* ==========================================================================
+     SEMANTIC COLOR TOKENS - For easy theme switching
+     ========================================================================== */
+
+  /* Background Colors */
+  --color-bg-primary: var(--color-neutral-950);
+  --color-bg-secondary: var(--color-neutral-900);
+  --color-bg-tertiary: var(--color-neutral-800);
+  --color-bg-surface: var(--color-glass-light);
+  --color-bg-overlay: rgba(0, 0, 0, 0.8);
+
+  /* Text Colors */
+  --color-text-primary: var(--color-white);
+  --color-text-secondary: var(--color-neutral-300);
+  --color-text-tertiary: var(--color-neutral-500);
+  --color-text-inverse: var(--color-neutral-950);
+
+  /* Interactive Colors */
+  --color-interactive-primary: var(--color-primary-500);
+  --color-interactive-secondary: var(--color-secondary-500);
+  --color-interactive-accent: var(--color-accent-500);
+
+  /* Status Colors */
+  --color-status-success: var(--color-success-500);
+  --color-status-warning: var(--color-warning-500);
+  --color-status-error: var(--color-error-500);
+  --color-status-info: var(--color-info-500);
+
+  /* Focus Colors */
+  --color-focus-ring: var(--color-primary-400);
+  --color-focus-outline: var(--color-primary-300);
+}
+
+/* ==========================================================================
+   DARK MODE OVERRIDES - Future expansion
+   ========================================================================== */
+
+/* Light mode would override these values */
+@media (prefers-color-scheme: light) {
+  /* Future light mode overrides would go here */
+}
+
+/* ==========================================================================
+   HIGH CONTRAST MODE - Accessibility
+   ========================================================================== */
+
+@media (prefers-contrast: high) {
+  :root {
+    --color-border-light: rgba(255, 255, 255, 0.4);
+    --color-border-medium: rgba(255, 255, 255, 0.6);
+    --color-border-heavy: rgba(255, 255, 255, 0.8);
+  }
+}
+
+/* ==========================================================================
+   REDUCED MOTION - Accessibility
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    /* Static glow effects for reduced motion */
+    --color-glow-primary: rgba(6, 182, 212, 0.3);
+    --color-glow-secondary: rgba(217, 70, 239, 0.3);
+    --color-glow-accent: rgba(59, 130, 246, 0.3);
+  }
+}
+
+/* ==========================================================================
+   USAGE EXAMPLES:
+
+   .button-primary {
+     background-color: var(--color-primary-500);
+     color: var(--color-white);
+     border: 1px solid var(--color-primary-600);
+   }
+
+   .text-success {
+     color: var(--color-status-success);
+   }
+
+   .bg-glass {
+     background-color: var(--color-glass-medium);
+     backdrop-filter: blur(8px);
+   }
+
+   .border-subtle {
+     border-color: var(--color-border-light);
+   }
+   ========================================================================== */

@@ -1,0 +1,539 @@
+/* ============================================================================
+   FLEXGRAFIK ADHD OS - Form Components
+   ============================================================================
+   Consistent form styling with validation states and accessibility
+   ============================================================================ */
+
+:root {
+  /* ==========================================================================
+     FORM DESIGN TOKENS - Form element properties
+     ========================================================================== */
+
+  /* Input dimensions */
+  --input-height-xs: 1.75rem; /* 28px */
+  --input-height-sm: 2rem; /* 32px */
+  --input-height-md: 2.5rem; /* 40px */
+  --input-height-lg: 3rem; /* 48px */
+  --input-height-xl: 3.5rem; /* 56px */
+
+  /* Input border radius */
+  --input-radius-xs: var(--space-1); /* 4px */
+  --input-radius-sm: var(--space-1-5); /* 6px */
+  --input-radius-md: var(--space-2); /* 8px */
+  --input-radius-lg: var(--space-3); /* 12px */
+
+  /* Form transitions */
+  --form-transition-fast: 0.15s ease-out;
+  --form-transition-normal: 0.2s ease-out;
+
+  /* ==========================================================================
+     FORM ELEMENT TOKENS - Specific form properties
+     ========================================================================== */
+
+  /* Label positioning */
+  --label-margin-bottom: var(--space-2);
+
+  /* Error message styling */
+  --error-color: var(--color-error-500);
+  --error-font-size: var(--font-size-sm);
+  --error-margin-top: var(--space-1);
+
+  /* Help text styling */
+  --help-color: var(--color-neutral-500);
+  --help-font-size: var(--font-size-sm);
+  --help-margin-top: var(--space-1);
+}
+
+/* ==========================================================================
+   BASE FORM ELEMENTS - Foundation styles
+   ========================================================================== */
+
+/* Form container */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-form-section-gap);
+}
+
+/* Form section */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-form-field-gap);
+}
+
+/* Form group */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Form row (horizontal layout) */
+.form-row {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+@media (max-width: 640px) {
+  .form-row {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+}
+
+/* ==========================================================================
+   INPUT FIELDS - Text inputs, textareas, selects
+   ========================================================================== */
+
+.input,
+.textarea,
+.select {
+  /* Layout */
+  display: block;
+  width: 100%;
+
+  /* Typography */
+  font-family: var(--font-family-primary);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+
+  /* Appearance */
+  padding: var(--space-input-padding-y) var(--space-input-padding-x);
+  border: 2px solid var(--color-border-light);
+  border-radius: var(--input-radius-md);
+  background-color: var(--color-bg-surface);
+  color: var(--color-text-primary);
+
+  /* Interactions */
+  transition: all var(--form-transition-normal);
+
+  /* Focus styles */
+  outline: none;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  border-color: var(--color-focus-ring);
+  box-shadow:
+    var(--shadow-input-focus),
+    0 0 0 3px rgba(6, 182, 212, 0.1);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--color-neutral-500);
+  opacity: 1;
+}
+
+/* Input sizes */
+.input-xs,
+.textarea-xs,
+.select-xs {
+  height: var(--input-height-xs);
+  padding: calc(var(--space-input-padding-y) * 0.75) calc(var(--space-input-padding-x) * 0.75);
+  font-size: var(--font-size-sm);
+}
+
+.input-sm,
+.textarea-sm,
+.select-sm {
+  height: var(--input-height-sm);
+  padding: calc(var(--space-input-padding-y) * 0.875) var(--space-input-padding-x);
+  font-size: var(--font-size-sm);
+}
+
+.input-md,
+.textarea-md,
+.select-md {
+  height: var(--input-height-md);
+  padding: var(--space-input-padding-y) var(--space-input-padding-x);
+  font-size: var(--font-size-base);
+}
+
+.input-lg,
+.textarea-lg,
+.select-lg {
+  height: var(--input-height-lg);
+  padding: calc(var(--space-input-padding-y) * 1.25) var(--space-input-padding-x);
+  font-size: var(--font-size-lg);
+}
+
+/* Textarea specific styles */
+.textarea {
+  min-height: 6rem;
+  resize: vertical;
+  line-height: var(--line-height-relaxed);
+}
+
+/* Select specific styles */
+.select {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right var(--space-3) center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: calc(var(--space-input-padding-x) + 2rem);
+}
+
+/* ==========================================================================
+   LABELS - Form field labels
+   ========================================================================== */
+
+.label,
+label {
+  /* Typography */
+  font-family: var(--text-label-font-family);
+  font-size: var(--text-label-font-size);
+  font-weight: var(--text-label-font-weight);
+  line-height: var(--text-label-line-height);
+  letter-spacing: var(--text-label-letter-spacing);
+
+  /* Appearance */
+  color: var(--text-color-primary);
+  margin-bottom: var(--label-margin-bottom);
+  display: block;
+}
+
+/* Required field indicator */
+.label-required::after,
+label[aria-required='true']::after,
+.label .required::after {
+  content: '*';
+  color: var(--color-error-500);
+  margin-left: var(--space-1);
+}
+
+/* ==========================================================================
+   VALIDATION STATES - Success, error, warning states
+   ========================================================================== */
+
+/* Error state */
+.input-error,
+.textarea-error,
+.select-error {
+  border-color: var(--color-error-500);
+  box-shadow: var(--shadow-input-error);
+}
+
+.input-error:focus,
+.textarea-error:focus,
+.select-error:focus {
+  border-color: var(--color-error-500);
+  box-shadow:
+    var(--shadow-input-error),
+    0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Success state */
+.input-success,
+.textarea-success,
+.select-success {
+  border-color: var(--color-success-500);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.input-success:focus,
+.textarea-success:focus,
+.select-success:focus {
+  border-color: var(--color-success-500);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+
+/* Warning state */
+.input-warning,
+.textarea-warning,
+.select-warning {
+  border-color: var(--color-warning-500);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+.input-warning:focus,
+.textarea-warning:focus,
+.select-warning:focus {
+  border-color: var(--color-warning-500);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+
+/* ==========================================================================
+   HELP TEXT & ERROR MESSAGES - Supporting text
+   ========================================================================== */
+
+/* Help text */
+.help-text,
+.form-help {
+  font-size: var(--help-font-size);
+  color: var(--help-color);
+  margin-top: var(--help-margin-top);
+  line-height: var(--line-height-normal);
+}
+
+/* Error messages */
+.error-message,
+.form-error,
+.field-error {
+  font-size: var(--error-font-size);
+  color: var(--error-color);
+  margin-top: var(--error-margin-top);
+  line-height: var(--line-height-normal);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1-5);
+}
+
+.error-message::before,
+.form-error::before,
+.field-error::before {
+  content: '⚠️';
+  flex-shrink: 0;
+  font-size: 0.875em;
+}
+
+/* ==========================================================================
+   FORM FIELD CONTAINER - Complete field wrapper
+   ========================================================================== */
+
+.field,
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Field with horizontal layout */
+.field-horizontal,
+.form-field-horizontal {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.field-horizontal .label,
+.form-field-horizontal .label {
+  flex: 0 0 8rem;
+  margin-bottom: 0;
+  padding-top: var(--space-input-padding-y);
+}
+
+@media (max-width: 640px) {
+  .field-horizontal,
+  .form-field-horizontal {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .field-horizontal .label,
+  .form-field-horizontal .label {
+    flex: none;
+    padding-top: 0;
+  }
+}
+
+/* ==========================================================================
+   SPECIAL FORM ELEMENTS - Checkboxes, radios, switches
+   ========================================================================== */
+
+/* Checkbox and radio containers */
+.checkbox,
+.radio {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Hidden inputs */
+.checkbox input[type='checkbox'],
+.radio input[type='radio'] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Custom checkbox */
+.checkbox::before {
+  content: '';
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--color-border-medium);
+  border-radius: var(--input-radius-xs);
+  background: var(--color-bg-surface);
+  transition: all var(--form-transition-normal);
+  flex-shrink: 0;
+}
+
+.checkbox input[type='checkbox']:checked + &::before {
+  background: var(--color-primary-500);
+  border-color: var(--color-primary-500);
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='m13.854 3.646-7.5 7.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 0 1 .708-.708L6 10.293l7.146-7.147a.5.5 0 0 1 .708.708z'/%3e%3c/svg%3e");
+  background-size: 0.75rem;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.checkbox:hover::before {
+  border-color: var(--color-primary-400);
+}
+
+/* Custom radio */
+.radio::before {
+  content: '';
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--color-border-medium);
+  border-radius: 50%;
+  background: var(--color-bg-surface);
+  transition: all var(--form-transition-normal);
+  flex-shrink: 0;
+}
+
+.radio input[type='radio']:checked + &::before {
+  border-color: var(--color-primary-500);
+  background: radial-gradient(circle, var(--color-primary-500) 0.5rem, transparent 0.5rem);
+}
+
+.radio:hover::before {
+  border-color: var(--color-primary-400);
+}
+
+/* ==========================================================================
+   FORM CONTROLS - Submit buttons, reset, etc.
+   ========================================================================== */
+
+.form-actions,
+.form-controls {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.form-actions-start {
+  justify-content: flex-start;
+}
+
+.form-actions-center {
+  justify-content: center;
+}
+
+.form-actions-between {
+  justify-content: space-between;
+}
+
+/* ==========================================================================
+   RESPONSIVE FORMS - Mobile optimizations
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .form {
+    gap: var(--space-responsive-padding-md);
+  }
+
+  .input,
+  .textarea,
+  .select {
+    /* Larger touch targets on mobile */
+    min-height: var(--space-touch-target-min);
+    font-size: var(--font-size-lg);
+  }
+
+  .label {
+    font-size: var(--font-size-base);
+  }
+
+  .form-actions {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .form-actions .btn {
+    width: 100%;
+  }
+}
+
+/* ==========================================================================
+   HIGH CONTRAST MODE - Accessibility improvements
+   ========================================================================== */
+
+@media (prefers-contrast: high) {
+  .input,
+  .textarea,
+  .select {
+    border-width: 3px;
+  }
+
+  .input:focus,
+  .textarea:focus,
+  .select:focus {
+    outline: 3px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .label {
+    font-weight: var(--font-weight-bold);
+  }
+}
+
+/* ==========================================================================
+   REDUCED MOTION - Accessibility considerations
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .input,
+  .textarea,
+  .select {
+    transition: none;
+  }
+
+  .input:focus,
+  .textarea:focus,
+  .select:focus {
+    transition: none;
+  }
+
+  .checkbox::before,
+  .radio::before {
+    transition: none;
+  }
+}
+
+/* ==========================================================================
+   USAGE EXAMPLES:
+
+   Basic form field:
+   <div class="form-field">
+     <label class="label" for="email">Email Address</label>
+     <input class="input input-md" id="email" type="email" />
+   </div>
+
+   Form field with error:
+   <div class="form-field">
+     <label class="label" for="password">Password</label>
+     <input class="input input-md input-error" id="password" type="password" />
+     <div class="error-message">Password is required</div>
+   </div>
+
+   Horizontal form field:
+   <div class="form-field field-horizontal">
+     <label class="label">Name</label>
+     <input class="input input-md" />
+   </div>
+
+   Checkbox:
+   <label class="checkbox">
+     <input type="checkbox" />
+     <span>Remember me</span>
+   </label>
+
+   Form actions:
+   <div class="form-actions">
+     <button class="btn btn-secondary">Cancel</button>
+     <button class="btn btn-primary">Submit</button>
+   </div>
+   ========================================================================== */

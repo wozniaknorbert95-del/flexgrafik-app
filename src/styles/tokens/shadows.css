@@ -1,0 +1,391 @@
+/* ============================================================================
+   FLEXGRAFIK ADHD OS - Shadow System
+   ============================================================================
+   Consistent elevation system with cyberpunk glow effects
+   ============================================================================ */
+
+:root {
+  /* ==========================================================================
+     ELEVATION SCALE - Material Design inspired with cyberpunk twist
+     ========================================================================== */
+
+  /* Level 0 - Flat, no shadow */
+  --shadow-none: none;
+
+  /* Level 1 - Subtle elevation */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+
+  /* Level 2 - Card-like elevation */
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+
+  /* Level 3 - Modal elevation */
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+  /* Level 4 - Dialog elevation */
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+  /* Level 5 - Tooltip/popover elevation */
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+  /* Level 6 - Maximum elevation */
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+  /* ==========================================================================
+     CYBERPUNK GLOW EFFECTS - Electric color shadows
+     ========================================================================== */
+
+  /* Primary glow effects */
+  --shadow-glow-primary-xs: 0 0 4px rgba(6, 182, 212, 0.3);
+  --shadow-glow-primary-sm: 0 0 8px rgba(6, 182, 212, 0.4), 0 0 16px rgba(6, 182, 212, 0.2);
+  --shadow-glow-primary-md: 0 0 12px rgba(6, 182, 212, 0.5), 0 0 24px rgba(6, 182, 212, 0.3);
+  --shadow-glow-primary-lg: 0 0 16px rgba(6, 182, 212, 0.6), 0 0 32px rgba(6, 182, 212, 0.4);
+
+  /* Secondary glow effects */
+  --shadow-glow-secondary-xs: 0 0 4px rgba(217, 70, 239, 0.3);
+  --shadow-glow-secondary-sm: 0 0 8px rgba(217, 70, 239, 0.4), 0 0 16px rgba(217, 70, 239, 0.2);
+  --shadow-glow-secondary-md: 0 0 12px rgba(217, 70, 239, 0.5), 0 0 24px rgba(217, 70, 239, 0.3);
+  --shadow-glow-secondary-lg: 0 0 16px rgba(217, 70, 239, 0.6), 0 0 32px rgba(217, 70, 239, 0.4);
+
+  /* Accent glow effects */
+  --shadow-glow-accent-xs: 0 0 4px rgba(59, 130, 246, 0.3);
+  --shadow-glow-accent-sm: 0 0 8px rgba(59, 130, 246, 0.4), 0 0 16px rgba(59, 130, 246, 0.2);
+  --shadow-glow-accent-md: 0 0 12px rgba(59, 130, 246, 0.5), 0 0 24px rgba(59, 130, 246, 0.3);
+  --shadow-glow-accent-lg: 0 0 16px rgba(59, 130, 246, 0.6), 0 0 32px rgba(59, 130, 246, 0.4);
+
+  /* ==========================================================================
+     SEMANTIC SHADOWS - Component-specific shadows
+     ========================================================================== */
+
+  /* Card shadows */
+  --shadow-card: var(--shadow-sm);
+  --shadow-card-hover: var(--shadow-md);
+  --shadow-card-active: var(--shadow-lg);
+
+  /* Button shadows */
+  --shadow-button: var(--shadow-sm);
+  --shadow-button-hover: var(--shadow-md);
+  --shadow-button-active: var(--shadow-xs);
+  --shadow-button-primary-glow: var(--shadow-glow-primary-sm);
+  --shadow-button-secondary-glow: var(--shadow-glow-secondary-sm);
+
+  /* Input shadows */
+  --shadow-input: var(--shadow-xs);
+  --shadow-input-focus: var(--shadow-sm);
+  --shadow-input-error: 0 0 0 1px rgba(239, 68, 68, 0.5);
+
+  /* Modal shadows */
+  --shadow-modal: var(--shadow-xl);
+  --shadow-modal-backdrop: 0 0 0 1px rgba(0, 0, 0, 0.5);
+
+  /* Tooltip shadows */
+  --shadow-tooltip: var(--shadow-lg);
+
+  /* Navigation shadows */
+  --shadow-nav: var(--shadow-lg);
+  --shadow-nav-item: var(--shadow-sm);
+  --shadow-nav-item-active: var(--shadow-glow-primary-xs);
+
+  /* ==========================================================================
+     ANIMATED SHADOWS - Dynamic shadow effects
+     ========================================================================== */
+
+  /* Breathing glow animation */
+  --shadow-glow-breath-primary:
+    0 0 4px rgba(6, 182, 212, 0.3), 0 0 8px rgba(6, 182, 212, 0.2), 0 0 12px rgba(6, 182, 212, 0.1);
+
+  --shadow-glow-breath-secondary:
+    0 0 4px rgba(217, 70, 239, 0.3), 0 0 8px rgba(217, 70, 239, 0.2),
+    0 0 12px rgba(217, 70, 239, 0.1);
+
+  /* Pulse animation */
+  --shadow-glow-pulse-primary:
+    0 0 0 0 rgba(6, 182, 212, 0.7), 0 0 0 4px rgba(6, 182, 212, 0.3),
+    0 0 0 8px rgba(6, 182, 212, 0.1);
+
+  /* ==========================================================================
+     COMBINED EFFECTS - Multiple shadow layers
+     ========================================================================== */
+
+  /* Glass morphism effect */
+  --shadow-glass:
+    var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 32px rgba(0, 0, 0, 0.3);
+
+  /* Cyberpunk card effect */
+  --shadow-cyber-card:
+    var(--shadow-md), var(--shadow-glow-primary-xs), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  /* Interactive element effect */
+  --shadow-interactive: var(--shadow-sm), 0 0 0 2px rgba(6, 182, 212, 0.2);
+
+  /* Floating element effect */
+  --shadow-floating: var(--shadow-xl), 0 0 48px rgba(0, 0, 0, 0.4);
+}
+
+/* ==========================================================================
+   SHADOW UTILITY CLASSES - Apply these to elements
+   ========================================================================== */
+
+/* Elevation shadows */
+.shadow-elevation-xs {
+  box-shadow: var(--shadow-xs);
+}
+.shadow-elevation-sm {
+  box-shadow: var(--shadow-sm);
+}
+.shadow-elevation-md {
+  box-shadow: var(--shadow-md);
+}
+.shadow-elevation-lg {
+  box-shadow: var(--shadow-lg);
+}
+.shadow-elevation-xl {
+  box-shadow: var(--shadow-xl);
+}
+.shadow-elevation-2xl {
+  box-shadow: var(--shadow-2xl);
+}
+
+/* Glow shadows */
+.shadow-glow-primary-xs {
+  box-shadow: var(--shadow-glow-primary-xs);
+}
+.shadow-glow-primary-sm {
+  box-shadow: var(--shadow-glow-primary-sm);
+}
+.shadow-glow-primary-md {
+  box-shadow: var(--shadow-glow-primary-md);
+}
+.shadow-glow-primary-lg {
+  box-shadow: var(--shadow-glow-primary-lg);
+}
+
+.shadow-glow-secondary-xs {
+  box-shadow: var(--shadow-glow-secondary-xs);
+}
+.shadow-glow-secondary-sm {
+  box-shadow: var(--shadow-glow-secondary-sm);
+}
+.shadow-glow-secondary-md {
+  box-shadow: var(--shadow-glow-secondary-md);
+}
+.shadow-glow-secondary-lg {
+  box-shadow: var(--shadow-glow-secondary-lg);
+}
+
+.shadow-glow-accent-xs {
+  box-shadow: var(--shadow-glow-accent-xs);
+}
+.shadow-glow-accent-sm {
+  box-shadow: var(--shadow-glow-accent-sm);
+}
+.shadow-glow-accent-md {
+  box-shadow: var(--shadow-glow-accent-md);
+}
+.shadow-glow-accent-lg {
+  box-shadow: var(--shadow-glow-accent-lg);
+}
+
+/* Component shadows */
+.shadow-card {
+  box-shadow: var(--shadow-card);
+}
+.shadow-card-hover {
+  box-shadow: var(--shadow-card-hover);
+}
+.shadow-card-active {
+  box-shadow: var(--shadow-card-active);
+}
+
+.shadow-button {
+  box-shadow: var(--shadow-button);
+}
+.shadow-button-hover {
+  box-shadow: var(--shadow-button-hover);
+}
+.shadow-button-active {
+  box-shadow: var(--shadow-button-active);
+}
+
+.shadow-input {
+  box-shadow: var(--shadow-input);
+}
+.shadow-input-focus {
+  box-shadow: var(--shadow-input-focus);
+}
+.shadow-input-error {
+  box-shadow: var(--shadow-input-error);
+}
+
+.shadow-modal {
+  box-shadow: var(--shadow-modal);
+}
+.shadow-tooltip {
+  box-shadow: var(--shadow-tooltip);
+}
+.shadow-nav {
+  box-shadow: var(--shadow-nav);
+}
+
+/* Special effects */
+.shadow-glass {
+  box-shadow: var(--shadow-glass);
+}
+.shadow-cyber-card {
+  box-shadow: var(--shadow-cyber-card);
+}
+.shadow-interactive {
+  box-shadow: var(--shadow-interactive);
+}
+.shadow-floating {
+  box-shadow: var(--shadow-floating);
+}
+
+/* ==========================================================================
+   ANIMATED SHADOWS - CSS animations for dynamic effects
+   ========================================================================== */
+
+@keyframes glow-breath-primary {
+  0%,
+  100% {
+    box-shadow: var(--shadow-glow-primary-xs);
+  }
+  50% {
+    box-shadow: var(--shadow-glow-primary-md);
+  }
+}
+
+@keyframes glow-breath-secondary {
+  0%,
+  100% {
+    box-shadow: var(--shadow-glow-secondary-xs);
+  }
+  50% {
+    box-shadow: var(--shadow-glow-secondary-md);
+  }
+}
+
+@keyframes glow-pulse {
+  0% {
+    box-shadow: var(--shadow-glow-pulse-primary);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: var(--shadow-glow-primary-lg);
+    transform: scale(1.05);
+  }
+  100% {
+    box-shadow: var(--shadow-glow-pulse-primary);
+    transform: scale(1);
+  }
+}
+
+@keyframes shadow-lift {
+  0% {
+    box-shadow: var(--shadow-sm);
+    transform: translateY(0);
+  }
+  100% {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+}
+
+/* Animation utility classes */
+.shadow-glow-breath-primary {
+  animation: glow-breath-primary 3s ease-in-out infinite;
+}
+
+.shadow-glow-breath-secondary {
+  animation: glow-breath-secondary 3s ease-in-out infinite;
+}
+
+.shadow-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.shadow-lift:hover {
+  animation: shadow-lift 0.2s ease-out forwards;
+}
+
+/* ==========================================================================
+   RESPONSIVE SHADOWS - Adjust shadows for different screen sizes
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  :root {
+    /* Subtle shadows on mobile for performance */
+    --shadow-card: var(--shadow-xs);
+    --shadow-modal: var(--shadow-lg);
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    /* More pronounced shadows on desktop */
+    --shadow-card: var(--shadow-md);
+    --shadow-modal: var(--shadow-2xl);
+  }
+}
+
+/* ==========================================================================
+   HIGH CONTRAST MODE - Accessibility improvements
+   ========================================================================== */
+
+@media (prefers-contrast: high) {
+  :root {
+    /* Stronger shadows for better definition */
+    --shadow-card: var(--shadow-md);
+    --shadow-button: var(--shadow-md);
+    --shadow-input: var(--shadow-sm);
+  }
+}
+
+/* ==========================================================================
+   REDUCED MOTION - Accessibility considerations
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    /* Static shadows - no animations */
+    --shadow-glow-primary-xs: 0 0 4px rgba(6, 182, 212, 0.2);
+    --shadow-glow-secondary-xs: 0 0 4px rgba(217, 70, 239, 0.2);
+    --shadow-glow-accent-xs: 0 0 4px rgba(59, 130, 246, 0.2);
+  }
+
+  /* Disable animated shadows */
+  .shadow-glow-breath-primary,
+  .shadow-glow-breath-secondary,
+  .shadow-glow-pulse,
+  .shadow-lift:hover {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   DARK MODE COMPATIBILITY - Future expansion
+   ========================================================================== */
+
+/* Dark mode would adjust shadow colors for better contrast */
+/* @media (prefers-color-scheme: dark) { ... } */
+
+/* ==========================================================================
+   USAGE EXAMPLES:
+
+   Basic elevation:
+   <div class="shadow-elevation-md">Elevated content</div>
+
+   Glow effects:
+   <button class="shadow-glow-primary-sm">Glowing button</button>
+
+   Component shadows:
+   <div class="shadow-card">Card content</div>
+   <input class="shadow-input" />
+
+   Animated effects:
+   <div class="shadow-glow-breath-primary">Breathing glow</div>
+   <button class="shadow-lift">Lift on hover</button>
+
+   Combined effects:
+   <div class="shadow-cyber-card">Cyberpunk card</div>
+   <div class="shadow-glass">Glass morphism</div>
+   ========================================================================== */

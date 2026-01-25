@@ -1,0 +1,460 @@
+/* ============================================================================
+   FLEXGRAFIK ADHD OS - Button Components
+   ============================================================================
+   Consistent button styles using design tokens
+   ============================================================================ */
+
+:root {
+  /* ==========================================================================
+     BUTTON DESIGN TOKENS - Base button properties
+     ========================================================================== */
+
+  /* Button dimensions */
+  --button-height-xs: 1.75rem; /* 28px */
+  --button-height-sm: 2rem; /* 32px */
+  --button-height-md: 2.5rem; /* 40px */
+  --button-height-lg: 3rem; /* 48px */
+  --button-height-xl: 3.5rem; /* 56px */
+
+  /* Button border radius */
+  --button-radius-xs: var(--space-1); /* 4px */
+  --button-radius-sm: var(--space-1-5); /* 6px */
+  --button-radius-md: var(--space-2); /* 8px */
+  --button-radius-lg: var(--space-3); /* 12px */
+  --button-radius-xl: var(--space-4); /* 16px */
+
+  /* Button transitions */
+  --button-transition-fast: 0.15s ease-out;
+  --button-transition-normal: 0.2s ease-out;
+  --button-transition-slow: 0.3s ease-out;
+
+  /* ==========================================================================
+     BUTTON VARIANT STYLES - Color and appearance variants
+     ========================================================================== */
+}
+
+/* ==========================================================================
+   BASE BUTTON STYLES - All buttons inherit from this
+   ========================================================================== */
+
+.btn {
+  /* Layout */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-button-gap);
+
+  /* Typography */
+  font-family: var(--text-button-font-family);
+  font-size: var(--text-button-font-size);
+  font-weight: var(--text-button-font-weight);
+  line-height: var(--text-button-line-height);
+  letter-spacing: var(--text-button-letter-spacing);
+
+  /* Spacing */
+  padding: var(--space-button-padding-y) var(--space-button-padding-x);
+  min-height: var(--space-touch-target-min);
+
+  /* Appearance */
+  border: none;
+  border-radius: var(--button-radius-md);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+
+  /* Interactions */
+  transition: all var(--button-transition-normal);
+
+  /* Focus styles */
+  outline: none;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   BUTTON VARIANTS - Color schemes
+   ========================================================================== */
+
+/* Primary Button */
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-600));
+  color: var(--color-white);
+  box-shadow: var(--shadow-button), var(--shadow-glow-primary-xs);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-primary-400), var(--color-primary-500));
+  box-shadow: var(--shadow-button-hover), var(--shadow-glow-primary-sm);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-primary-600), var(--color-primary-700));
+  box-shadow: var(--shadow-button-active);
+  transform: translateY(0);
+}
+
+/* Secondary Button */
+.btn-secondary {
+  background: linear-gradient(135deg, var(--color-secondary-500), var(--color-secondary-600));
+  color: var(--color-white);
+  box-shadow: var(--shadow-button), var(--shadow-glow-secondary-xs);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-secondary-400), var(--color-secondary-500));
+  box-shadow: var(--shadow-button-hover), var(--shadow-glow-secondary-sm);
+  transform: translateY(-1px);
+}
+
+.btn-secondary:active:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-secondary-600), var(--color-secondary-700));
+  box-shadow: var(--shadow-button-active);
+  transform: translateY(0);
+}
+
+/* Accent Button */
+.btn-accent {
+  background: linear-gradient(135deg, var(--color-accent-500), var(--color-accent-600));
+  color: var(--color-white);
+  box-shadow: var(--shadow-button), var(--shadow-glow-accent-xs);
+}
+
+.btn-accent:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-accent-400), var(--color-accent-500));
+  box-shadow: var(--shadow-button-hover), var(--shadow-glow-accent-sm);
+  transform: translateY(-1px);
+}
+
+.btn-accent:active:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-accent-600), var(--color-accent-700));
+  box-shadow: var(--shadow-button-active);
+  transform: translateY(0);
+}
+
+/* Success Button */
+.btn-success {
+  background: linear-gradient(135deg, var(--color-success-500), var(--color-success-600));
+  color: var(--color-white);
+  box-shadow: var(--shadow-button);
+}
+
+.btn-success:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-success-400), var(--color-success-500));
+  box-shadow: var(--shadow-button-hover);
+  transform: translateY(-1px);
+}
+
+.btn-success:active:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-success-600), var(--color-success-700));
+  box-shadow: var(--shadow-button-active);
+}
+
+/* Warning Button */
+.btn-warning {
+  background: linear-gradient(135deg, var(--color-warning-500), var(--color-warning-600));
+  color: var(--color-neutral-900);
+  box-shadow: var(--shadow-button);
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-warning-400), var(--color-warning-500));
+  box-shadow: var(--shadow-button-hover);
+  transform: translateY(-1px);
+}
+
+.btn-warning:active:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-warning-600), var(--color-warning-700));
+  box-shadow: var(--shadow-button-active);
+}
+
+/* Error Button */
+.btn-error {
+  background: linear-gradient(135deg, var(--color-error-500), var(--color-error-600));
+  color: var(--color-white);
+  box-shadow: var(--shadow-button);
+}
+
+.btn-error:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-error-400), var(--color-error-500));
+  box-shadow: var(--shadow-button-hover);
+  transform: translateY(-1px);
+}
+
+.btn-error:active:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-error-600), var(--color-error-700));
+  box-shadow: var(--shadow-button-active);
+}
+
+/* Info Button */
+.btn-info {
+  background: linear-gradient(135deg, var(--color-info-500), var(--color-info-600));
+  color: var(--color-white);
+  box-shadow: var(--shadow-button);
+}
+
+.btn-info:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-info-400), var(--color-info-500));
+  box-shadow: var(--shadow-button-hover);
+  transform: translateY(-1px);
+}
+
+.btn-info:active:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-info-600), var(--color-info-700));
+  box-shadow: var(--shadow-button-active);
+}
+
+/* ==========================================================================
+   BUTTON SIZES - Size variants
+   ========================================================================== */
+
+.btn-xs {
+  height: var(--button-height-xs);
+  padding: calc(var(--space-button-padding-y) * 0.75) calc(var(--space-button-padding-x) * 0.75);
+  font-size: var(--font-size-xs);
+  min-height: calc(var(--space-touch-target-min) * 0.8);
+}
+
+.btn-sm {
+  height: var(--button-height-sm);
+  padding: calc(var(--space-button-padding-y) * 0.875) var(--space-button-padding-x);
+  font-size: var(--font-size-sm);
+  min-height: calc(var(--space-touch-target-min) * 0.9);
+}
+
+.btn-md {
+  height: var(--button-height-md);
+  padding: var(--space-button-padding-y) var(--space-button-padding-x);
+  font-size: var(--font-size-base);
+  min-height: var(--space-touch-target-min);
+}
+
+.btn-lg {
+  height: var(--button-height-lg);
+  padding: calc(var(--space-button-padding-y) * 1.25) calc(var(--space-button-padding-x) * 1.25);
+  font-size: var(--font-size-lg);
+  min-height: var(--space-touch-target-preferred);
+}
+
+.btn-xl {
+  height: var(--button-height-xl);
+  padding: calc(var(--space-button-padding-y) * 1.5) calc(var(--space-button-padding-x) * 1.5);
+  font-size: var(--font-size-xl);
+  min-height: calc(var(--space-touch-target-preferred) * 1.2);
+}
+
+/* ==========================================================================
+   BUTTON MODIFIERS - Additional button styles
+   ========================================================================== */
+
+/* Ghost buttons - transparent background */
+.btn-ghost {
+  background: transparent;
+  box-shadow: none;
+}
+
+.btn-ghost.btn-primary {
+  color: var(--color-primary-500);
+  border: 1px solid var(--color-primary-500);
+}
+
+.btn-ghost.btn-primary:hover:not(:disabled) {
+  background: rgba(6, 182, 212, 0.1);
+  border-color: var(--color-primary-400);
+  box-shadow: var(--shadow-glow-primary-xs);
+}
+
+.btn-ghost.btn-secondary {
+  color: var(--color-secondary-500);
+  border: 1px solid var(--color-secondary-500);
+}
+
+.btn-ghost.btn-secondary:hover:not(:disabled) {
+  background: rgba(217, 70, 239, 0.1);
+  border-color: var(--color-secondary-400);
+  box-shadow: var(--shadow-glow-secondary-xs);
+}
+
+/* Outline buttons */
+.btn-outline {
+  background: transparent;
+  box-shadow: none;
+}
+
+.btn-outline.btn-primary {
+  color: var(--color-primary-500);
+  border: 2px solid var(--color-primary-500);
+}
+
+.btn-outline.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-500);
+  color: var(--color-white);
+  box-shadow: var(--shadow-glow-primary-sm);
+}
+
+/* ==========================================================================
+   BUTTON STATES - Interactive and disabled states
+   ========================================================================== */
+
+/* Loading state */
+.btn-loading {
+  position: relative;
+  color: transparent;
+  pointer-events: none;
+}
+
+.btn-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1rem;
+  height: 1rem;
+  margin: -0.5rem 0 0 -0.5rem;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: button-loading-spinner 1s ease-in-out infinite;
+}
+
+@keyframes button-loading-spinner {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Disabled state */
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none;
+  transform: none;
+}
+
+/* ==========================================================================
+   BUTTON GROUPS - Multiple buttons together
+   ========================================================================== */
+
+.btn-group {
+  display: inline-flex;
+}
+
+.btn-group .btn {
+  border-radius: 0;
+  border-right-width: 1px;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.btn-group .btn:first-child {
+  border-top-left-radius: var(--button-radius-md);
+  border-bottom-left-radius: var(--button-radius-md);
+  border-left-width: 1px;
+}
+
+.btn-group .btn:last-child {
+  border-top-right-radius: var(--button-radius-md);
+  border-bottom-right-radius: var(--button-radius-md);
+  border-right-width: 1px;
+}
+
+.btn-group .btn:only-child {
+  border-radius: var(--button-radius-md);
+  border-width: 1px;
+}
+
+/* ==========================================================================
+   RESPONSIVE BUTTONS - Mobile optimizations
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .btn {
+    /* Larger touch targets on mobile */
+    min-height: var(--space-touch-target-preferred);
+    padding: calc(var(--space-button-padding-y) * 1.2) calc(var(--space-button-padding-x) * 1.2);
+  }
+
+  .btn-xs,
+  .btn-sm {
+    /* Prevent tiny buttons on mobile */
+    min-height: var(--space-touch-target-min);
+    font-size: var(--font-size-base);
+  }
+}
+
+/* ==========================================================================
+   HIGH CONTRAST MODE - Accessibility improvements
+   ========================================================================== */
+
+@media (prefers-contrast: high) {
+  .btn {
+    /* Stronger borders for high contrast */
+    border: 2px solid currentColor;
+  }
+
+  .btn-ghost,
+  .btn-outline {
+    border-width: 3px;
+  }
+}
+
+/* ==========================================================================
+   REDUCED MOTION - Accessibility considerations
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    /* Disable hover transforms */
+    transition:
+      color var(--button-transition-normal),
+      background-color var(--button-transition-normal),
+      border-color var(--button-transition-normal),
+      box-shadow var(--button-transition-normal);
+  }
+
+  .btn:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   USAGE EXAMPLES:
+
+   Basic buttons:
+   <button class="btn btn-primary btn-md">Primary Button</button>
+   <button class="btn btn-secondary btn-lg">Secondary Button</button>
+
+   Ghost buttons:
+   <button class="btn btn-ghost btn-primary btn-sm">Ghost Primary</button>
+
+   Outline buttons:
+   <button class="btn btn-outline btn-secondary btn-md">Outline Secondary</button>
+
+   Button groups:
+   <div class="btn-group">
+     <button class="btn btn-primary">Left</button>
+     <button class="btn btn-primary">Middle</button>
+     <button class="btn btn-primary">Right</button>
+   </div>
+
+   Loading state:
+   <button class="btn btn-primary btn-loading" disabled>Loading...</button>
+
+   Icon buttons:
+   <button class="btn btn-accent btn-sm">
+     <span>⭐</span>
+     Favorite
+   </button>
+   ========================================================================== */

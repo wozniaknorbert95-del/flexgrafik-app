@@ -12,7 +12,7 @@ export function A11yStatus() {
     { name: 'Color contrast', passed: true },
     { name: 'Touch targets ≥44px', passed: true },
     { name: 'Reduced motion', passed: true },
-    { name: 'Screen reader support', passed: true }
+    { name: 'Screen reader support', passed: true },
   ];
 
   // Hide in production
@@ -25,7 +25,7 @@ export function A11yStatus() {
         A11y Status
       </h4>
       <div className="space-y-1">
-        {checks.map(check => (
+        {checks.map((check) => (
           <div key={check.name} className="flex items-center gap-2">
             <span className="text-green-400">✅</span>
             <span className="text-gray-300">{check.name}</span>

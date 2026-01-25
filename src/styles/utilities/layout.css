@@ -1,0 +1,770 @@
+/* ============================================================================
+   FLEXGRAFIK ADHD OS - Layout Utilities
+   ============================================================================
+   Responsive layout patterns and container utilities
+   ============================================================================ */
+
+:root {
+  /* ==========================================================================
+     LAYOUT DESIGN TOKENS - Layout system properties
+     ========================================================================== */
+
+  /* Container max widths */
+  --container-xs: 20rem; /* 320px */
+  --container-sm: 24rem; /* 384px */
+  --container-md: 28rem; /* 448px */
+  --container-lg: 32rem; /* 512px */
+  --container-xl: 36rem; /* 576px */
+  --container-2xl: 42rem; /* 672px */
+  --container-3xl: 48rem; /* 768px */
+  --container-4xl: 56rem; /* 896px */
+  --container-5xl: 64rem; /* 1024px */
+  --container-6xl: 72rem; /* 1152px */
+  --container-7xl: 80rem; /* 1280px */
+  --container-full: 100%;
+
+  /* Grid columns */
+  --grid-cols-1: repeat(1, minmax(0, 1fr));
+  --grid-cols-2: repeat(2, minmax(0, 1fr));
+  --grid-cols-3: repeat(3, minmax(0, 1fr));
+  --grid-cols-4: repeat(4, minmax(0, 1fr));
+  --grid-cols-5: repeat(5, minmax(0, 1fr));
+  --grid-cols-6: repeat(6, minmax(0, 1fr));
+  --grid-cols-12: repeat(12, minmax(0, 1fr));
+
+  /* Flex utilities */
+  --flex-1: 1 1 0%;
+  --flex-auto: 1 1 auto;
+  --flex-initial: 0 1 auto;
+  --flex-none: none;
+}
+
+/* ==========================================================================
+   CONTAINER SYSTEM - Responsive containers
+   ========================================================================== */
+
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+}
+
+.container-xs {
+  max-width: var(--container-xs);
+}
+.container-sm {
+  max-width: var(--container-sm);
+}
+.container-md {
+  max-width: var(--container-md);
+}
+.container-lg {
+  max-width: var(--container-lg);
+}
+.container-xl {
+  max-width: var(--container-xl);
+}
+.container-2xl {
+  max-width: var(--container-2xl);
+}
+.container-3xl {
+  max-width: var(--container-3xl);
+}
+.container-4xl {
+  max-width: var(--container-4xl);
+}
+.container-5xl {
+  max-width: var(--container-5xl);
+}
+.container-6xl {
+  max-width: var(--container-6xl);
+}
+.container-7xl {
+  max-width: var(--container-7xl);
+}
+.container-full {
+  max-width: var(--container-full);
+}
+
+/* ==========================================================================
+   FLEXBOX UTILITIES - Flexible layouts
+   ========================================================================== */
+
+/* Flex direction */
+.flex-row {
+  flex-direction: row;
+}
+.flex-row-reverse {
+  flex-direction: row-reverse;
+}
+.flex-col {
+  flex-direction: column;
+}
+.flex-col-reverse {
+  flex-direction: column-reverse;
+}
+
+/* Flex wrap */
+.flex-wrap {
+  flex-wrap: wrap;
+}
+.flex-wrap-reverse {
+  flex-wrap: wrap-reverse;
+}
+.flex-nowrap {
+  flex-wrap: nowrap;
+}
+
+/* Flex alignment */
+.items-start {
+  align-items: flex-start;
+}
+.items-end {
+  align-items: flex-end;
+}
+.items-center {
+  align-items: center;
+}
+.items-baseline {
+  align-items: baseline;
+}
+.items-stretch {
+  align-items: stretch;
+}
+
+.justify-start {
+  justify-content: flex-start;
+}
+.justify-end {
+  justify-content: flex-end;
+}
+.justify-center {
+  justify-content: center;
+}
+.justify-between {
+  justify-content: space-between;
+}
+.justify-around {
+  justify-content: space-around;
+}
+.justify-evenly {
+  justify-content: space-evenly;
+}
+
+.content-start {
+  align-content: flex-start;
+}
+.content-end {
+  align-content: flex-end;
+}
+.content-center {
+  align-content: center;
+}
+.content-between {
+  align-content: space-between;
+}
+.content-around {
+  align-content: space-around;
+}
+.content-stretch {
+  align-content: stretch;
+}
+
+/* Flex item properties */
+.flex-1 {
+  flex: var(--flex-1);
+}
+.flex-auto {
+  flex: var(--flex-auto);
+}
+.flex-initial {
+  flex: var(--flex-initial);
+}
+.flex-none {
+  flex: var(--flex-none);
+}
+
+.self-auto {
+  align-self: auto;
+}
+.self-start {
+  align-self: flex-start;
+}
+.self-end {
+  align-self: flex-end;
+}
+.self-center {
+  align-self: center;
+}
+.self-stretch {
+  align-self: stretch;
+}
+.self-baseline {
+  align-self: baseline;
+}
+
+/* ==========================================================================
+   GRID SYSTEM - CSS Grid layouts
+   ========================================================================== */
+
+.grid {
+  display: grid;
+  gap: var(--space-layout-gap-md);
+}
+
+.grid-cols-1 {
+  grid-template-columns: var(--grid-cols-1);
+}
+.grid-cols-2 {
+  grid-template-columns: var(--grid-cols-2);
+}
+.grid-cols-3 {
+  grid-template-columns: var(--grid-cols-3);
+}
+.grid-cols-4 {
+  grid-template-columns: var(--grid-cols-4);
+}
+.grid-cols-5 {
+  grid-template-columns: var(--grid-cols-5);
+}
+.grid-cols-6 {
+  grid-template-columns: var(--grid-cols-6);
+}
+.grid-cols-12 {
+  grid-template-columns: var(--grid-cols-12);
+}
+
+/* Grid gap utilities */
+.gap-0 {
+  gap: 0;
+}
+.gap-1 {
+  gap: var(--space-1);
+}
+.gap-2 {
+  gap: var(--space-2);
+}
+.gap-3 {
+  gap: var(--space-3);
+}
+.gap-4 {
+  gap: var(--space-4);
+}
+.gap-6 {
+  gap: var(--space-6);
+}
+.gap-8 {
+  gap: var(--space-8);
+}
+.gap-12 {
+  gap: var(--space-12);
+}
+
+/* Grid item alignment */
+.col-span-1 {
+  grid-column: span 1 / span 1;
+}
+.col-span-2 {
+  grid-column: span 2 / span 2;
+}
+.col-span-3 {
+  grid-column: span 3 / span 3;
+}
+.col-span-4 {
+  grid-column: span 4 / span 4;
+}
+.col-span-5 {
+  grid-column: span 5 / span 5;
+}
+.col-span-6 {
+  grid-column: span 6 / span 6;
+}
+.col-span-full {
+  grid-column: 1 / -1;
+}
+
+/* ==========================================================================
+   LAYOUT PATTERNS - Common layout structures
+   ========================================================================== */
+
+/* Page layout */
+.page-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-header {
+  flex-shrink: 0;
+}
+
+.page-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-footer {
+  flex-shrink: 0;
+}
+
+/* Sidebar layouts */
+.layout-sidebar {
+  display: flex;
+  min-height: 100vh;
+}
+
+.layout-sidebar .sidebar {
+  width: 16rem;
+  flex-shrink: 0;
+  border-right: 1px solid var(--color-border-light);
+}
+
+.layout-sidebar .main-content {
+  flex: 1;
+  overflow: auto;
+}
+
+.layout-sidebar-collapsed .sidebar {
+  width: 4rem;
+}
+
+/* Dashboard layouts */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-layout-gap-lg);
+}
+
+@media (min-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--space-layout-gap-md);
+}
+
+/* ==========================================================================
+   POSITIONING UTILITIES - Absolute and relative positioning
+   ========================================================================== */
+
+.relative {
+  position: relative;
+}
+.absolute {
+  position: absolute;
+}
+.fixed {
+  position: fixed;
+}
+.sticky {
+  position: sticky;
+}
+
+.inset-0 {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+.inset-y-0 {
+  top: 0;
+  bottom: 0;
+}
+.inset-x-0 {
+  left: 0;
+  right: 0;
+}
+
+.top-0 {
+  top: 0;
+}
+.right-0 {
+  right: 0;
+}
+.bottom-0 {
+  bottom: 0;
+}
+.left-0 {
+  left: 0;
+}
+
+.top-1 {
+  top: var(--space-1);
+}
+.right-1 {
+  right: var(--space-1);
+}
+.bottom-1 {
+  bottom: var(--space-1);
+}
+.left-1 {
+  left: var(--space-1);
+}
+
+.top-2 {
+  top: var(--space-2);
+}
+.right-2 {
+  right: var(--space-2);
+}
+.bottom-2 {
+  bottom: var(--space-2);
+}
+.left-2 {
+  left: var(--space-2);
+}
+
+.z-0 {
+  z-index: 0;
+}
+.z-10 {
+  z-index: 10;
+}
+.z-20 {
+  z-index: 20;
+}
+.z-30 {
+  z-index: 30;
+}
+.z-40 {
+  z-index: 40;
+}
+.z-50 {
+  z-index: 50;
+}
+.z-auto {
+  z-index: auto;
+}
+
+/* ==========================================================================
+   DISPLAY UTILITIES - Show/hide elements
+   ========================================================================== */
+
+.block {
+  display: block;
+}
+.inline-block {
+  display: inline-block;
+}
+.inline {
+  display: inline;
+}
+.flex {
+  display: flex;
+}
+.inline-flex {
+  display: inline-flex;
+}
+.grid {
+  display: grid;
+}
+.inline-grid {
+  display: inline-grid;
+}
+.hidden {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .sm-block {
+    display: block;
+  }
+  .sm-inline-block {
+    display: inline-block;
+  }
+  .sm-inline {
+    display: inline;
+  }
+  .sm-flex {
+    display: flex;
+  }
+  .sm-inline-flex {
+    display: inline-flex;
+  }
+  .sm-grid {
+    display: grid;
+  }
+  .sm-inline-grid {
+    display: inline-grid;
+  }
+  .sm-hidden {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .md-block {
+    display: block;
+  }
+  .md-inline-block {
+    display: inline-block;
+  }
+  .md-inline {
+    display: inline;
+  }
+  .md-flex {
+    display: flex;
+  }
+  .md-inline-flex {
+    display: inline-flex;
+  }
+  .md-grid {
+    display: grid;
+  }
+  .md-inline-grid {
+    display: inline-grid;
+  }
+  .md-hidden {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg-block {
+    display: block;
+  }
+  .lg-inline-block {
+    display: inline-block;
+  }
+  .lg-inline {
+    display: inline;
+  }
+  .lg-flex {
+    display: flex;
+  }
+  .lg-inline-flex {
+    display: inline-flex;
+  }
+  .lg-grid {
+    display: grid;
+  }
+  .lg-inline-grid {
+    display: inline-grid;
+  }
+  .lg-hidden {
+    display: none;
+  }
+}
+
+@media (min-width: 1280px) {
+  .xl-block {
+    display: block;
+  }
+  .xl-inline-block {
+    display: inline-block;
+  }
+  .xl-inline {
+    display: inline;
+  }
+  .xl-flex {
+    display: flex;
+  }
+  .xl-inline-flex {
+    display: inline-flex;
+  }
+  .xl-grid {
+    display: grid;
+  }
+  .xl-inline-grid {
+    display: inline-grid;
+  }
+  .xl-hidden {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   OVERFLOW UTILITIES - Scroll and overflow control
+   ========================================================================== */
+
+.overflow-auto {
+  overflow: auto;
+}
+.overflow-hidden {
+  overflow: hidden;
+}
+.overflow-visible {
+  overflow: visible;
+}
+.overflow-scroll {
+  overflow: scroll;
+}
+
+.overflow-x-auto {
+  overflow-x: auto;
+}
+.overflow-y-auto {
+  overflow-y: auto;
+}
+.overflow-x-hidden {
+  overflow-x: hidden;
+}
+.overflow-y-hidden {
+  overflow-y: hidden;
+}
+.overflow-x-visible {
+  overflow-x: visible;
+}
+.overflow-y-visible {
+  overflow-y: visible;
+}
+.overflow-x-scroll {
+  overflow-x: scroll;
+}
+.overflow-y-scroll {
+  overflow-y: scroll;
+}
+
+.scroll-smooth {
+  scroll-behavior: smooth;
+}
+.scroll-auto {
+  scroll-behavior: auto;
+}
+
+/* ==========================================================================
+   ASPECT RATIO UTILITIES - Maintain proportions
+   ========================================================================== */
+
+.aspect-square {
+  aspect-ratio: 1 / 1;
+}
+.aspect-video {
+  aspect-ratio: 16 / 9;
+}
+.aspect-photo {
+  aspect-ratio: 4 / 3;
+}
+.aspect-card {
+  aspect-ratio: 3 / 2;
+}
+.aspect-banner {
+  aspect-ratio: 5 / 1;
+}
+
+/* ==========================================================================
+   OBJECT FIT UTILITIES - Image and media positioning
+   ========================================================================== */
+
+.object-contain {
+  object-fit: contain;
+}
+.object-cover {
+  object-fit: cover;
+}
+.object-fill {
+  object-fit: fill;
+}
+.object-none {
+  object-fit: none;
+}
+.object-scale-down {
+  object-fit: scale-down;
+}
+
+/* ==========================================================================
+   RESPONSIVE LAYOUTS - Mobile-first responsive patterns
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .container {
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+
+  .layout-sidebar {
+    flex-direction: column;
+  }
+
+  .layout-sidebar .sidebar {
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border-light);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-stats {
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  }
+}
+
+/* ==========================================================================
+   HIGH CONTRAST MODE - Accessibility improvements
+   ========================================================================== */
+
+@media (prefers-contrast: high) {
+  .container {
+    /* Ensure adequate spacing in high contrast */
+    padding-left: var(--space-6);
+    padding-right: var(--space-6);
+  }
+}
+
+/* ==========================================================================
+   REDUCED MOTION - Accessibility considerations
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-smooth {
+    scroll-behavior: auto;
+  }
+}
+
+/* ==========================================================================
+   USAGE EXAMPLES:
+
+   Container system:
+   <div class="container container-xl">
+     <div class="grid grid-cols-3 gap-md">
+       <div class="card">Item 1</div>
+       <div class="card">Item 2</div>
+       <div class="card">Item 3</div>
+     </div>
+   </div>
+
+   Flexbox layouts:
+   <div class="flex items-center justify-between">
+     <div>Left</div>
+     <div>Right</div>
+   </div>
+
+   Grid layouts:
+   <div class="grid grid-cols-4 gap-lg">
+     <div class="col-span-2">Wide item</div>
+     <div>Narrow item</div>
+     <div>Narrow item</div>
+   </div>
+
+   Sidebar layout:
+   <div class="layout-sidebar">
+     <aside class="sidebar">Navigation</aside>
+     <main class="main-content">Content</main>
+   </div>
+
+   Responsive display:
+   <div class="hidden md-block lg-flex">Responsive visibility</div>
+
+   Positioning:
+   <div class="relative">
+     <div class="absolute top-0 right-0 z-10">Overlay</div>
+   </div>
+   ========================================================================== */

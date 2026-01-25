@@ -1,0 +1,58 @@
+---
+description: Zasady pracy i priorytety dla ADHD Accountability Assistant
+alwaysApply: true
+---
+
+# ADHD Accountability Assistant – zasady pracy (Cursor)
+
+## Zasady ogólne
+
+- ZAWSZE zaplanuj zmiany przed implementacją (2–3 zdania).
+- Pracuj małymi iteracjami: **maks 1–3 pliki na raz**.
+- Po każdej zmianie: **podsumuj diff** i sprawdź, czy nie łamie funkcjonalności.
+- Uruchom:
+  - `npm test` po zmianach w logice (utils/AppContext/Finish Mode),
+  - `npm run build` po większych refaktorach, zmianach w `types.ts`, PWA/SW, dependencies.
+- Trzymaj się `PLAN.md` i `DECISIONS.md`.
+- Priorytet: **stabilność > nowość**, **finish > start**, **local-first > backend**.
+
+## Kontekst projektu (twarde fakty)
+
+- Stack: Vite + React + TypeScript, Tailwind CSS 4, Framer Motion.
+- PWA: service worker (prosty cache), `manifest.json`, `offline.html`.
+- Źródło prawdy: `contexts/AppContext.tsx` (`AppData`), persistence via IndexedDB + localStorage fallback (`utils/storageManager.ts`).
+- Backend `/api/*` jest opcjonalny: aplikacja musi działać w pełni lokalnie/offline.
+
+## Zakres zmian
+
+- Domyślnie: 1–3 pliki, bez masowych refaktorów bez planu.
+- Zmiany w `types.ts` ⇒ zawsze sprawdź i aktualizuj migracje (`utils/dataMigration.ts`, `utils/migrateData.ts`, `utils/storageUtils.ts`) + testy.
+- Zmiany w `AppContext.tsx` ⇒ testuj na różnych stanach danych + `npm test`.
+- Nie łam kompatybilności danych w IndexedDB bez strategii migracji i backupu.
+- Zmiany struktury katalogów tylko małymi krokami (DECISIONS.md D-051).
+
+## Praca z kodem (konkret)
+
+### AppContext i dane
+- `contexts/AppContext.tsx` jest jedynym źródłem prawdy dla stanu aplikacji.
+- Zapis/odczyt tylko przez `utils/storageManager.ts` (nie bezpośrednio localStorage/IndexedDB w logice UI).
+- Wszystkie zmiany danych przez funkcjonalne `setData(prev => ...)` / walidacje.
+
+### Utils i logika
+- `utils/scheduler.ts`: napraw async/await bugi, unikaj masowego wywołania AI.
+- `utils/notificationCenter.ts`: proste powiadomienia, brak twardej zależności od backendu.
+- AI (`utils/progressionInsights.ts`): zawsze przekazuj kontekst celu/taska, nie zgaduj.
+- Storage: IndexedDB first, localStorage fallback, zawsze `try/catch` i graceful fallback.
+
+### React komponenty
+- Rozdzielaj UI od logiki biznesowej.
+- Finish Mode jest centralny dla anti‑porzuceniowej logiki.
+- Dashboard ma fokus na metrykach pomocnych przy syndromie 90%.
+
+## Bezpieczeństwo i AI
+
+- NIE dodawaj kluczy API do kodu.
+- Ollama: tylko lokalnie, z fallbackiem gdy niedostępna (timeouty, komunikaty).
+- Service worker: **TYLKO cache/offline**, bez localStorage, bez AI, bez ciężkich kolejek.
+- Prompty AI: faktyczne dane z AppContext (cele/task/historia), brak wymyślania.
+

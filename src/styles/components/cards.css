@@ -1,0 +1,567 @@
+/* ============================================================================
+   FLEXGRAFIK ADHD OS - Card Components
+   ============================================================================
+   Flexible card layouts with cyberpunk theming
+   ============================================================================ */
+
+:root {
+  /* ==========================================================================
+     CARD DESIGN TOKENS - Card component properties
+     ========================================================================== */
+
+  /* Card dimensions */
+  --card-min-height: 6rem;
+  --card-max-width: 24rem;
+
+  /* Card border radius */
+  --card-radius-sm: var(--space-2); /* 8px */
+  --card-radius-md: var(--space-3); /* 12px */
+  --card-radius-lg: var(--space-4); /* 16px */
+  --card-radius-xl: var(--space-6); /* 24px */
+
+  /* Card transitions */
+  --card-transition-fast: 0.15s ease-out;
+  --card-transition-normal: 0.2s ease-out;
+  --card-transition-slow: 0.3s ease-out;
+
+  /* Card spacing */
+  --card-content-gap: var(--space-card-gap);
+  --card-section-gap: var(--space-4);
+}
+
+/* ==========================================================================
+   BASE CARD STYLES - Foundation card styles
+   ========================================================================== */
+
+.card,
+.glass-card {
+  /* Layout */
+  display: flex;
+  flex-direction: column;
+
+  /* Appearance */
+  border-radius: var(--card-radius-lg);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-light);
+  box-shadow: var(--shadow-card);
+
+  /* Interactions */
+  transition: all var(--card-transition-normal);
+  cursor: pointer;
+
+  /* Content spacing */
+  padding: var(--space-card-padding);
+  gap: var(--card-content-gap);
+}
+
+/* Glass morphism variant */
+.glass-card {
+  background: var(--color-glass-medium);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--color-glass-heavy);
+  box-shadow: var(--shadow-glass);
+}
+
+/* ==========================================================================
+   CARD INTERACTIONS - Hover and active states
+   ========================================================================== */
+
+.card:hover,
+.glass-card:hover {
+  border-color: var(--color-border-medium);
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+}
+
+.card:active,
+.glass-card:active {
+  box-shadow: var(--shadow-card-active);
+  transform: translateY(0);
+}
+
+/* Interactive card variant */
+.card-interactive,
+.glass-card-interactive {
+  cursor: pointer;
+}
+
+.card-interactive:hover,
+.glass-card-interactive:hover {
+  border-color: var(--color-primary-400);
+  box-shadow: var(--shadow-interactive);
+}
+
+/* ==========================================================================
+   CARD SIZES - Different card dimensions
+   ========================================================================== */
+
+.card-xs,
+.glass-card-xs {
+  padding: calc(var(--space-card-padding) * 0.75);
+  min-height: calc(var(--card-min-height) * 0.75);
+  gap: calc(var(--card-content-gap) * 0.75);
+}
+
+.card-sm,
+.glass-card-sm {
+  padding: calc(var(--space-card-padding) * 0.875);
+  min-height: calc(var(--card-min-height) * 0.875);
+  gap: calc(var(--card-content-gap) * 0.875);
+}
+
+.card-md,
+.glass-card-md {
+  padding: var(--space-card-padding);
+  min-height: var(--card-min-height);
+  gap: var(--card-content-gap);
+}
+
+.card-lg,
+.glass-card-lg {
+  padding: calc(var(--space-card-padding) * 1.25);
+  min-height: calc(var(--card-min-height) * 1.25);
+  gap: calc(var(--card-content-gap) * 1.25);
+}
+
+.card-xl,
+.glass-card-xl {
+  padding: calc(var(--space-card-padding) * 1.5);
+  min-height: calc(var(--card-min-height) * 1.5);
+  gap: calc(var(--card-content-gap) * 1.5);
+}
+
+/* ==========================================================================
+   CARD VARIANTS - Different card appearances
+   ========================================================================== */
+
+/* Success card */
+.card-success,
+.glass-card-success {
+  border-color: var(--color-success-500);
+  box-shadow:
+    var(--shadow-card),
+    0 0 0 1px rgba(34, 197, 94, 0.2);
+}
+
+.card-success:hover,
+.glass-card-success:hover {
+  border-color: var(--color-success-400);
+  box-shadow:
+    var(--shadow-card-hover),
+    0 0 0 1px rgba(34, 197, 94, 0.3);
+}
+
+/* Warning card */
+.card-warning,
+.glass-card-warning {
+  border-color: var(--color-warning-500);
+  box-shadow:
+    var(--shadow-card),
+    0 0 0 1px rgba(245, 158, 11, 0.2);
+}
+
+.card-warning:hover,
+.glass-card-warning:hover {
+  border-color: var(--color-warning-400);
+  box-shadow:
+    var(--shadow-card-hover),
+    0 0 0 1px rgba(245, 158, 11, 0.3);
+}
+
+/* Error card */
+.card-error,
+.glass-card-error {
+  border-color: var(--color-error-500);
+  box-shadow:
+    var(--shadow-card),
+    0 0 0 1px rgba(239, 68, 68, 0.2);
+}
+
+.card-error:hover,
+.glass-card-error:hover {
+  border-color: var(--color-error-400);
+  box-shadow:
+    var(--shadow-card-hover),
+    0 0 0 1px rgba(239, 68, 68, 0.3);
+}
+
+/* Info card */
+.card-info,
+.glass-card-info {
+  border-color: var(--color-info-500);
+  box-shadow:
+    var(--shadow-card),
+    0 0 0 1px rgba(99, 102, 241, 0.2);
+}
+
+.card-info:hover,
+.glass-card-info:hover {
+  border-color: var(--color-info-400);
+  box-shadow:
+    var(--shadow-card-hover),
+    0 0 0 1px rgba(99, 102, 241, 0.3);
+}
+
+/* ==========================================================================
+   CARD CONTENT STRUCTURE - Internal card elements
+   ========================================================================== */
+
+/* Card header */
+.card-header,
+.card-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--card-section-gap);
+}
+
+.card-title {
+  font-family: var(--text-title-font-family);
+  font-size: var(--text-title-font-size);
+  font-weight: var(--text-title-font-weight);
+  line-height: var(--text-title-line-height);
+  letter-spacing: var(--text-title-letter-spacing);
+  color: var(--text-color-primary);
+}
+
+/* Card subtitle */
+.card-subtitle,
+.card-description {
+  font-family: var(--text-subtitle-font-family);
+  font-size: var(--text-subtitle-font-size);
+  font-weight: var(--text-subtitle-font-weight);
+  line-height: var(--text-subtitle-line-height);
+  letter-spacing: var(--text-subtitle-letter-spacing);
+  color: var(--text-color-secondary);
+  margin-bottom: var(--card-section-gap);
+}
+
+/* Card content */
+.card-content,
+.card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-content-gap);
+}
+
+/* Card actions */
+.card-actions,
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: auto;
+  padding-top: var(--card-section-gap);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.card-actions-start {
+  justify-content: flex-start;
+}
+
+.card-actions-center {
+  justify-content: center;
+}
+
+.card-actions-between {
+  justify-content: space-between;
+}
+
+/* ==========================================================================
+   CARD LAYOUTS - Special card arrangements
+   ========================================================================== */
+
+/* Horizontal card layout */
+.card-horizontal,
+.glass-card-horizontal {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.card-horizontal .card-content,
+.glass-card-horizontal .card-content {
+  flex: 1;
+  justify-content: center;
+}
+
+.card-horizontal .card-media,
+.glass-card-horizontal .card-media {
+  flex-shrink: 0;
+  width: 8rem;
+  height: 8rem;
+  border-radius: var(--card-radius-md);
+  overflow: hidden;
+  background: var(--color-neutral-800);
+}
+
+/* Compact card */
+.card-compact,
+.glass-card-compact {
+  padding: calc(var(--space-card-padding) * 0.75);
+  gap: calc(var(--card-content-gap) * 0.75);
+}
+
+/* ==========================================================================
+   CARD ANIMATIONS - Motion effects
+   ========================================================================== */
+
+.card-enter {
+  animation: card-enter 0.3s ease-out;
+}
+
+@keyframes card-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(1rem) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.card-exit {
+  animation: card-exit 0.2s ease-in;
+}
+
+@keyframes card-exit {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-0.5rem) scale(0.95);
+  }
+}
+
+/* Stagger animation for card lists */
+.card-list .card:nth-child(1) {
+  animation-delay: 0s;
+}
+.card-list .card:nth-child(2) {
+  animation-delay: 0.05s;
+}
+.card-list .card:nth-child(3) {
+  animation-delay: 0.1s;
+}
+.card-list .card:nth-child(4) {
+  animation-delay: 0.15s;
+}
+.card-list .card:nth-child(5) {
+  animation-delay: 0.2s;
+}
+
+/* ==========================================================================
+   CARD GRID LAYOUTS - Card arrangements
+   ========================================================================== */
+
+.card-grid {
+  display: grid;
+  gap: var(--space-layout-gap-md);
+}
+
+.card-grid-1 {
+  grid-template-columns: 1fr;
+}
+
+.card-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.card-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.card-grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 768px) {
+  .card-grid-2,
+  .card-grid-3,
+  .card-grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1024px) {
+  .card-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .card-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ==========================================================================
+   SPECIAL CARD EFFECTS - Advanced visual effects
+   ========================================================================== */
+
+/* Cyberpunk card effect */
+.card-cyber,
+.glass-card-cyber {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-cyber::before,
+.glass-card-cyber::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  animation: card-shine 3s ease-in-out infinite;
+}
+
+@keyframes card-shine {
+  0%,
+  100% {
+    left: -100%;
+  }
+  50% {
+    left: 100%;
+  }
+}
+
+/* Pulse effect for important cards */
+.card-pulse,
+.glass-card-pulse {
+  animation: card-pulse 2s ease-in-out infinite;
+}
+
+@keyframes card-pulse {
+  0%,
+  100% {
+    box-shadow: var(--shadow-card);
+  }
+  50% {
+    box-shadow: var(--shadow-cyber-card);
+  }
+}
+
+/* ==========================================================================
+   RESPONSIVE CARDS - Mobile optimizations
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .card,
+  .glass-card {
+    /* Larger touch targets on mobile */
+    min-height: calc(var(--card-min-height) * 1.2);
+    border-radius: var(--card-radius-md);
+  }
+
+  .card-horizontal,
+  .glass-card-horizontal {
+    flex-direction: column;
+  }
+
+  .card-actions,
+  .card-footer {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .card-actions .btn,
+  .card-footer .btn {
+    width: 100%;
+  }
+}
+
+/* ==========================================================================
+   HIGH CONTRAST MODE - Accessibility improvements
+   ========================================================================== */
+
+@media (prefers-contrast: high) {
+  .card,
+  .glass-card {
+    /* Stronger borders for high contrast */
+    border-width: 2px;
+    border-color: var(--color-border-heavy);
+  }
+
+  .card-title {
+    font-weight: var(--font-weight-bold);
+  }
+}
+
+/* ==========================================================================
+   REDUCED MOTION - Accessibility considerations
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .glass-card {
+    /* Disable hover transforms */
+    transition:
+      box-shadow var(--card-transition-normal),
+      border-color var(--card-transition-normal);
+  }
+
+  .card:hover,
+  .glass-card:hover,
+  .card:active,
+  .glass-card:active {
+    transform: none;
+  }
+
+  .card-enter,
+  .card-exit,
+  .card-cyber::before,
+  .card-pulse {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   USAGE EXAMPLES:
+
+   Basic card:
+   <div class="card card-md">
+     <h3 class="card-title">Card Title</h3>
+     <p class="card-subtitle">Card description</p>
+     <div class="card-content">
+       <p>Card content goes here</p>
+     </div>
+     <div class="card-actions">
+       <button class="btn btn-secondary">Cancel</button>
+       <button class="btn btn-primary">Action</button>
+     </div>
+   </div>
+
+   Glass card variant:
+   <div class="glass-card card-lg">
+     <div class="card-content">
+       <p>Glass morphism effect</p>
+     </div>
+   </div>
+
+   Card grid:
+   <div class="card-grid card-grid-3">
+     <div class="card">Card 1</div>
+     <div class="card">Card 2</div>
+     <div class="card">Card 3</div>
+   </div>
+
+   Horizontal card:
+   <div class="card card-horizontal">
+     <img class="card-media" src="..." alt="..." />
+     <div class="card-content">
+       <h3 class="card-title">Title</h3>
+       <p>Content</p>
+     </div>
+   </div>
+
+   Status cards:
+   <div class="card card-success">Success message</div>
+   <div class="card card-error">Error message</div>
+   <div class="card card-cyber">Cyberpunk effect</div>
+   ========================================================================== */

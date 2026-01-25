@@ -1,19 +1,32 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import './src/index.css';
+// CSS is bundled in production build
+// import './src/index.css';
 import App from './App';
 import { A11yStatus } from './components/A11yStatus';
+import { AppProvider } from './contexts/AppContext';
+
+// Expose context globally for testing
+declare global {
+  interface Window {
+    appContext: any;
+  }
+}
 
 const container = document.getElementById('app');
-if (container) {
-  // Clear any vanilla JS content
-  container.innerHTML = '';
+if (!container) {
+  throw new Error('Root container #app not found');
+}
 
-  const root = createRoot(container);
-  root.render(
-    <React.StrictMode>
+// Clear any vanilla JS content
+container.innerHTML = '';
+
+const root = createRoot(container);
+root.render(
+  <React.StrictMode>
+    <AppProvider>
       <App />
       <A11yStatus />
-    </React.StrictMode>
-  );
-}
+    </AppProvider>
+  </React.StrictMode>
+);
