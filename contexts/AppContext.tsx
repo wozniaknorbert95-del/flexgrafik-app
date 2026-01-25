@@ -954,11 +954,17 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       setData((prev) => {
         // D-003: max 3 active goals (finish-first)
-        // We treat "active" as pillar.status !== 'done'.
+        // We treat "active" as pillar.status !== 'done' (hard limit).
         const activeCount = (prev.pillars || []).filter((p) => p.status !== 'done').length;
         const MAX_ACTIVE_GOALS = 3;
         if (activeCount >= MAX_ACTIVE_GOALS) {
-          console.warn(`🚫 createPillar blocked: active goals limit (${MAX_ACTIVE_GOALS}) reached`);
+          const msg =
+            `Limit ${MAX_ACTIVE_GOALS} aktywnych celów (D-003). ` +
+            `Masz teraz ${activeCount}/${MAX_ACTIVE_GOALS}. ` +
+            `Najpierw zakończ (DONE) jeden cel, zanim dodasz kolejny.`;
+          console.warn(`🚫 createPillar blocked: ${msg}`);
+          // Best-effort UX: push a visible notification (local-first).
+          notificationCenter?.send('custom', msg, 'rule_max_3_goals');
           return prev;
         }
 
@@ -992,7 +998,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         };
       });
     },
-    [createPillarId]
+    [createPillarId, notificationCenter]
   );
 
   const updatePillar = useCallback(
