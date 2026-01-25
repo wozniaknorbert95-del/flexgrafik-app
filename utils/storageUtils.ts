@@ -1,7 +1,8 @@
-import { AppData } from '../types';
+import { AppData, TaskStatus } from '../types';
 import { migrateOldPillarTasks, migrateOldPhaseTasks, needsMigration } from './migrateData';
 import { INITIAL_DATA } from '../constants';
 import { handleError } from './errorHandler';
+import { detectStuckAt90 } from './taskHelpers';
 
 // Debounced LocalStorage save
 let saveTimeout: NodeJS.Timeout | null = null;
@@ -20,7 +21,7 @@ export const debouncedSave = (key: string, data: AppData): void => {
       handleError(error, {
         component: 'Storage',
         action: 'saveToLocalStorage',
-        userMessage: 'Failed to save your data'
+        userMessage: 'Failed to save your data',
       });
     }
   }, SAVE_DEBOUNCE_MS);
@@ -38,7 +39,7 @@ export const safeLoad = <T>(key: string, defaultValue: T): T => {
     handleError(error, {
       component: 'Storage',
       action: 'loadFromLocalStorage',
-      userMessage: 'Failed to load your data, using defaults'
+      userMessage: 'Failed to load your data, using defaults',
     });
     return defaultValue;
   }
@@ -50,6 +51,95 @@ export const migrateData = (oldData: any): AppData => {
     return INITIAL_DATA;
   }
 
+  // Always ensure new optional fields exist with safe defaults (local-first, backward compatible).
+  // This keeps old stored data working without requiring a versioned migration step.
+  const ensureTaskDefaults = (data: any): AppData => {
+    if (!data?.pillars || !Array.isArray(data.pillars)) return data as AppData;
+
+    const isNewStatus = (s: unknown): s is TaskStatus =>
+      s === 'active' || s === 'stuck' || s === 'done' || s === 'abandoned';
+
+    return {
+      ...data,
+      pillars: data.pillars.map((pillar: any) => ({
+        ...pillar,
+        tasks: Array.isArray(pillar?.tasks)
+          ? pillar.tasks.map((task: any) => {
+              const now = new Date().toISOString();
+              const progress = typeof task?.progress === 'number' ? task.progress : 0;
+              const lastProgressUpdate =
+                typeof task?.lastProgressUpdate === 'string'
+                  ? task.lastProgressUpdate
+                  : typeof task?.createdAt === 'string'
+                    ? task.createdAt
+                    : now;
+
+              const legacyFinishStatus =
+                typeof (task as any)?.finishStatus === 'string' ? String((task as any).finishStatus) : '';
+
+              let status: TaskStatus;
+              if (isNewStatus(task?.status)) {
+                status = task.status;
+              } else if (legacyFinishStatus === 'done' || progress >= 100) {
+                status = 'done';
+              } else if (legacyFinishStatus === 'stuck') {
+                status = 'stuck';
+              } else {
+                // Map legacy progress-statuses to logical ones
+                status = 'active';
+              }
+
+              const stuckAtNinety =
+                progress >= 100
+                  ? false
+                  : typeof task?.stuckAtNinety === 'boolean'
+                    ? task.stuckAtNinety
+                    : detectStuckAt90({
+                        ...task,
+                        progress,
+                        lastProgressUpdate,
+                        status: 'active',
+                        stuckAtNinety: false,
+                      });
+
+              if (status !== 'done' && status !== 'abandoned' && stuckAtNinety) {
+                status = 'stuck';
+              }
+
+              // Drop legacy finishStatus if present (single status system)
+              const { finishStatus: _legacyFinish, ...rest } = task || {};
+
+              return {
+                ...rest,
+                definitionOfDone:
+                  typeof task?.definitionOfDone === 'string' ? task.definitionOfDone : '',
+                progress,
+                status,
+                stuckAtNinety,
+                lastProgressUpdate,
+                createdAt: typeof task?.createdAt === 'string' ? task.createdAt : now,
+                completedAt:
+                  typeof task?.completedAt === 'string'
+                    ? task.completedAt
+                    : progress >= 100
+                      ? now
+                      : undefined,
+              };
+            })
+          : [],
+      })),
+
+      // Finish Mode sessions (safe defaults)
+      currentFinishSession:
+        data?.currentFinishSession && typeof data.currentFinishSession === 'object'
+          ? data.currentFinishSession
+          : null,
+      finishSessionsHistory: Array.isArray(data?.finishSessionsHistory)
+        ? data.finishSessionsHistory
+        : [],
+    } as AppData;
+  };
+
   // Check if migration is needed
   if (needsMigration(oldData)) {
     console.log('🔄 Migrating old task data to new format...');
@@ -57,15 +147,15 @@ export const migrateData = (oldData: any): AppData => {
     const migratedData: AppData = {
       ...oldData,
       pillars: oldData.pillars ? oldData.pillars.map(migrateOldPillarTasks) : [],
-      phases: oldData.phases ? oldData.phases.map(migrateOldPhaseTasks) : []
+      phases: oldData.phases ? oldData.phases.map(migrateOldPhaseTasks) : [],
     };
 
     console.log('✅ Task migration completed');
-    return migratedData;
+    return ensureTaskDefaults(migratedData);
   }
 
   // No migration needed, return as-is
-  return oldData as AppData;
+  return ensureTaskDefaults(oldData);
 };
 
 // Enhanced load function with automatic migration
@@ -92,7 +182,7 @@ export const saveAppData = (data: AppData): void => {
     handleError(new Error('Invalid data structure'), {
       component: 'Storage',
       action: 'validateDataStructure',
-      userMessage: 'Data validation failed, not saving'
+      userMessage: 'Data validation failed, not saving',
     });
     return;
   }
