@@ -26,7 +26,7 @@ root.render(
   <React.StrictMode>
     <AppProvider>
       <App />
-      <A11yStatus />
+      {import.meta.env.DEV && <A11yStatus />}
     </AppProvider>
   </React.StrictMode>
 );

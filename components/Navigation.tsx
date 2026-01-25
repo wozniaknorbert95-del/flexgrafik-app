@@ -10,7 +10,8 @@ interface NavigationProps {
 
 const Navigation: React.FC<NavigationProps> = ({ currentView, setView, stuckCount }) => {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
-  const moreRef = useRef<HTMLDivElement | null>(null);
+  const moreButtonRef = useRef<HTMLDivElement | null>(null);
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
 
   // PLAN.md flow: core navigation should be action-first (Dashboard → Finish Mode → AI).
   // Settings/Rules/Timer are secondary and live under "More".
@@ -101,9 +102,11 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView, stuckCoun
       if (e.key === 'Escape') setIsMoreOpen(false);
     };
     const onPointer = (e: MouseEvent | PointerEvent) => {
-      const el = moreRef.current;
-      if (!el) return;
-      if (e.target instanceof Node && el.contains(e.target)) return;
+      if (!(e.target instanceof Node)) return;
+      const btn = moreButtonRef.current;
+      const menu = moreMenuRef.current;
+      if (btn && btn.contains(e.target)) return;
+      if (menu && menu.contains(e.target)) return;
       setIsMoreOpen(false);
     };
 
@@ -117,6 +120,15 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView, stuckCoun
 
   return (
     <>
+      {/* Subtle backdrop when "More" is open (click closes) */}
+      {isMoreOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50"
+          aria-hidden="true"
+          onClick={() => setIsMoreOpen(false)}
+        />
+      )}
+
       {/* Screen Reader Announcement */}
       <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
         Current view: {currentViewLabel}
@@ -151,7 +163,11 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView, stuckCoun
                 : item.ariaLabel;
 
             return (
-              <div key={item.id} className="relative">
+              <div
+                key={item.id}
+                className="relative"
+                ref={isMore ? moreButtonRef : undefined}
+              >
                 <motion.button
                   onClick={() => {
                     if (isMore) {
@@ -252,6 +268,35 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView, stuckCoun
                   )}
                 </motion.button>
 
+                {/* More menu (compact dropdown, anchored to the button) */}
+                {isMore && isMoreOpen && (
+                  <div
+                    ref={moreMenuRef}
+                    role="menu"
+                    aria-label="Więcej akcji"
+                    className="absolute right-0 bottom-full mb-2 w-[240px] max-w-[85vw] z-50"
+                  >
+                    <div className="glass-card p-2 border border-white/10 backdrop-blur-xl">
+                      <div className="flex flex-col gap-1">
+                        {moreItems.map((it) => (
+                          <button
+                            key={it.id}
+                            role="menuitem"
+                            onClick={() => {
+                              setIsMoreOpen(false);
+                              setView(it.id);
+                            }}
+                            className="min-h-[44px] px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-[11px] font-bold uppercase tracking-wider hover:bg-white/10 text-left"
+                          >
+                            <span className="mr-2">{it.icon}</span>
+                            {it.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Active Indicator Dot */}
                 {isActive && (
                   <motion.div
@@ -271,35 +316,6 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView, stuckCoun
             );
           })}
         </div>
-
-        {/* More menu (secondary screens) */}
-        {isMoreOpen && (
-          <div
-            ref={moreRef}
-            role="menu"
-            aria-label="Więcej akcji"
-            className="absolute left-1/2 -translate-x-1/2 bottom-full mb-3 w-[320px] max-w-[92vw]"
-          >
-            <div className="glass-card p-3 border border-white/10 backdrop-blur-xl">
-              <div className="grid grid-cols-2 gap-2">
-                {moreItems.map((it) => (
-                  <button
-                    key={it.id}
-                    role="menuitem"
-                    onClick={() => {
-                      setIsMoreOpen(false);
-                      setView(it.id);
-                    }}
-                    className="min-h-[44px] px-3 py-3 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-wider hover:bg-white/10"
-                  >
-                    <span className="mr-2">{it.icon}</span>
-                    {it.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Subtle Reflection Effect */}
         <div
