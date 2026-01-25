@@ -1,0 +1,7 @@
+dist
+coverage
+node_modules
+public/sw.js
+.cursor
+.firebase
+
