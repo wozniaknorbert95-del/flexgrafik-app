@@ -180,6 +180,46 @@ const DashboardPremium: React.FC = () => {
           </button>
         </div>
 
+        {/* AI Assistant entry (PLAN 5.4) */}
+        <div className="text-center mb-6">
+          <button
+            onClick={() => setCurrentView('ai_coach')}
+            className="btn-premium w-full max-w-md text-lg py-6 px-6 hover:scale-105 transition-all duration-300 shadow-2xl relative overflow-hidden flex items-center justify-center gap-3"
+            style={{
+              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+              border: '2px solid rgba(245, 158, 11, 0.55)',
+              borderRadius: '12px',
+              boxShadow:
+                '0 8px 32px rgba(245, 158, 11, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+            }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 via-transparent to-neon-cyan/10 animate-pulse rounded-lg"></div>
+            <span className="text-3xl relative z-10">🤖</span>
+            <div className="flex flex-col items-start relative z-10">
+              <span className="font-black text-lg text-white">AI ASSISTANT</span>
+              <span className="text-sm opacity-90 text-amber-100">
+                Chat + priorytety + anti‑90%
+              </span>
+            </div>
+          </button>
+        </div>
+
+        {/* System shortcuts (so nothing is "without a path") */}
+        <div className="flex flex-col md:flex-row gap-3 items-center justify-center mb-6">
+          <button
+            onClick={() => setCurrentView('settings')}
+            className="btn-premium btn-cyan w-full md:w-auto"
+          >
+            ⚙ Config (AI / backup)
+          </button>
+          <button
+            onClick={() => setCurrentView('rules')}
+            className="btn-premium btn-magenta w-full md:w-auto"
+          >
+            ⚡ Rules
+          </button>
+        </div>
+
         {/* Finish Mode Button - Only show if there are stuck tasks */}
         {insights.stuckTasks.length > 0 && (
           <div className="text-center mb-6">
@@ -689,7 +729,7 @@ const DashboardPremium: React.FC = () => {
         {/* Active goals grid (max 3) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {activePillarsForDisplay.map((pillar) => (
-            <motion.button
+            <motion.div
               key={pillar.id}
               className="glass-card p-12 cursor-pointer text-left w-full hover:scale-105 transition-all duration-300 shadow-xl relative overflow-hidden"
               style={{
@@ -699,7 +739,15 @@ const DashboardPremium: React.FC = () => {
                 minHeight: '240px',
                 borderRadius: '16px',
               }}
+              role="button"
+              tabIndex={0}
               onClick={() => handlePillarClick(pillar.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handlePillarClick(pillar.id);
+                }
+              }}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -779,8 +827,8 @@ const DashboardPremium: React.FC = () => {
                   <span className="text-2xl">📋</span>
                   <span>{pillar.tasks.length} Total Tasks</span>
                 </div>
-                <button
-                  className="px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300 hover:scale-105"
+                <span
+                  className="px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300"
                   style={{
                     background: 'rgba(255, 0, 255, 0.1)',
                     border: '1px solid rgba(255, 0, 255, 0.3)',
@@ -788,15 +836,11 @@ const DashboardPremium: React.FC = () => {
                     textShadow: '0 0 8px rgba(255, 0, 255, 0.6)',
                     borderRadius: '12px',
                   }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePillarClick(pillar.id);
-                  }}
                 >
                   VIEW →
-                </button>
+                </span>
               </div>
-            </motion.button>
+            </motion.div>
           ))}
         </div>
 

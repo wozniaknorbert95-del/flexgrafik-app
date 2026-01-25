@@ -19,7 +19,7 @@ const AICoachPremium: React.FC<AICoachProps> = ({
   onSendMessage,
   onBack,
 }) => {
-  const { aiStatus } = useAppContext();
+  const { aiStatus, setCurrentView, handleUpdateSettings } = useAppContext();
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -35,6 +35,8 @@ const AICoachPremium: React.FC<AICoachProps> = ({
     // Legacy: direct access
     return data.aiChatHistory;
   }, [data.aiChatHistory]);
+
+  const isAiEnabled = Boolean((data as any)?.settings?.ai?.enabled);
 
   // Memoize scroll function
   const scrollToBottom = useCallback(() => {
@@ -103,8 +105,36 @@ const AICoachPremium: React.FC<AICoachProps> = ({
         >
           {aiStatus.state === 'online' && <span>🟢 AI enabled</span>}
           {aiStatus.state === 'offline' && <span>🔴 AI offline (using fallback)</span>}
-          {aiStatus.state === 'disabled' && <span>⚪ AI disabled (Settings → AI)</span>}
+          {aiStatus.state === 'disabled' && (
+            <span>⚪ AI disabled (Config ⚙ → AI Assistant → Enable AI Support)</span>
+          )}
         </div>
+
+        {/* Emergency: make it impossible to get stuck without a path */}
+        {aiStatus.state === 'disabled' && (
+          <div className="mt-3 flex flex-col md:flex-row gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                // Local-first: enable AI flag (Ollama may still be offline; fallback will handle it).
+                const currentAi = (data as any)?.settings?.ai ?? {};
+                handleUpdateSettings({
+                  ai: { ...currentAi, enabled: true },
+                } as any);
+              }}
+              className="btn-premium btn-magenta"
+            >
+              ✅ Enable AI now
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentView('settings')}
+              className="btn-premium btn-cyan"
+            >
+              ⚙ Open Config
+            </button>
+          </div>
+        )}
       </motion.div>
 
       {/* Messages */}

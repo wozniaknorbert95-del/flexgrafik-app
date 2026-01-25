@@ -900,7 +900,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       if (!aiEnabled) {
         setAiStatus({ state: 'disabled', updatedAt: new Date().toISOString() });
         assistantText =
-          'AI jest wyłączone w ustawieniach. Włącz je w Settings → AI, albo użyj Finish Mode dla konkretnego taska.';
+          'AI jest wyłączone. Otwórz Config (⚙) → AI Assistant → Enable AI Support. ' +
+          'Jeśli nie masz lokalnej Ollamy, AI zadziała w trybie fallback (bez generowania).';
       } else {
         const prompt = buildAssistantChatPrompt({
           data: snapshot.d,
