@@ -60,6 +60,13 @@ function scoreTask(params: {
   }
 
   const { isStuck90, daysSinceUpdate } = detectStuckAt90(task, now);
+  // "Finish" recommendations must be for tasks actually close to finish (or clearly stuck near-finish).
+  // AC: never recommend 0% tasks as "top finish".
+  const isFinishCandidate = Boolean(task.stuckAtNinety || isStuck90) || task.progress >= 50;
+  if (!isFinishCandidate) {
+    return { score: -Infinity, reasons: [] };
+  }
+
   const pillarType = getPillarType(pillar);
   const { attempts, lastAttemptAt } = countFinishModeAttempts({ sessions, taskId: task.id });
   const ageDays = safeDaysSince(task.createdAt, now);
@@ -107,9 +114,8 @@ function scoreTask(params: {
     reasons.push('priority: high');
   }
 
-  // Favor near-completion tasks, but avoid recommending brand new 0–30% tasks as "finish"
+  // Favor near-completion tasks
   if (task.progress >= 80 && task.progress < 100) score += 10;
-  if (task.progress < 40) score -= 25;
 
   // Ensure something sensible
   if (score <= 0) {

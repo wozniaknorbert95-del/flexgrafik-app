@@ -142,6 +142,13 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView, stuckCoun
           {navItems.map((item, index) => {
             const isMore = Boolean((item as any).isMore);
             const isActive = currentView === item.id || (isMore && isSecondaryViewActive);
+            const stuckTitleSuffix =
+              item.id === 'finish' && stuckCount > 0 ? ` • ${stuckCount} utknięte` : '';
+            const title = `${item.label}${stuckTitleSuffix} (Shortcut: ${item.shortcut})`;
+            const ariaLabel =
+              item.id === 'finish' && stuckCount > 0
+                ? `${item.ariaLabel}. Masz ${stuckCount} utknięte zadania do domknięcia.`
+                : item.ariaLabel;
 
             return (
               <div key={item.id} className="relative">
@@ -154,9 +161,9 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView, stuckCoun
                     setIsMoreOpen(false);
                     setView(item.id);
                   }}
-                  aria-label={item.ariaLabel}
+                  aria-label={ariaLabel}
                   aria-current={isActive ? 'page' : undefined}
-                  title={`${item.label} (Shortcut: ${item.shortcut})`}
+                  title={title}
                   aria-expanded={isMore ? isMoreOpen : undefined}
                   aria-haspopup={isMore ? 'menu' : undefined}
                   className={`
@@ -219,7 +226,7 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView, stuckCoun
                   {/* Stuck Badge */}
                   {item.id === 'finish' && stuckCount > 0 && (
                     <motion.div
-                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 border-2 border-obsidian flex items-center justify-center z-20"
+                      className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[var(--accent-danger)] border-2 border-obsidian flex items-center justify-center z-20"
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{
@@ -289,9 +296,6 @@ const Navigation: React.FC<NavigationProps> = ({ currentView, setView, stuckCoun
                     {it.label}
                   </button>
                 ))}
-              </div>
-              <div className="mt-2 text-[11px] text-gray-400">
-                Ustawienia są drugorzędne (finish-first).
               </div>
             </div>
           </div>

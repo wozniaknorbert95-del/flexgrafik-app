@@ -21,8 +21,6 @@ const DashboardPremium: React.FC = () => {
     removeIdea,
   } = useAppContext();
 
-  console.log('🎯 DashboardPremium: Full component loaded');
-
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newGoalName, setNewGoalName] = useState('');
   const [newGoalType, setNewGoalType] = useState<'main' | 'secondary' | 'lab'>('secondary');
@@ -38,6 +36,7 @@ const DashboardPremium: React.FC = () => {
 
   const [ideaSearch, setIdeaSearch] = useState('');
   const [ideaFilterGoalId, setIdeaFilterGoalId] = useState<number | 'all'>('all');
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
 
   const todaysFocus = useMemo(() => {
     return getTodaysFinishRecommendations({
@@ -111,6 +110,10 @@ const DashboardPremium: React.FC = () => {
   const maxActiveGoals = (goalBuckets as any).maxActive ?? 3;
   const hasBacklogOnly = activePillarsForDisplay.length === 0 && hiddenBacklogCount > 0;
   const totalGoalsCount = Array.isArray((data as any)?.pillars) ? (data as any).pillars.length : 0;
+  const visibleGoalsCount = activePillarsForDisplay.length;
+  const activeVisibleGoalsCount =
+    activePillarsForDisplay.filter((p: any) => (p?.status ?? 'in_progress') === 'in_progress').length;
+  const pausedVisibleGoalsCount = Math.max(0, visibleGoalsCount - activeVisibleGoalsCount);
 
   // If migration moved goals to backlog, guide the user by default.
   useEffect(() => {
@@ -153,6 +156,51 @@ const DashboardPremium: React.FC = () => {
   }, [ideas, ideaFilterGoalId, ideaSearch]);
 
   const canAddIdea = ideaTitle.trim().length > 0;
+  const hasAnyStats =
+    Number(basicStats?.finishSessionsLast7DaysCount ?? 0) > 0 ||
+    Number(basicStats?.finishSessionsLast7DaysTotalMinutes ?? 0) > 0 ||
+    Number(basicStats?.tasksCompletedLast7DaysCount ?? 0) > 0 ||
+    Number(basicStats?.stuckTasksClassifiedLast7DaysCount ?? 0) > 0;
+
+  const getHumanRecommendationReasons = (reasons: string[]): string[] => {
+    const list = Array.isArray(reasons) ? reasons : [];
+    const out: string[] = [];
+
+    for (const r of list) {
+      const s = String(r || '').trim();
+      if (!s) continue;
+
+      // Keep only user-facing reasons (no internal labels like "main goal" / "typ: close").
+      if (s.startsWith('stuck@90')) {
+        const m = s.match(/,\s*(\d+)d\b/);
+        out.push(m?.[1] ? `utknięte 90% (${m[1]}d)` : 'utknięte 90%');
+        continue;
+      }
+      if (s.startsWith('odwlekane')) {
+        const m = s.match(/\((\d+)d\b/);
+        out.push(m?.[1] ? `odkładane (${m[1]}d)` : 'odkładane');
+        continue;
+      }
+      if (s === 'priority: critical') {
+        out.push('priorytet: krytyczny');
+        continue;
+      }
+      if (s === 'priority: high') {
+        out.push('priorytet: wysoki');
+        continue;
+      }
+    }
+
+    // Return max 2 reasons, ordered by importance.
+    const priority = (x: string) => {
+      if (x.startsWith('utknięte 90%')) return 0;
+      if (x.startsWith('priorytet:')) return 1;
+      if (x.startsWith('odkładane')) return 2;
+      return 3;
+    };
+
+    return out.sort((a, b) => priority(a) - priority(b)).slice(0, 2);
+  };
 
   return (
     <motion.div
@@ -163,18 +211,18 @@ const DashboardPremium: React.FC = () => {
     >
       {/* Header */}
       <motion.div
-        className="widget-container mb-16"
+        className="widget-container mb-8"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
         <h1
-          className="text-6xl md:text-7xl font-black uppercase tracking-widest mb-4 text-neon-magenta"
+          className="text-4xl md:text-5xl font-black uppercase tracking-widest mb-2 text-neon-magenta"
         >
           Dashboard
         </h1>
-        <p className="text-white text-lg font-semibold tracking-wide">
-          Na czym dziś się skupić, żeby realnie domknąć rzeczy? (PLAN 5.2)
+        <p className="text-white text-base md:text-lg font-semibold tracking-wide">
+          Na czym dziś się skupić, żeby realnie domknąć rzeczy?
         </p>
       </motion.div>
 
@@ -243,347 +291,26 @@ const DashboardPremium: React.FC = () => {
         </motion.div>
       )}
 
-      {/* Main CTA Button */}
-      <motion.div
-        className="widget-container mb-12"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-      >
-        <div className="text-center mb-8">
-          <button
-            onClick={() => {
-              const top = todaysFocus[0] || null;
-              if (top) {
-                setActiveProjectId(top.pillarId);
-                startFinishSession(top.taskId, top.pillarId);
-              }
-              setCurrentView('finish');
-            }}
-            className="btn-premium btn-magenta w-full max-w-lg text-xl md:text-2xl py-10 px-8 hover:scale-105 transition-all duration-300 shadow-2xl shadow-neon-magenta/40 relative overflow-hidden flex items-center justify-center gap-4"
-            style={{ borderRadius: '16px', alignItems: 'center' }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-neon-magenta/20 via-transparent to-neon-cyan/20 rounded-xl"></div>
-            <span className="text-5xl relative z-10">🏁</span>
-            <div className="flex flex-col items-start relative z-10">
-              <span className="font-black text-2xl">START FINISH MODE</span>
-              <span className="text-base opacity-95 font-semibold">
-                {todaysFocus.length > 0
-                  ? `Top finisz: ${todaysFocus[0].taskName} (${Math.round(todaysFocus[0].taskProgress)}%)`
-                  : 'Wybierz task i domknij go (25 min)'}
-              </span>
-            </div>
-          </button>
-        </div>
-
-        {/* AI Assistant entry (PLAN 5.4) */}
-        <div className="text-center mb-6">
-          <button
-            onClick={() => setCurrentView('ai_coach')}
-            className="glass-card glass-card-warning w-full max-w-md text-lg py-6 px-6 hover:scale-105 transition-all duration-300 shadow-xl relative overflow-hidden flex items-center justify-center gap-3"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-500/15 via-transparent to-neon-cyan/10 rounded-lg"></div>
-            <span className="text-3xl relative z-10">🤖</span>
-            <div className="flex flex-col items-start relative z-10">
-              <span className="font-black text-lg text-white">AI ASSISTANT</span>
-              <span className="text-sm opacity-90 text-gray-200">
-                Chat + priorytety + anti‑90%
-              </span>
-            </div>
-          </button>
-        </div>
-
-        {/* PLAN 5.2: Today's Focus must be obvious (action-first). */}
-        <motion.div
-          className="widget-container"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12 }}
-        >
-          <div className="flex items-center gap-4 mb-6">
-            <span className="text-4xl">🎯</span>
-            <div className="flex-1">
-              <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest text-neon-cyan">
-                Na czym dziś się skupić?
-              </h2>
-              <p className="text-sm text-gray-300 mt-1">
-                Rekomendowane finisze na dziś (stuck@90 / main goal / odwlekane)
-              </p>
-            </div>
-            <div className="hidden md:block">
-              <button onClick={() => setCurrentView('finish')} className="btn-premium btn-magenta">
-                🏁 Finish Mode
-              </button>
-            </div>
-          </div>
-
-          <div className="glass-card p-6" style={{ borderRadius: '16px' }}>
-            {todaysFocus.length === 0 ? (
-              <div className="text-gray-300">
-                Brak jasnych rekomendacji. Wybierz 1 task i odpal Finish Mode na 25 min.
-                <div className="mt-4">
-                  <button onClick={() => setCurrentView('finish')} className="btn-premium btn-magenta">
-                    🏁 Open Finish Mode
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {todaysFocus.map((rec) => (
-                  <button
-                    key={`${rec.pillarId}_${rec.taskId}`}
-                    className="w-full text-left glass-card p-5 hover:scale-[1.01] transition-all duration-200 border border-gold/25"
-                    onClick={() => {
-                      setActiveProjectId(rec.pillarId);
-                      startFinishSession(rec.taskId, rec.pillarId);
-                      setCurrentView('finish');
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className="text-white font-black text-lg break-words line-clamp-2">
-                          {rec.taskName}
-                        </div>
-                        <div className="text-xs text-gray-400 mt-1">🏗️ {rec.pillarName}</div>
-                      </div>
-                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                        <div className="text-sm font-black text-gold">{Math.round(rec.taskProgress)}%</div>
-                        <div className="text-xs text-gray-400">🏁 Start</div>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-neon-magenta to-neon-cyan"
-                        style={{ width: `${Math.max(0, Math.min(100, rec.taskProgress))}%` }}
-                      />
-                    </div>
-
-                    {rec.reasons.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {rec.reasons.map((r, idx) => (
-                          <span
-                            key={idx}
-                            className="text-[11px] px-2 py-1 rounded-full bg-white/5 border border-white/10 text-gray-200"
-                          >
-                            {r}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-6 max-w-2xl mx-auto mt-8">
-          <div className="glass-card text-center py-6 px-4 border-2 border-neon-cyan/50 rounded-widget">
-            <div
-              className="text-4xl font-black mb-2 text-neon-cyan"
-            >
-              {activeProjects}
-            </div>
-            <div className="text-sm text-white font-bold uppercase tracking-wider">
-              Active Missions
-            </div>
-          </div>
-          <div
-            className={`glass-card text-center py-6 px-4 rounded-widget ${stuckCount > 0 ? 'glass-card-warning' : ''}`}
-          >
-            <div
-              className={`text-4xl font-black mb-2 text-neon-magenta ${stuckCount > 0 ? 'animate-pulse' : ''}`}
-            >
-              {stuckCount}
-            </div>
-            <div className="text-sm text-white font-bold uppercase tracking-wider">
-              Critical Alerts
-            </div>
-          </div>
-          <div className="glass-card text-center py-6 px-4 border-2 border-gold/50 rounded-widget">
-            <div className="text-4xl font-black mb-2 text-gold">
-              {data?.user?.streak || 0}
-            </div>
-            <div className="text-sm text-white font-bold uppercase tracking-wider">Day Streak</div>
-          </div>
-        </div>
-
-        {/* Finish Mode (7d) - MVP stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto mt-8">
-          <div className="glass-card text-center py-6 px-4 border-2 border-gold/40 rounded-widget">
-            <div className="text-4xl font-black mb-2 text-gold">
-              {basicStats.mainGoalStreakDays}
-            </div>
-            <div className="text-sm text-white font-bold uppercase tracking-wider">
-              {basicStats.mainGoalStreakDays === 0
-                ? 'Start a MAIN goal session today'
-                : 'Main Goal Streak (days)'}
-            </div>
-          </div>
-          <div className="glass-card glass-card-success text-center py-6 px-4 rounded-widget">
-            <div className="text-4xl font-black mb-2 text-success-400">
-              {basicStats.finishSessionsLast7DaysCount}
-            </div>
-            <div className="text-sm text-white font-bold uppercase tracking-wider">
-              Finish Sessions (7d)
-            </div>
-          </div>
-          <div className="glass-card text-center py-6 px-4 border-2 border-neon-cyan/30 rounded-widget">
-            <div className="text-4xl font-black mb-2 text-neon-cyan">
-              {basicStats.finishSessionsLast7DaysTotalMinutes}
-            </div>
-            <div className="text-sm text-white font-bold uppercase tracking-wider">
-              Finish Minutes (7d)
-            </div>
-          </div>
-          <div className="glass-card glass-card-success text-center py-6 px-4 rounded-widget">
-            <div className="text-4xl font-black mb-2 text-success-400">
-              {basicStats.tasksCompletedLast7DaysCount ?? 0}
-            </div>
-            <div className="text-sm text-white font-bold uppercase tracking-wider">
-              Tasks Done (7d)
-            </div>
-          </div>
-          <div className="glass-card text-center py-6 px-4 border-2 border-neon-cyan/30 rounded-widget">
-            <div className="text-4xl font-black mb-2 text-neon-cyan">
-              {basicStats.finishSessionsLast7DaysAvgMinutes.toFixed(1)}
-            </div>
-            <div className="text-sm text-white font-bold uppercase tracking-wider">
-              Avg Session (7d)
-            </div>
-          </div>
-          <div className="glass-card text-center py-6 px-4 border-2 border-neon-cyan/30 rounded-widget">
-            <div className="text-4xl font-black mb-2 text-neon-cyan">
-              {basicStats.finishSessionsLast7DaysMedianMinutes.toFixed(1)}
-            </div>
-            <div className="text-sm text-white font-bold uppercase tracking-wider">
-              Median Session (7d)
-            </div>
-          </div>
-          <div className="glass-card glass-card-warning text-center py-6 px-4 rounded-widget">
-            <div className="text-4xl font-black mb-2 text-warning-300">
-              {basicStats.finishSessionsLast7DaysUniqueTasks}
-            </div>
-            <div className="text-sm text-white font-bold uppercase tracking-wider">
-              Unique Tasks (7d)
-            </div>
-          </div>
-
-          {/* Stuck → Done rate (7d) */}
-          <div className="glass-card glass-card-error text-center py-6 px-4 rounded-widget">
-            <div className="text-4xl font-black mb-2 text-error-400">
-              {basicStats.stuckTasksClassifiedLast7DaysCount &&
-              basicStats.stuckTasksClassifiedLast7DaysCount > 0
-                ? `${Math.round((basicStats.stuckToDoneRateLast7Days ?? 0) * 100)}%`
-                : '—'}
-            </div>
-            <div className="text-sm text-white font-bold uppercase tracking-wider">
-              Stuck→Done (7d)
-            </div>
-            <div className="text-xs text-gray-300 mt-1">
-              {basicStats.stuckToDoneLast7DaysCount ?? 0}/
-              {basicStats.stuckTasksClassifiedLast7DaysCount ?? 0} tasks
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* HIERARCHY LEVEL 2: Alerts - Critical attention needed */}
-      {insights.stuckTasks.length > 0 && (
-        <motion.div
-          className="widget-container mb-8"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <div className="flex items-center gap-4 mb-8">
-            <span className="text-5xl animate-bounce">🚨</span>
-            <div>
-              <h2 className="text-3xl font-black uppercase tracking-widest text-neon-magenta">
-                Critical Alerts
-              </h2>
-              <p className="text-lg text-white font-semibold mt-2">Immediate action required</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {insights.stuckTasks.slice(0, 4).map((task) => {
-              // Find the pillar this task belongs to
-              const pillar = data.pillars.find((p) => p.tasks.some((t) => t.id === task.id));
-              if (!pillar) return null;
-
-              // Check if task is stuck (for UI styling)
-              const isStuck =
-                task.progress >= 90 && task.progress < 100 && task.daysInCurrentState > 3;
-
-              return (
-                <motion.button
-                  key={task.id}
-                  className={`glass-card p-8 cursor-pointer text-left w-full hover:scale-105 transition-all duration-300 focus:outline-none shadow-xl relative overflow-hidden rounded-widget ${
-                    isStuck ? 'glass-card-error' : 'glass-card-warning'
-                  }`}
-                  onClick={() => handlePillarClick(pillar.id)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br ${
-                      isStuck
-                        ? 'from-red-900/20 via-transparent to-red-800/10'
-                        : 'from-neon-magenta/10 via-transparent to-neon-cyan/5'
-                    }`}
-                  ></div>
-                  <div className="flex items-start justify-between mb-4 relative z-10">
-                    <h3
-                      className="text-2xl font-black line-clamp-2 break-words"
-                      style={{ wordBreak: 'break-word' }}
-                    >
-                      {task.name}
-                    </h3>
-                    <span className="text-4xl flex-shrink-0">
-                      {isStuck ? '💀' : '🚨'}
-                    </span>
-                  </div>
-                  <p
-                    className={`text-lg font-bold mb-3 ${
-                      isStuck ? 'text-red-400' : 'text-neon-magenta'
-                    }`}
-                  >
-                    {isStuck ? 'STUCK' : 'Stuck'} at {task.progress}% for{' '}
-                    {task.daysInCurrentState || 0} days
-                  </p>
-                  <div className="flex items-center justify-between text-base text-white font-semibold relative z-10">
-                    <span>🏗️ {pillar.name}</span>
-                    <span className={`text-sm font-black uppercase tracking-wider ${isStuck ? 'text-error-300' : 'text-neon-magenta'}`}>
-                      • {isStuck ? 'BREAK THE DIP' : 'RESOLVE NOW'}
-                    </span>
-                  </div>
-                </motion.button>
-              );
-            })}
-          </div>
-        </motion.div>
-      )}
-
-      {/* HIERARCHY LEVEL 3: Mission Overview - All projects */}
+      {/* PLAN 5.2: 3 active goals should be first (action context). */}
       <motion.div
         id="mission-overview"
-        className="widget-container"
+        className="widget-container mb-10"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
+        transition={{ delay: 0.12 }}
       >
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <span className="text-4xl">🎯</span>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">🎯</span>
             <div>
-              <h2 className="text-3xl md:text-4xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-magenta">
-                Mission Overview
+              <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-magenta">
+                Twoje cele
               </h2>
-              <p className="text-lg text-white font-semibold mt-2">
-                {activeProjects} active • {data?.pillars?.length || 0} total missions
+              <p className="text-sm text-gray-300 mt-1">
+                Cele: {visibleGoalsCount} • aktywne: {activeVisibleGoalsCount}
+                {pausedVisibleGoalsCount > 0 ? ` • pauza: ${pausedVisibleGoalsCount}` : ''}
+                {hiddenBacklogCount > 0 ? ` • backlog: ${hiddenBacklogCount}` : ''}
+                {` • limit: ${maxActiveGoals}`}
               </p>
             </div>
           </div>
@@ -596,17 +323,13 @@ const DashboardPremium: React.FC = () => {
               }}
               className="btn-premium btn-cyan"
             >
-              {isCreateOpen ? 'Close' : '➕ New mission'}
+              {isCreateOpen ? 'Close' : '➕ New goal'}
             </button>
-            <div className="text-xs text-gray-400">
-              Active goals: {activePillarsForDisplay.length}/{maxActiveGoals}
-              {hiddenBacklogCount > 0 ? ` • Backlog: ${hiddenBacklogCount}` : ''}
-            </div>
           </div>
         </div>
 
         {isCreateOpen && (
-          <div className="glass-card p-6 mb-8" style={{ borderRadius: '16px' }}>
+          <div className="glass-card p-6 mb-6" style={{ borderRadius: '16px' }}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-xs text-gray-400 uppercase tracking-wider font-semibold mb-2">
@@ -682,106 +405,118 @@ const DashboardPremium: React.FC = () => {
 
         {/* Active goals grid (max 3) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {activePillarsForDisplay.map((pillar) => (
-            <motion.div
-              key={pillar.id}
-              className="glass-card p-12 cursor-pointer text-left w-full hover:scale-105 transition-all duration-300 shadow-xl relative overflow-hidden border-2 border-neon-cyan/50 rounded-widget min-h-[240px]"
-              role="button"
-              tabIndex={0}
-              onClick={() => handlePillarClick(pillar.id)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handlePillarClick(pillar.id);
-                }
-              }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-neon-cyan/5"></div>
-              <div className="flex items-center justify-between mb-6 relative z-10">
-                <h3
-                  className="text-2xl font-black text-white line-clamp-2 break-words leading-tight uppercase tracking-wider"
-                  style={{ wordBreak: 'break-word' }}
-                >
-                  {pillar.name.toUpperCase()}
-                </h3>
-                <div className="flex items-center gap-2">
-                  {/* Goal type badge (PLAN 5.2: highlight MAIN goal) */}
-                  <span
-                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
-                      pillar.type === 'main'
-                        ? 'bg-gold/10 border-gold/50 text-gold'
-                        : 'bg-white/5 border-white/10 text-white/80'
-                    }`}
-                    style={pillar.type === 'main' ? { boxShadow: 'var(--glow-gold)' } : undefined}
-                    aria-label={`Goal type: ${pillar.type ?? 'secondary'}`}
-                    title={`Goal type: ${pillar.type ?? 'secondary'}`}
-                  >
-                    {pillar.type === 'main'
-                      ? 'MAIN'
-                      : pillar.type === 'lab'
-                        ? 'LAB'
-                        : 'SECONDARY'}
-                  </span>
-                  <span
-                    className={`text-2xl font-bold ${pillar.completion === 100 ? 'text-neon-cyan' : 'text-transparent'}`}
-                  >
-                    {pillar.completion === 100 ? '100%' : ''}
-                  </span>
-                  <span className="text-4xl flex-shrink-0">
-                    {pillar.completion === 100
-                      ? '✅'
-                      : pillar.status === 'in_progress'
-                        ? '🔥'
-                        : '⏸️'}
-                  </span>
-                </div>
-              </div>
+          {activePillarsForDisplay.map((pillar) => {
+            const type = (pillar as any)?.type === 'main' || (pillar as any)?.type === 'lab' ? (pillar as any).type : 'secondary';
+            const accentText =
+              type === 'main' ? 'text-gold' : type === 'lab' ? 'text-neon-magenta' : 'text-neon-cyan';
+            const accentBorder = type === 'main' ? 'border-gold/40' : type === 'lab' ? 'border-neon-magenta/25' : 'border-neon-cyan/25';
+            const fillClass =
+              pillar.completion > 0
+                ? type === 'main'
+                  ? 'bg-gradient-to-r from-gold to-gold'
+                  : type === 'lab'
+                    ? 'bg-gradient-to-r from-neon-magenta to-neon-magenta'
+                    : 'bg-gradient-to-r from-neon-cyan to-neon-cyan'
+                : 'bg-gradient-to-r from-neutral-800 to-neutral-700';
 
-              {/* Progress Bar */}
-              <div className="mb-6 relative z-10">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-lg text-white font-medium">Progress</span>
-                  <span className="text-2xl font-bold text-neon-cyan">
-                    {pillar.completion}%
-                  </span>
-                </div>
-                <div className="w-full rounded-full h-6 shadow-inner bg-white/10 border border-white/20">
-                  <div
-                    className={`h-6 rounded-full transition-all duration-700 shadow-2xl relative overflow-hidden ${
-                      pillar.completion >= 90
-                        ? 'bg-gradient-to-r from-neon-magenta to-neon-cyan'
-                        : pillar.completion >= 50
-                          ? 'bg-gradient-to-r from-neon-cyan to-cyan-400'
-                          : pillar.completion > 0
-                            ? 'bg-gradient-to-r from-neutral-600 to-neutral-400'
-                            : 'bg-gradient-to-r from-neutral-800 to-neutral-600'
-                    }`}
-                    style={{
-                      width: `${Math.max(pillar.completion, 8)}%`,
-                      minWidth: pillar.completion === 0 ? '24px' : 'auto',
-                    }}
-                  >
-                    <div className="absolute inset-0 shadow-inner"></div>
+            return (
+              <motion.div
+                key={pillar.id}
+                className={`glass-card p-6 md:p-8 cursor-pointer text-left w-full hover:scale-[1.02] transition-all duration-200 shadow-xl relative overflow-hidden rounded-widget min-h-[180px] border ${
+                  type === 'main' ? 'border-gold/40' : 'border-white/10'
+                }`}
+                role="button"
+                tabIndex={0}
+                onClick={() => handlePillarClick(pillar.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handlePillarClick(pillar.id);
+                  }
+                }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-neon-cyan/5"></div>
+                <div className="flex items-start justify-between gap-3 mb-4 relative z-10">
+                  <div className="min-w-0">
+                    <h3
+                      className="text-xl font-black text-white line-clamp-2 break-words leading-tight uppercase tracking-wider"
+                      style={{ wordBreak: 'break-word' }}
+                    >
+                      {pillar.name.toUpperCase()}
+                    </h3>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {/* Goal type badge (PLAN 5.2: highlight MAIN goal) */}
+                      <span
+                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                          pillar.type === 'main'
+                            ? 'bg-gold/10 border-gold/50 text-gold'
+                            : pillar.type === 'lab'
+                              ? 'bg-neon-magenta/10 border-neon-magenta/30 text-neon-magenta'
+                              : 'bg-neon-cyan/10 border-neon-cyan/30 text-neon-cyan'
+                        }`}
+                        style={pillar.type === 'main' ? { boxShadow: 'var(--glow-gold)' } : undefined}
+                        aria-label={`Goal type: ${pillar.type ?? 'secondary'}`}
+                        title={`Goal type: ${pillar.type ?? 'secondary'}`}
+                      >
+                        {pillar.type === 'main' ? 'MAIN' : pillar.type === 'lab' ? 'LAB' : 'SECONDARY'}
+                      </span>
+
+                      {/* Status label (no ambiguous 🔥) */}
+                      <span
+                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                          pillar.completion === 100
+                            ? 'bg-[color:color-mix(in_srgb,var(--accent-success)_12%,transparent)] border-[color:color-mix(in_srgb,var(--accent-success)_45%,transparent)] text-[var(--accent-success)]'
+                            : pillar.status === 'in_progress'
+                              ? 'bg-neon-cyan/10 border-neon-cyan/40 text-neon-cyan'
+                              : 'bg-white/5 border-white/10 text-white/70'
+                        }`}
+                      >
+                        {pillar.completion === 100
+                          ? 'DONE'
+                          : pillar.status === 'in_progress'
+                            ? 'W TRAKCIE'
+                            : 'PAUZA'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                    <span className={`text-2xl font-bold ${pillar.completion === 100 ? 'text-neon-cyan' : 'text-transparent'}`}>
+                      {pillar.completion === 100 ? '100%' : ''}
+                    </span>
+                    <span className="text-3xl flex-shrink-0">{pillar.completion === 100 ? '✅' : ''}</span>
                   </div>
                 </div>
-              </div>
 
-              {/* Task Count */}
-              <div className="flex items-center justify-between text-lg text-white font-bold relative z-10">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">📋</span>
-                  <span>{pillar.tasks.length} Total Tasks</span>
+                {/* Progress Bar */}
+                <div className="relative z-10">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-white/90 font-semibold">Progress</span>
+                    <span className={`text-lg font-black ${accentText}`}>{pillar.completion}%</span>
+                  </div>
+                  <div className={`w-full rounded-full h-3 bg-white/10 border ${accentBorder} overflow-hidden`}>
+                    <div
+                      className={`h-3 ${fillClass}`}
+                      style={{
+                        width: `${Math.max(pillar.completion, 8)}%`,
+                        minWidth: pillar.completion === 0 ? '24px' : 'auto',
+                      }}
+                    />
+                  </div>
                 </div>
-                <span
-                  className="px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300 bg-neon-magenta/10 border border-neon-magenta/30 text-neon-magenta hover:shadow-glow-secondary-xs"
-                >
-                  VIEW →
-                </span>
-              </div>
-            </motion.div>
-          ))}
+
+                {/* Footer */}
+                <div className="mt-4 flex items-center justify-between text-sm text-white/90 font-semibold relative z-10">
+                  <span className="flex items-center gap-2">
+                    <span>📋</span>
+                    <span>{pillar.tasks.length} tasków</span>
+                  </span>
+                  <span className="text-neon-magenta/90 font-black uppercase tracking-wider">Otwórz →</span>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
 
         {/* Backlog goals (hidden by default) */}
@@ -816,7 +551,7 @@ const DashboardPremium: React.FC = () => {
                           {String(pillar.name || '').toUpperCase()}
                         </div>
                         <div className="text-xs text-gray-400 mt-1">
-                          type: {pillar.type ?? 'secondary'} • status: {pillar.status}
+                          status: {pillar.status}
                         </div>
                       </div>
                       <div className="text-sm font-black text-neon-cyan flex-shrink-0">
@@ -852,6 +587,237 @@ const DashboardPremium: React.FC = () => {
             )}
           </div>
         )}
+      </motion.div>
+
+      {/* Main CTA Button */}
+      <motion.div
+        className="widget-container mb-12"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <div className="text-center mb-8">
+          <button
+            onClick={() => {
+              const top = todaysFocus[0] || null;
+              if (top) {
+                setActiveProjectId(top.pillarId);
+                startFinishSession(top.taskId, top.pillarId);
+              }
+              setCurrentView('finish');
+            }}
+            className="btn-premium btn-magenta w-full max-w-lg text-xl md:text-2xl py-10 px-8 hover:scale-105 transition-all duration-300 shadow-2xl shadow-neon-magenta/40 relative overflow-hidden flex items-center justify-center gap-4"
+            style={{ borderRadius: '16px', alignItems: 'center' }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-neon-magenta/20 via-transparent to-neon-cyan/20 rounded-xl"></div>
+            <span className="text-5xl relative z-10">🏁</span>
+            <div className="flex flex-col items-start relative z-10">
+              <span className="font-black text-2xl">DOMKNIJ TERAZ</span>
+              {todaysFocus.length > 0 ? (
+                <span className="text-base opacity-95 font-semibold">
+                  Domknij teraz: {todaysFocus[0].taskName}
+                  <span className="block text-sm text-gray-200 font-bold mt-1">
+                    📍 {todaysFocus[0].pillarName}
+                    {getHumanRecommendationReasons(todaysFocus[0].reasons)[0]
+                      ? ` • ${getHumanRecommendationReasons(todaysFocus[0].reasons)[0]}`
+                      : ''}
+                  </span>
+                </span>
+              ) : (
+                <span className="text-base opacity-95 font-semibold">
+                  Brak tasków bliskich finiszu (≥50%). Popracuj nad postępem albo wybierz task ręcznie w Finish Mode.
+                </span>
+              )}
+            </div>
+          </button>
+        </div>
+
+        {/* PLAN 5.2: Today's Focus must be obvious (action-first). */}
+        <motion.div
+          className="widget-container"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12 }}
+        >
+          <div className="flex items-center gap-4 mb-6">
+            <span className="text-4xl">🎯</span>
+            <div className="flex-1">
+              <h2 className="text-2xl md:text-3xl font-black uppercase tracking-widest text-neon-cyan">
+                Na czym dziś się skupić?
+              </h2>
+              <p className="text-sm text-gray-300 mt-1">
+                Rekomendowane finisze na dziś (stuck@90 / wpływ / odwlekane)
+              </p>
+            </div>
+            <div className="hidden md:block">
+              <button onClick={() => setCurrentView('finish')} className="btn-premium btn-magenta">
+                🏁 Finish Mode
+              </button>
+            </div>
+          </div>
+
+          <div className="glass-card p-6" style={{ borderRadius: '16px' }}>
+            {todaysFocus.length === 0 ? (
+              <div className="text-gray-300">
+                Brak tasków bliskich finiszu (≥50%). Popracuj nad postępem albo wybierz 1 task ręcznie.
+                <div className="mt-4">
+                  <button onClick={() => setCurrentView('finish')} className="btn-premium btn-magenta">
+                    🏁 Open Finish Mode
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {todaysFocus.map((rec) => (
+                  <button
+                    key={`${rec.pillarId}_${rec.taskId}`}
+                    className="w-full text-left glass-card p-5 hover:scale-[1.01] transition-all duration-200 border border-gold/25"
+                    onClick={() => {
+                      setActiveProjectId(rec.pillarId);
+                      startFinishSession(rec.taskId, rec.pillarId);
+                      setCurrentView('finish');
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="text-white font-black text-lg break-words line-clamp-2">
+                          {rec.taskName}
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span className="text-[11px] px-2 py-1 rounded-full bg-white/5 border border-white/10 text-gray-200">
+                            📍 {rec.pillarName}
+                          </span>
+                          {getHumanRecommendationReasons(rec.reasons).map((hr, idx) => (
+                            <span
+                              key={`${rec.pillarId}_${rec.taskId}_reason_${idx}`}
+                              className="text-[11px] px-2 py-1 rounded-full bg-white/5 border border-white/10 text-gray-200"
+                            >
+                              {hr}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                        <div className="text-sm font-black text-gold">{Math.round(rec.taskProgress)}%</div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 h-2 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-neon-magenta to-neon-cyan"
+                        style={{ width: `${Math.max(0, Math.min(100, rec.taskProgress))}%` }}
+                      />
+                    </div>
+
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </motion.div>
+
+        {/* AI Assistant (secondary) */}
+        <div className="widget-container mt-8">
+          <div className="glass-card p-5 border border-white/10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-sm text-gray-400 uppercase tracking-wider font-semibold">
+                Potrzebujesz pomocy?
+              </div>
+              <div className="text-white font-bold">
+                AI może pomóc w priorytecie i mikrokroku (anti‑90%).
+              </div>
+            </div>
+            <button onClick={() => setCurrentView('ai_coach')} className="btn-premium btn-cyan">
+              🧠 Otwórz AI
+            </button>
+          </div>
+        </div>
+
+        {/* Stats (7d) — accordion (default collapsed) */}
+        <div className="widget-container mt-8">
+          <button
+            type="button"
+            className="w-full glass-card p-5 border border-white/10 flex items-center justify-between gap-4 min-h-[44px]"
+            onClick={() => setIsStatsOpen((v) => !v)}
+            aria-expanded={isStatsOpen}
+          >
+            <div className="text-left">
+              <div className="text-sm text-gray-400 uppercase tracking-wider font-semibold">
+                📊 Statystyki 7D
+              </div>
+              <div className="text-white font-bold">
+                Stuck→Done:{' '}
+                {basicStats.stuckTasksClassifiedLast7DaysCount &&
+                basicStats.stuckTasksClassifiedLast7DaysCount > 0
+                  ? `${Math.round((basicStats.stuckToDoneRateLast7Days ?? 0) * 100)}%`
+                  : '—'}
+              </div>
+            </div>
+            <div className="text-gray-300 font-black">{isStatsOpen ? '▲' : '▼'}</div>
+          </button>
+
+          {isStatsOpen && (
+            <div className="mt-3 glass-card p-6 border border-white/10">
+              {!hasAnyStats && (
+                <div className="mb-5 text-sm text-gray-300">
+                  Zacznij sesję Finish Mode, żeby zobaczyć statystyki z ostatnich 7 dni.
+                </div>
+              )}
+
+              {/* Primary metric */}
+              <div className="glass-card p-6 border border-gold/40 mb-6">
+                <div className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
+                  Stuck→Done (7d)
+                </div>
+                <div className="mt-2 flex items-end justify-between gap-4">
+                  <div className="text-4xl md:text-5xl font-black text-gold">
+                    {basicStats.stuckTasksClassifiedLast7DaysCount &&
+                    basicStats.stuckTasksClassifiedLast7DaysCount > 0
+                      ? `${Math.round((basicStats.stuckToDoneRateLast7Days ?? 0) * 100)}%`
+                      : '—'}
+                  </div>
+                  {basicStats.stuckTasksClassifiedLast7DaysCount &&
+                  basicStats.stuckTasksClassifiedLast7DaysCount > 0 ? (
+                    <div className="text-sm text-gray-300">
+                      {basicStats.stuckToDoneLast7DaysCount ?? 0}/
+                      {basicStats.stuckTasksClassifiedLast7DaysCount ?? 0} tasks
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-400">Brak danych</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Secondary metrics */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="glass-card p-4 border border-white/10">
+                  <div className="text-xs text-gray-400 uppercase tracking-wider">Sessions</div>
+                  <div className="text-2xl font-black text-white">
+                    {basicStats.finishSessionsLast7DaysCount ?? 0}
+                  </div>
+                </div>
+                <div className="glass-card p-4 border border-white/10">
+                  <div className="text-xs text-gray-400 uppercase tracking-wider">Minutes</div>
+                  <div className="text-2xl font-black text-white">
+                    {Math.round(Number(basicStats.finishSessionsLast7DaysTotalMinutes ?? 0))}
+                  </div>
+                </div>
+                <div className="glass-card p-4 border border-white/10">
+                  <div className="text-xs text-gray-400 uppercase tracking-wider">Tasks done</div>
+                  <div className="text-2xl font-black text-white">
+                    {basicStats.tasksCompletedLast7DaysCount ?? 0}
+                  </div>
+                </div>
+                <div className="glass-card p-4 border border-white/10">
+                  <div className="text-xs text-gray-400 uppercase tracking-wider">Avg (min)</div>
+                  <div className="text-2xl font-black text-white">
+                    {Number(basicStats.finishSessionsLast7DaysAvgMinutes ?? 0).toFixed(1)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </motion.div>
 
       {/* HIERARCHY LEVEL 4: Ideas Vault (PLAN 5.8) */}
