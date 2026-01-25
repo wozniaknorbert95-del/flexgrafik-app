@@ -1,4 +1,4 @@
-import { AppData, TaskStatus } from '../types';
+import { AppData, type GoalActivation, type GoalType, TaskStatus } from '../types';
 import { migrateOldPillarTasks, migrateOldPhaseTasks, needsMigration } from './migrateData';
 import { INITIAL_DATA } from '../constants';
 import { handleError } from './errorHandler';
@@ -51,6 +51,117 @@ export const migrateData = (oldData: any): AppData => {
     return INITIAL_DATA;
   }
 
+  const MAX_ACTIVE_GOALS_DEFAULT = 3;
+  const validGoalTypes = new Set<GoalType>(['main', 'secondary', 'lab']);
+  const validActivations = new Set<GoalActivation>(['active', 'backlog']);
+
+  const normalizeGoalType = (raw: any): GoalType => {
+    return validGoalTypes.has(raw) ? (raw as GoalType) : 'secondary';
+  };
+
+  const normalizeActivation = (raw: any): GoalActivation => {
+    return validActivations.has(raw) ? (raw as GoalActivation) : 'active';
+  };
+
+  const toSafeMs = (iso: any): number => {
+    const t = new Date(typeof iso === 'string' ? iso : 0).getTime();
+    return Number.isFinite(t) ? t : 0;
+  };
+
+  const enforceMaxActiveGoals = (pillars: any[], maxActive: number): any[] => {
+    const list = Array.isArray(pillars) ? pillars : [];
+    // Configurable but safe: default 3, clamp 1..10.
+    const cap = Math.max(
+      1,
+      Math.min(10, Math.floor(Number(maxActive) || MAX_ACTIVE_GOALS_DEFAULT))
+    );
+
+    // Normalize goal fields first so we can enforce rules deterministically.
+    let normalizedList = list.map((p: any) => ({
+      ...p,
+      type: normalizeGoalType(p?.type),
+      activation: normalizeActivation(p?.activation),
+    }));
+
+    // -----------------------------------------------------------------------
+    // PLAN 5.1 / D-003: Enforce "max 1 MAIN goal" among ACTIVE goals.
+    // IMPORTANT: This must happen BEFORE enforcing max-active-goals limit.
+    // -----------------------------------------------------------------------
+    const getGoalRecencyMs = (p: any): number => {
+      // Prefer explicit updatedAt if present, otherwise fall back to last_activity_date.
+      // Some legacy seeds/imports may have different field names; be permissive but deterministic.
+      return Math.max(
+        toSafeMs(p?.updatedAt),
+        toSafeMs(p?.last_activity_date),
+        toSafeMs(p?.lastActivityDate),
+        toSafeMs(p?.createdAt)
+      );
+    };
+
+    const activeMains = normalizedList.filter(
+      (p: any) => p && p.status !== 'done' && p.activation === 'active' && p.type === 'main'
+    );
+    if (activeMains.length > 1) {
+      const sortedMains = [...activeMains].sort((a: any, b: any) => {
+        const byRecency = getGoalRecencyMs(b) - getGoalRecencyMs(a);
+        if (byRecency !== 0) return byRecency;
+        return Number(a?.id ?? 0) - Number(b?.id ?? 0);
+      });
+      const keepId = Number(sortedMains[0]?.id);
+      normalizedList = normalizedList.map((p: any) => {
+        if (!p || p.status === 'done') return p;
+        if (p.activation !== 'active') return p;
+        if (p.type !== 'main') return p;
+        const id = Number(p?.id);
+        if (!Number.isFinite(id)) return p;
+        if (id === keepId) return p;
+        return { ...p, type: 'secondary' };
+      });
+    }
+
+    const notDone = normalizedList.filter((p) => p && p.status !== 'done');
+    const done = normalizedList.filter((p) => p && p.status === 'done');
+
+    const activeCandidates = notDone.filter((p) => p.activation === 'active');
+    if (activeCandidates.length <= cap) {
+      return normalizedList;
+    }
+
+    const typeRank = (t: any): number => {
+      const type = normalizeGoalType(t);
+      if (type === 'main') return 0;
+      if (type === 'secondary') return 1;
+      return 2; // lab
+    };
+
+    const sorted = [...activeCandidates].sort((a: any, b: any) => {
+      const byType = typeRank(a?.type) - typeRank(b?.type);
+      if (byType !== 0) return byType;
+      const byCompletion = Number(b?.completion ?? 0) - Number(a?.completion ?? 0);
+      if (byCompletion !== 0) return byCompletion;
+      const byActivity = toSafeMs(b?.last_activity_date) - toSafeMs(a?.last_activity_date);
+      if (byActivity !== 0) return byActivity;
+      return Number(a?.id ?? 0) - Number(b?.id ?? 0);
+    });
+
+    const keepActiveIds = new Set<number>(sorted.slice(0, cap).map((p: any) => Number(p.id)));
+
+    const nextNotDone = notDone.map((p: any) => {
+      const id = Number(p?.id);
+      const nextActivation = keepActiveIds.has(id) ? 'active' : 'backlog';
+      return { ...p, activation: nextActivation };
+    });
+
+    // Keep original ordering (as much as possible) by mapping the normalized list.
+    const nextById = new Map<number, any>(nextNotDone.map((p: any) => [Number(p?.id), p]));
+    return normalizedList.map((p: any) => {
+      if (!p) return p;
+      if (p.status === 'done') return p;
+      const id = Number(p?.id);
+      return nextById.get(id) ?? p;
+    });
+  };
+
   // Always ensure new optional fields exist with safe defaults (local-first, backward compatible).
   // This keeps old stored data working without requiring a versioned migration step.
   const ensureTaskDefaults = (data: any): AppData => {
@@ -59,10 +170,44 @@ export const migrateData = (oldData: any): AppData => {
     const isNewStatus = (s: unknown): s is TaskStatus =>
       s === 'active' || s === 'stuck' || s === 'done' || s === 'abandoned';
 
-    return {
+    const withTaskDefaults = {
       ...data,
+      settings: {
+        ...(data?.settings || {}),
+        voice: {
+          enabled: Boolean(data?.settings?.voice?.enabled),
+          volume: Number.isFinite(Number(data?.settings?.voice?.volume))
+            ? Number(data.settings.voice.volume)
+            : INITIAL_DATA.settings.voice.volume,
+          speed: Number.isFinite(Number(data?.settings?.voice?.speed))
+            ? Number(data.settings.voice.speed)
+            : INITIAL_DATA.settings.voice.speed,
+        },
+        ai: {
+          apiKey: typeof data?.settings?.ai?.apiKey === 'string' ? data.settings.ai.apiKey : '',
+          enabled: Boolean(data?.settings?.ai?.enabled),
+          customSystemPrompt:
+            typeof data?.settings?.ai?.customSystemPrompt === 'string'
+              ? data.settings.ai.customSystemPrompt
+              : undefined,
+        },
+        goals: {
+          maxActive: Math.max(
+            1,
+            Math.min(
+              10,
+              Math.floor(
+                Number((data?.settings as any)?.goals?.maxActive ?? MAX_ACTIVE_GOALS_DEFAULT) ||
+                  MAX_ACTIVE_GOALS_DEFAULT
+              )
+            )
+          ),
+        },
+      },
       pillars: data.pillars.map((pillar: any) => ({
         ...pillar,
+        type: normalizeGoalType(pillar?.type),
+        activation: normalizeActivation(pillar?.activation),
         tasks: Array.isArray(pillar?.tasks)
           ? pillar.tasks.map((task: any) => {
               const now = new Date().toISOString();
@@ -138,6 +283,11 @@ export const migrateData = (oldData: any): AppData => {
         ? data.finishSessionsHistory
         : [],
     } as AppData;
+
+    // D-003: enforce max 3 active goals in DATA (auto-archive extras to backlog).
+    const maxActive = Number((withTaskDefaults.settings as any)?.goals?.maxActive) || MAX_ACTIVE_GOALS_DEFAULT;
+    const nextPillars = enforceMaxActiveGoals(withTaskDefaults.pillars as any[], maxActive);
+    return { ...withTaskDefaults, pillars: nextPillars };
   };
 
   // Check if migration is needed

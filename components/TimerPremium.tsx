@@ -113,7 +113,7 @@ const TimerPremium: React.FC<TimerProps> = ({
             cy="128"
             r="110"
             fill="none"
-            stroke="rgba(255, 255, 255, 0.1)"
+            stroke="var(--border-subtle)"
             strokeWidth="12"
           />
           {/* Progress Circle */}
@@ -132,8 +132,8 @@ const TimerPremium: React.FC<TimerProps> = ({
           />
           <defs>
             <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#ff00ff" />
-              <stop offset="100%" stopColor="#00f3ff" />
+              <stop offset="0%" stopColor="var(--accent-magenta)" />
+              <stop offset="100%" stopColor="var(--accent-cyan)" />
             </linearGradient>
           </defs>
         </svg>

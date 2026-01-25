@@ -23,6 +23,9 @@ export function generateDailyPriority(appData: AppData): DailyPriorityResult | n
 
   // Collect all incomplete tasks with safety checks
   appData.pillars.forEach((pillar) => {
+    // Finish-first: ignore backlog goals in "Today" computations.
+    if ((pillar as any)?.status === 'done') return;
+    if (((pillar as any)?.activation ?? 'active') !== 'active') return;
     if (!pillar?.tasks || !Array.isArray(pillar.tasks)) {
       console.warn(`⚠️ Invalid pillar structure: ${pillar?.name || 'unknown'}`);
       return;
@@ -104,6 +107,8 @@ export function getTopPriorities(appData: AppData, count: number = 3): DailyPrio
   const allTasks: Array<{ task: Task; pillar: Pillar }> = [];
 
   appData.pillars.forEach((pillar) => {
+    if ((pillar as any)?.status === 'done') return;
+    if (((pillar as any)?.activation ?? 'active') !== 'active') return;
     if (!pillar?.tasks || !Array.isArray(pillar.tasks)) return;
 
     pillar.tasks

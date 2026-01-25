@@ -134,6 +134,8 @@ export function getTodaysFinishRecommendations(params: {
 
   for (const pillar of pillars) {
     if (!pillar || (pillar as any).status === 'done') continue;
+    // D-003: recommendations should only consider ACTIVE goals (backlog is not in play).
+    if (((pillar as any).activation ?? 'active') !== 'active') continue;
     const tasks = Array.isArray((pillar as any).tasks) ? ((pillar as any).tasks as Task[]) : [];
     for (const task of tasks) {
       const { score, reasons } = scoreTask({ task, pillar, sessions, now });

@@ -25,6 +25,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
   onBack,
 }) => {
   const { voice, ai } = data.settings;
+  const goals = (data.settings as any)?.goals ?? { maxActive: 3 };
   const [apiKey, setApiKey] = useState(ai?.apiKey || '');
   const [apiKeyError, setApiKeyError] = useState<string>('');
   const [customPrompt, setCustomPrompt] = useState(ai?.customSystemPrompt || '');
@@ -32,6 +33,14 @@ const SettingsPremium: React.FC<SettingsProps> = ({
   const [schedulerStatus, setSchedulerStatus] = useState<any>(null);
   const [notificationPermission, setNotificationPermission] = useState<string>('unknown');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isAiEnabled = Boolean(ai?.enabled);
+  const hasApiKey = Boolean(apiKey.trim());
+  const aiUiState: 'disabled' | 'enabled_no_key' | 'enabled_ready' = !isAiEnabled
+    ? 'disabled'
+    : hasApiKey
+      ? 'enabled_ready'
+      : 'enabled_no_key';
 
   // Phase 2: Use normalized data if available, fallback to legacy
   const useNormalized = normalizedData !== null;
@@ -42,7 +51,8 @@ const SettingsPremium: React.FC<SettingsProps> = ({
   React.useEffect(() => {
     getStorageInfo().then((info) => {
       const type = info.type === 'indexeddb' ? '🚀 IndexedDB' : '💾 localStorage';
-      setStorageType(`${type} (${info.size} bytes)`);
+      const size = typeof (info as any)?.size === 'number' ? `${(info as any).size} bytes` : 'size n/a';
+      setStorageType(`${type} (${size})`);
     });
 
     // Check scheduler status
@@ -104,7 +114,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
 
   const handleRunAudit = async () => {
     try {
-      const stuckTasks = runStuckTasksAuditNow();
+      const stuckTasks = await runStuckTasksAuditNow();
       alert(`Audit completed! Found ${stuckTasks.length} stuck tasks.`);
       // Refresh scheduler status
       const status = getSchedulerStatus();
@@ -199,7 +209,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
         {/* Section Header */}
         <div className="mb-6 pb-5 border-b border-gray-800">
           <div className="flex items-center gap-3 mb-2">
-            <span className="text-3xl neon-breath">🔊</span>
+            <span className="text-3xl">🔊</span>
             <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wider text-gradient-neon">
               Voice Notifications
             </h2>
@@ -234,12 +244,12 @@ const SettingsPremium: React.FC<SettingsProps> = ({
             <div className="flex items-center gap-2">
               <div
                 className={`w-2 h-2 rounded-full ${
-                  voice.enabled ? 'bg-neon-cyan neon-breath' : 'bg-gray-600'
+                  voice.enabled ? 'bg-neon-cyan' : 'bg-[var(--border-subtle)]'
                 }`}
               />
               <span
                 className={`text-xs uppercase tracking-wider font-bold ${
-                  voice.enabled ? 'text-glow-cyan' : 'text-gray-500'
+                  voice.enabled ? 'text-glow-cyan' : 'text-[var(--text-muted)]'
                 }`}
               >
                 {voice.enabled ? 'Active' : 'Disabled'}
@@ -392,7 +402,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
         {/* Section Header */}
         <div className="mb-6 pb-5 border-b border-gray-800">
           <div className="flex items-center gap-3 mb-2">
-            <span className="text-3xl neon-breath">🤖</span>
+            <span className="text-3xl">🤖</span>
             <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wider text-gradient-gold">
               AI Assistant
             </h2>
@@ -427,15 +437,27 @@ const SettingsPremium: React.FC<SettingsProps> = ({
             <div className="flex items-center gap-2">
               <div
                 className={`w-2 h-2 rounded-full ${
-                  ai?.enabled ? 'bg-gold neon-breath' : 'bg-gray-600'
+                  aiUiState === 'enabled_ready'
+                    ? 'bg-[var(--accent-success)]'
+                    : aiUiState === 'enabled_no_key'
+                      ? 'bg-[var(--accent-warning)]'
+                      : 'bg-[var(--border-subtle)]'
                 }`}
               />
               <span
                 className={`text-xs uppercase tracking-wider font-bold ${
-                  ai?.enabled ? 'text-glow-gold' : 'text-gray-500'
+                  aiUiState === 'enabled_ready'
+                    ? 'text-[var(--accent-success)]'
+                    : aiUiState === 'enabled_no_key'
+                      ? 'text-[var(--accent-warning)]'
+                      : 'text-[var(--text-muted)]'
                 }`}
               >
-                {ai?.enabled ? 'Connected' : 'Disabled'}
+                {aiUiState === 'enabled_ready'
+                  ? 'Enabled + key'
+                  : aiUiState === 'enabled_no_key'
+                    ? 'Enabled (no key) → fallback'
+                    : 'Disabled'}
               </span>
             </div>
           </div>
@@ -480,7 +502,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                 apiKeyError ? 'api-key-error api-key-description' : 'api-key-description'
               }
               aria-invalid={!!apiKeyError}
-              className={`input-premium ${apiKeyError ? 'border-red-500 focus:ring-red-500' : ''}`}
+              className={`input-premium ${apiKeyError ? 'border-[var(--accent-danger)] focus:ring-[color:var(--accent-danger)]' : ''}`}
               style={{
                 WebkitAppearance: 'none',
                 boxShadow: 'none',
@@ -489,7 +511,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
             {apiKeyError && (
               <p
                 id="api-key-error"
-                className="text-red-400 text-sm mt-2 flex items-center gap-2"
+                className="text-[var(--accent-danger)] text-sm mt-2 flex items-center gap-2"
                 role="alert"
                 aria-live="polite"
               >
@@ -552,6 +574,63 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                 </span>
               </p>
             </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* SECTION 2.25: Goals (PLAN 5.1) */}
+      <motion.div
+        className="widget-container-narrow mb-16"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.24 }}
+      >
+        {/* Section Header */}
+        <div className="mb-6 pb-5 border-b border-gray-800">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-3xl">🎯</span>
+            <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wider text-gradient-gold">
+              Cele
+            </h2>
+          </div>
+          <p className="text-xs md:text-sm text-gray-400 pl-0 md:pl-12 leading-relaxed">
+            Finish-first: mniej aktywnych celów = większy fokus na domykanie.
+          </p>
+        </div>
+
+        <div className="glass-card space-widget">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="flex-1">
+              <h3 className="text-base font-bold text-white mb-1">
+                Maksymalna liczba aktywnych celów
+              </h3>
+              <p className="text-xs text-gray-400">
+                Domyślnie 3 (1 main / 1 secondary / 1 lab). Zakres: 1–5.
+              </p>
+            </div>
+            <div className="text-2xl font-black text-glow-gold">
+              {Math.max(1, Math.min(5, Math.floor(Number(goals?.maxActive ?? 3) || 3)))}
+            </div>
+          </div>
+
+          <input
+            type="range"
+            min={1}
+            max={5}
+            step={1}
+            value={Math.max(1, Math.min(5, Math.floor(Number(goals?.maxActive ?? 3) || 3)))}
+            onChange={(e) => {
+              const next = Math.max(1, Math.min(5, Math.floor(Number(e.target.value) || 3)));
+              onUpdateSettings({
+                ...data.settings,
+                goals: { ...(data.settings as any).goals, maxActive: next },
+              } as any);
+            }}
+            className="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer"
+          />
+
+          <div className="mt-3 text-xs text-gray-400">
+            Uwaga: limit dotyczy celów oznaczonych jako aktywne (backlog jest poza głównym loopem).
           </div>
         </div>
       </motion.div>
@@ -630,10 +709,10 @@ const SettingsPremium: React.FC<SettingsProps> = ({
             <div className="mt-4 pt-4 border-t border-gray-700/50">
               <div className="flex items-center gap-2">
                 <div
-                  className={`w-2 h-2 rounded-full ${voice.enabled ? 'bg-neon-cyan neon-breath' : 'bg-gray-600'}`}
+                  className={`w-2 h-2 rounded-full ${voice.enabled ? 'bg-neon-cyan' : 'bg-[var(--border-subtle)]'}`}
                 />
                 <span
-                  className={`text-sm uppercase tracking-wider font-bold ${voice.enabled ? 'text-glow-cyan' : 'text-gray-500'}`}
+                  className={`text-sm uppercase tracking-wider font-bold ${voice.enabled ? 'text-glow-cyan' : 'text-[var(--text-muted)]'}`}
                 >
                   {voice.enabled ? 'Voice Commands Active' : 'Voice Commands Disabled'}
                 </span>
@@ -696,7 +775,13 @@ const SettingsPremium: React.FC<SettingsProps> = ({
               <div className="mb-4 p-3 rounded-lg bg-black/30">
                 <div className="text-sm text-white mb-2">
                   <strong>Status:</strong>{' '}
-                  <span className={schedulerStatus?.isRunning ? 'text-green-400' : 'text-red-400'}>
+                  <span
+                    className={
+                      schedulerStatus?.isRunning
+                        ? 'text-[var(--accent-success)]'
+                        : 'text-[var(--accent-danger)]'
+                    }
+                  >
                     {schedulerStatus?.isRunning ? '🟢 Running' : '🔴 Stopped'}
                   </span>
                 </div>
@@ -717,10 +802,10 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                   <span
                     className={
                       notificationPermission === 'granted'
-                        ? 'text-green-400'
+                        ? 'text-[var(--accent-success)]'
                         : notificationPermission === 'denied'
-                          ? 'text-red-400'
-                          : 'text-yellow-400'
+                          ? 'text-[var(--accent-danger)]'
+                          : 'text-[var(--accent-warning)]'
                     }
                   >
                     {notificationPermission === 'granted'
@@ -762,7 +847,9 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                 className="mt-3 p-3 rounded-lg bg-black/30 border"
                 style={{
                   borderColor:
-                    schedulerStatus.lastSync.result === 'success' ? '#00f3ff' : '#ff6b6b',
+                    schedulerStatus.lastSync.result === 'success'
+                      ? 'var(--accent-cyan)'
+                      : 'var(--accent-danger)',
                 }}
               >
                 <div className="text-xs text-gray-400 mb-1">
@@ -771,7 +858,10 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                 <div
                   className="text-xs"
                   style={{
-                    color: schedulerStatus.lastSync.result === 'success' ? '#00f3ff' : '#ff6b6b',
+                    color:
+                      schedulerStatus.lastSync.result === 'success'
+                        ? 'var(--accent-cyan)'
+                        : 'var(--accent-danger)',
                   }}
                 >
                   {schedulerStatus.lastSync.result === 'success'
@@ -788,7 +878,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
               <h3 className="text-base md:text-lg font-bold text-white mb-2">
                 Import Mission Data
               </h3>
-              <p className="text-xs text-red-300 leading-relaxed font-semibold mb-2">
+              <p className="text-xs text-[var(--accent-danger)] leading-relaxed font-semibold mb-2">
                 ⚠️ Warning: Replaces Current Config
               </p>
               <p className="text-xs text-gray-400 leading-relaxed">

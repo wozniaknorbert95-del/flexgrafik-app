@@ -1,10 +1,7 @@
 import { Task, TaskInsight, Pillar, type FinishSessionClassification } from '../types';
 import { detectStuckAt90, daysBetween } from './taskHelpers';
-import {
-  buildFinishSessionSummaryPrompt,
-  buildMotivationTipPrompt,
-  ollamaGenerateText,
-} from './aiPrompts';
+import { buildFinishSessionSummaryPrompt, buildMotivationTipPrompt } from './aiPrompts';
+import { providerGenerateText } from './aiProvider';
 
 /**
  * PROGRESSION INSIGHTS & ANTI-DIP SYSTEM
@@ -134,20 +131,24 @@ export const determineRecommendedAction = (
 export const getContextualMotivationTip = async (
   task: Task,
   isStuck: boolean,
-  daysSinceUpdate: number
+  daysSinceUpdate: number,
+  ai?: { enabled: boolean; apiKey: string }
 ): Promise<string> => {
   try {
     const prompt = buildMotivationTipPrompt({ task });
-    const tip = await ollamaGenerateText(
-      { prompt, temperature: 0.7, topP: 0.9, numPredict: 60, maxLen: 120 },
-      { timeoutMs: 10_000 }
-    );
+    const apiKey = ai?.enabled ? String(ai.apiKey || '').trim() : '';
+    const tip = apiKey
+      ? await providerGenerateText(
+          { apiKey, prompt, temperature: 0.7, maxTokens: 140, maxLen: 120 },
+          { timeoutMs: 10_000 }
+        )
+      : null;
     if (tip && tip.length <= 100 && tip.length > 5) return tip;
 
     // Fallback if Ollama fails
     return getFallbackMotivationTip(task, isStuck, daysSinceUpdate);
   } catch (error) {
-    console.warn('Ollama integration failed, using fallback:', error);
+    console.warn('AI motivation failed, using fallback:', error);
     return getFallbackMotivationTip(task, isStuck, daysSinceUpdate);
   }
 };
@@ -231,6 +232,7 @@ export async function generateFinishSessionSummary(params: {
   userNote?: string;
   sessionStartTime?: string;
   sessionEndTime?: string;
+  ai?: { enabled: boolean; apiKey: string };
 }): Promise<string> {
   try {
     const prompt = buildFinishSessionSummaryPrompt({
@@ -242,10 +244,13 @@ export async function generateFinishSessionSummary(params: {
       sessionEndTime: params.sessionEndTime,
     });
 
-    const summary = await ollamaGenerateText(
-      { prompt, temperature: 0.6, topP: 0.9, numPredict: 180, maxLen: 420 },
-      { timeoutMs: 12_000 }
-    );
+    const apiKey = params.ai?.enabled ? String(params.ai.apiKey || '').trim() : '';
+    const summary = apiKey
+      ? await providerGenerateText(
+          { apiKey, prompt, temperature: 0.6, maxTokens: 520, maxLen: 420 },
+          { timeoutMs: 12_000 }
+        )
+      : null;
 
     if (!summary) {
       return getFallbackFinishSessionSummary({

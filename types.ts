@@ -110,6 +110,15 @@ export type GoalType = 'main' | 'secondary' | 'lab';
 
 export type GoalAiTone = 'military' | 'psychoeducation' | 'raw_facts';
 
+/**
+ * Goal activation state (PLAN/D-003).
+ * - active: counts towards the max-active-goals limit (default)
+ * - backlog: stored but not part of the active set (finish-first)
+ *
+ * Optional for backward compatibility; defaults are applied on load via migrations.
+ */
+export type GoalActivation = 'active' | 'backlog';
+
 // ============================================================================
 // REWARDS (D-040) – process vs milestone
 // ============================================================================
@@ -140,6 +149,12 @@ export interface Pillar {
   last_activity_date?: string;
   done_definition: DoneDefinition;
   tasks: Task[];
+
+  /**
+   * Activation controls whether this goal counts as "active" (max 3 rule).
+   * Optional for backward compatibility; defaults are applied on load via migrations.
+   */
+  activation?: GoalActivation;
 
   /**
    * Goal context
@@ -208,6 +223,15 @@ export interface AISettings {
   apiKey: string;
   enabled: boolean;
   customSystemPrompt?: string;
+}
+
+// Goal / pillar system settings (PLAN/D-003)
+export interface GoalSettings {
+  /**
+   * Maximum number of active goals (default: 3).
+   * Applied by migrations; used for createPillar blocking and active/backlog enforcement.
+   */
+  maxActive: number;
 }
 
 export interface ChatMessage {
@@ -285,6 +309,7 @@ export interface AppData {
   settings: {
     voice: VoiceSettings;
     ai: AISettings;
+    goals: GoalSettings;
   };
 }
 

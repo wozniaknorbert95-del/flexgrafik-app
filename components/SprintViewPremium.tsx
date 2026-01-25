@@ -91,13 +91,13 @@ const SprintViewPremium: React.FC<SprintViewProps> = ({ data, onToggleDay, onBac
                     className={`w-12 h-12 rounded-widget-sm border-2 flex items-center justify-center transition-all ${
                       day.checked
                         ? 'bg-neon-cyan border-neon-cyan shadow-glow-cyan'
-                        : 'border-gray-600'
+                        : 'border-[var(--border-subtle)]'
                     }`}
                   >
                     {day.checked ? (
                       <span className="text-black font-bold text-xl">✓</span>
                     ) : (
-                      <span className="text-gray-500 font-bold">{index + 1}</span>
+                      <span className="text-[var(--text-muted)] font-bold">{index + 1}</span>
                     )}
                   </div>
 

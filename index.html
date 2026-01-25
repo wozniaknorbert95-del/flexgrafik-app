@@ -90,7 +90,14 @@
       // ============================================================
       // SERVICE WORKER REGISTRATION (PWA)
       // ============================================================
-      if ('serviceWorker' in navigator) {
+      // IMPORTANT (stability): In dev (localhost) we skip SW registration to avoid stale caches
+      // causing "UI doesn't match code" confusion.
+      const isDevHost =
+        location.hostname === 'localhost' ||
+        location.hostname === '127.0.0.1' ||
+        location.hostname === '::1';
+
+      if ('serviceWorker' in navigator && !isDevHost) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
             .register('/sw.js')
@@ -105,20 +112,40 @@
                 60 * 60 * 1000
               );
 
+              // Stable update UX:
+              // - prompt only when an update is WAITING and there's an existing controller
+              // - do NOT reload immediately; wait for controllerchange to reload once
+              let updatePrompted = false;
+
+              const maybePromptUpdate = () => {
+                if (updatePrompted) return;
+                if (!navigator.serviceWorker.controller) return;
+                if (!registration.waiting) return;
+
+                updatePrompted = true;
+                console.log('✨ New Service Worker waiting - prompt to update');
+
+                if (confirm('New version available! Reload to update?')) {
+                  registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                } else {
+                  // Allow future prompt (e.g. manual refresh later)
+                  updatePrompted = false;
+                }
+              };
+
+              // If an update is already waiting at load, prompt immediately
+              maybePromptUpdate();
+
               // Listen for updates
               registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
+                if (!newWorker) return;
                 console.log('🔄 Service Worker update found');
 
                 newWorker.addEventListener('statechange', () => {
-                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    console.log('✨ New Service Worker installed - refresh to update');
-
-                    // Optional: Show update notification
-                    if (confirm('New version available! Reload to update?')) {
-                      newWorker.postMessage({ type: 'SKIP_WAITING' });
-                      window.location.reload();
-                    }
+                  if (newWorker.state === 'installed') {
+                    // If this is an update (controller exists), it will become waiting
+                    maybePromptUpdate();
                   }
                 });
               });
@@ -128,13 +155,20 @@
             });
 
           // Reload page when new SW takes control
+          let refreshing = false;
           navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return;
+            refreshing = true;
             console.log('🔄 New Service Worker activated');
             window.location.reload();
           });
         });
       } else {
-        console.warn('⚠️ Service Workers not supported in this browser');
+        if (!('serviceWorker' in navigator)) {
+          console.warn('⚠️ Service Workers not supported in this browser');
+        } else if (isDevHost) {
+          console.log('🧪 Dev mode: Service Worker registration skipped (localhost)');
+        }
       }
 
       // ============================================================

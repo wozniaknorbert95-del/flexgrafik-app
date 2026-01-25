@@ -27,8 +27,6 @@ const AICoachPremium: React.FC<AICoachProps> = ({
   // Phase 2: Use normalized data if available, fallback to legacy
   const useNormalized = normalizedData !== null;
 
-  console.log('🤖 AICoach using data format:', useNormalized ? 'NORMALIZED' : 'LEGACY');
-
   // TEMPORARILY DISABLED: Phase 2 normalized data - causing runtime errors
   // TODO: Fix normalized data access issues in production build
   const chatHistory = useMemo(() => {
@@ -158,89 +156,63 @@ const AICoachPremium: React.FC<AICoachProps> = ({
                 </p>
               </motion.div>
 
-              {/* Suggested Prompts */}
+              {/* Suggested Prompts (production / finish-first) */}
               <div className="w-full max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <motion.div
-                  className="glass-card glass-card-gold space-widget text-left cursor-pointer hover:scale-105 transition-transform"
+                  className="glass-card space-widget text-left cursor-pointer hover:scale-105 transition-transform border border-neon-cyan/40 hover:shadow-glow-cyan"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.05 }}
-                  onClick={() => setInput('Zasada: max 3 cele aktywne.')}
+                  onClick={() => setInput('Co powinienem dziś domknąć?')}
                 >
-                  <div className="text-3xl mb-2">🧾</div>
-                  <h4 className="text-white font-bold text-sm mb-1">Rule memory (test)</h4>
+                  <div className="text-3xl mb-2">🏁</div>
+                  <h4 className="text-white font-bold text-sm mb-1">Co dziś domykamy?</h4>
                   <p className="text-gray-400 text-xs leading-relaxed">
-                    "Zasada: max 3 cele aktywne."
+                    "Co powinienem dziś domknąć?"
                   </p>
                 </motion.div>
 
                 <motion.div
-                  className="glass-card glass-card-red space-widget text-left cursor-pointer hover:scale-105 transition-transform"
+                  className="glass-card space-widget text-left cursor-pointer hover:scale-105 transition-transform border border-neon-magenta/40 hover:shadow-glow-magenta"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.06 }}
-                  onClick={() => setInput('Chcę dodać 4. cel. Pomóż mi to zrobić.')}
+                  onClick={() =>
+                    setInput('Daj mi mikrokrok (5–10 min) dla taska, który mam teraz domknąć.')
+                  }
                 >
-                  <div className="text-3xl mb-2">⛔</div>
-                  <h4 className="text-white font-bold text-sm mb-1">Violation (test)</h4>
+                  <div className="text-3xl mb-2">🧩</div>
+                  <h4 className="text-white font-bold text-sm mb-1">Mikrokrok</h4>
                   <p className="text-gray-400 text-xs leading-relaxed">
-                    "Chcę dodać 4. cel."
+                    "Daj mi mikrokrok (5–10 min) dla taska, który mam teraz domknąć."
                   </p>
                 </motion.div>
 
                 <motion.div
-                  className="glass-card glass-card-cyan space-widget text-left cursor-pointer hover:scale-105 transition-transform"
+                  className="glass-card space-widget text-left cursor-pointer hover:scale-105 transition-transform border border-gold/40 hover:shadow-glow-gold"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
-                  onClick={() => setInput('What should I focus on today?')}
-                >
-                  <div className="text-3xl mb-2">🎯</div>
-                  <h4 className="text-white font-bold text-sm mb-1">Daily Focus</h4>
-                  <p className="text-gray-400 text-xs leading-relaxed">
-                    "What should I focus on today?"
-                  </p>
-                </motion.div>
-
-                <motion.div
-                  className="glass-card glass-card-magenta space-widget text-left cursor-pointer hover:scale-105 transition-transform"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  onClick={() => setInput('Analyze my progress this week')}
-                >
-                  <div className="text-3xl mb-2">📊</div>
-                  <h4 className="text-white font-bold text-sm mb-1">Progress Review</h4>
-                  <p className="text-gray-400 text-xs leading-relaxed">
-                    "Analyze my progress this week"
-                  </p>
-                </motion.div>
-
-                <motion.div
-                  className="glass-card glass-card-gold space-widget text-left cursor-pointer hover:scale-105 transition-transform"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  onClick={() => setInput('Help me prioritize my tasks')}
-                >
-                  <div className="text-3xl mb-2">⚡</div>
-                  <h4 className="text-white font-bold text-sm mb-1">Task Priority</h4>
-                  <p className="text-gray-400 text-xs leading-relaxed">
-                    "Help me prioritize my tasks"
-                  </p>
-                </motion.div>
-
-                <motion.div
-                  className="glass-card space-widget text-left cursor-pointer hover:scale-105 transition-transform"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  onClick={() => setInput('What are my biggest blockers?')}
+                  onClick={() => setInput('Co mnie teraz blokuje?')}
                 >
                   <div className="text-3xl mb-2">🚧</div>
-                  <h4 className="text-white font-bold text-sm mb-1">Identify Blockers</h4>
+                  <h4 className="text-white font-bold text-sm mb-1">Co mnie blokuje?</h4>
                   <p className="text-gray-400 text-xs leading-relaxed">
-                    "What are my biggest blockers?"
+                    "Co mnie teraz blokuje?"
+                  </p>
+                </motion.div>
+
+                <motion.div
+                  className="glass-card glass-card-warning space-widget text-left cursor-pointer hover:scale-105 transition-transform"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.12 }}
+                  onClick={() => setInput('Jak przebić się przez 90% i zrobić realny finisz?')}
+                >
+                  <div className="text-3xl mb-2">🎯</div>
+                  <h4 className="text-white font-bold text-sm mb-1">Przebicie 90%</h4>
+                  <p className="text-gray-400 text-xs leading-relaxed">
+                    "Jak przebić się przez 90% i zrobić realny finisz?"
                   </p>
                 </motion.div>
               </div>
@@ -259,7 +231,7 @@ const AICoachPremium: React.FC<AICoachProps> = ({
                   >
                     {/* Avatar */}
                     {msg.role === 'assistant' && (
-                      <div className="w-12 h-12 rounded-widget flex items-center justify-center bg-gradient-to-br from-gold/40 to-amber-600/40 border-2 border-gold/60 shadow-glow-gold flex-shrink-0">
+                      <div className="w-12 h-12 rounded-widget flex items-center justify-center bg-gradient-to-br from-neon-cyan/25 to-neon-cyan/10 border-2 border-neon-cyan/60 shadow-glow-cyan flex-shrink-0">
                         <span className="text-2xl">🤖</span>
                       </div>
                     )}
@@ -268,13 +240,13 @@ const AICoachPremium: React.FC<AICoachProps> = ({
                     <div
                       className={`max-w-[80%] md:max-w-[70%] rounded-widget p-5 md:p-6 backdrop-blur-xl ${
                         msg.role === 'user'
-                          ? 'bg-gradient-to-br from-neon-magenta/30 via-neon-magenta/20 to-neon-cyan/30 border-2 border-neon-magenta/70 shadow-glow-magenta'
-                          : 'bg-gradient-to-br from-glass-medium to-glass-light border-2 border-gold/40 shadow-glow-gold'
+                          ? 'bg-neon-magenta/10 border-2 border-neon-magenta/60 shadow-glow-magenta'
+                          : 'bg-gradient-to-br from-glass-medium to-glass-light border-2 border-neon-cyan/50 shadow-glow-cyan'
                       }`}
                     >
                       <div
                         className={`text-[10px] uppercase tracking-widest font-bold mb-3 flex items-center gap-2 ${
-                          msg.role === 'user' ? 'text-neon-magenta' : 'text-gold'
+                          msg.role === 'user' ? 'text-neon-magenta' : 'text-neon-cyan'
                         }`}
                       >
                         {msg.role === 'user' ? '👤 OPERATOR' : '🤖 AI ASSISTANT'}
@@ -303,13 +275,13 @@ const AICoachPremium: React.FC<AICoachProps> = ({
                   animate={{ opacity: 1, x: 0 }}
                 >
                   {/* AI Avatar */}
-                  <div className="w-12 h-12 rounded-widget flex items-center justify-center bg-gradient-to-br from-gold/40 to-amber-600/40 border-2 border-gold/60 shadow-glow-gold flex-shrink-0">
+                  <div className="w-12 h-12 rounded-widget flex items-center justify-center bg-gradient-to-br from-neon-cyan/25 to-neon-cyan/10 border-2 border-neon-cyan/60 shadow-glow-cyan flex-shrink-0">
                     <span className="text-2xl">🤖</span>
                   </div>
 
                   {/* Loading Bubble */}
-                  <div className="bg-gradient-to-br from-glass-medium to-glass-light border-2 border-gold/40 shadow-glow-gold rounded-widget p-5 backdrop-blur-xl">
-                    <div className="text-[10px] uppercase tracking-widest font-bold mb-3 text-gold flex items-center gap-2">
+                  <div className="bg-gradient-to-br from-glass-medium to-glass-light border-2 border-neon-cyan/40 shadow-glow-cyan rounded-widget p-5 backdrop-blur-xl">
+                    <div className="text-[10px] uppercase tracking-widest font-bold mb-3 text-neon-cyan flex items-center gap-2">
                       🤖 AI ASSISTANT
                       <span className="text-gray-600">•</span>
                       <span className="text-gray-500 font-normal">ANALYZING...</span>
@@ -321,12 +293,12 @@ const AICoachPremium: React.FC<AICoachProps> = ({
                         transition={{ duration: 0.8, repeat: Infinity, delay: 0 }}
                       />
                       <motion.div
-                        className="w-3 h-3 rounded-full bg-neon-magenta shadow-glow-magenta"
+                        className="w-3 h-3 rounded-full bg-neon-cyan shadow-glow-cyan"
                         animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
                         transition={{ duration: 0.8, repeat: Infinity, delay: 0.2 }}
                       />
                       <motion.div
-                        className="w-3 h-3 rounded-full bg-gold shadow-glow-gold"
+                        className="w-3 h-3 rounded-full bg-neon-cyan shadow-glow-cyan"
                         animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
                         transition={{ duration: 0.8, repeat: Infinity, delay: 0.4 }}
                       />
@@ -355,21 +327,21 @@ const AICoachPremium: React.FC<AICoachProps> = ({
             <button
               type="button"
               onClick={() => setInput('What should I focus on today?')}
-              className="text-xs px-3 py-2 rounded-widget bg-glass-light border border-gray-700/50 text-gray-300 hover:border-neon-cyan hover:text-neon-cyan transition-all whitespace-nowrap"
+              className="btn btn-ghost btn-primary btn-sm text-xs whitespace-nowrap"
             >
               🎯 Daily Focus
             </button>
             <button
               type="button"
               onClick={() => setInput('Analyze my progress')}
-              className="text-xs px-3 py-2 rounded-widget bg-glass-light border border-gray-700/50 text-gray-300 hover:border-gold hover:text-gold transition-all whitespace-nowrap"
+              className="btn btn-ghost btn-primary btn-sm text-xs whitespace-nowrap"
             >
               📊 Progress
             </button>
             <button
               type="button"
               onClick={() => setInput('Suggest priorities')}
-              className="text-xs px-3 py-2 rounded-widget bg-glass-light border border-gray-700/50 text-gray-300 hover:border-neon-magenta hover:text-neon-magenta transition-all whitespace-nowrap"
+              className="btn btn-ghost btn-secondary btn-sm text-xs whitespace-nowrap"
             >
               ⚡ Priorities
             </button>
@@ -393,7 +365,6 @@ const AICoachPremium: React.FC<AICoachProps> = ({
                 disabled:opacity-50 disabled:cursor-not-allowed
                 transition-all appearance-none"
                 style={{
-                  color: '#ffffff',
                   WebkitAppearance: 'none',
                   boxShadow: 'none',
                   outline: 'none',
@@ -406,7 +377,7 @@ const AICoachPremium: React.FC<AICoachProps> = ({
             <button
               type="submit"
               disabled={!input.trim() || isLoading}
-              className="btn-premium btn-magenta px-8 py-4 text-sm font-bold whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed"
+              className="btn btn-secondary btn-lg px-8 py-4 text-sm font-bold whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">

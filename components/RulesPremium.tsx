@@ -174,7 +174,7 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
                     </div>
                     <button
                       onClick={() => handleDeleteRule(rule.id)}
-                      className="text-red-400 hover:text-red-300 text-xl"
+                      className="text-[var(--accent-danger)] hover:opacity-90 text-xl"
                     >
                       🗑️
                     </button>
@@ -228,10 +228,10 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
                     }
                   }}
                   placeholder="e.g. Morning Motivation"
-                  className={`input-premium ${validationErrors.name ? 'border-red-500' : ''}`}
+                  className={`input-premium ${validationErrors.name ? 'border-[var(--accent-danger)]' : ''}`}
                 />
                 {validationErrors.name && (
-                  <p className="text-red-400 text-xs mt-1">{validationErrors.name}</p>
+                  <p className="text-[var(--accent-danger)] text-xs mt-1">{validationErrors.name}</p>
                 )}
               </div>
 
@@ -266,10 +266,10 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
                     }
                   }}
                   placeholder="e.g. 07:00 or pillars[0].completion >= 90"
-                  className={`input-premium font-mono ${validationErrors.condition ? 'border-red-500' : ''}`}
+                  className={`input-premium font-mono ${validationErrors.condition ? 'border-[var(--accent-danger)]' : ''}`}
                 />
                 {validationErrors.condition && (
-                  <p className="text-red-400 text-xs mt-1">{validationErrors.condition}</p>
+                  <p className="text-[var(--accent-danger)] text-xs mt-1">{validationErrors.condition}</p>
                 )}
               </div>
 
@@ -304,10 +304,10 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
                     }
                   }}
                   placeholder="Message content or 'AI: [prompt]' for AI"
-                  className={`input-premium min-h-[100px] ${validationErrors.message ? 'border-red-500' : ''}`}
+                  className={`input-premium min-h-[100px] ${validationErrors.message ? 'border-[var(--accent-danger)]' : ''}`}
                 />
                 {validationErrors.message && (
-                  <p className="text-red-400 text-xs mt-1">{validationErrors.message}</p>
+                  <p className="text-[var(--accent-danger)] text-xs mt-1">{validationErrors.message}</p>
                 )}
               </div>
 

@@ -23,18 +23,27 @@ const TodayPremium: React.FC = () => {
     return false; // Always return false until optimistic UI is fixed
   }, []);
 
-  // Memoize expensive daily priority computation
-  const dailyPriority = useMemo(() => generateDailyPriority(data), [data.pillars, data.sprint]);
+  const activePillars = useMemo(() => {
+    return (data?.pillars ?? []).filter(
+      (p: any) => p && p.status !== 'done' && (p.activation ?? 'active') === 'active'
+    );
+  }, [data.pillars]);
+
+  // Memoize expensive daily priority computation (finish-first: active goals only)
+  const dailyPriority = useMemo(
+    () => generateDailyPriority({ ...data, pillars: activePillars } as any),
+    [activePillars, data, data.sprint]
+  );
 
   // TEMPORARILY DISABLED: Phase 2C normalized data - causing runtime errors
   // TODO: Fix NormalizedSelectors import issues in production build
   const todayTasks = useMemo(() => {
-    return data.pillars
+    return activePillars
       .flatMap((pillar) =>
         pillar.tasks.filter((task) => task.progress < 100).map((task) => ({ ...task, pillar }))
       )
       .slice(0, 5);
-  }, [data.pillars]);
+  }, [activePillars]);
 
   // Phase 3: Async toggle handler with optimistic UI
   const handleToggle = useCallback(
@@ -83,7 +92,7 @@ const TodayPremium: React.FC = () => {
         >
           <div className="glass-card glass-card-magenta space-widget-lg">
             <div className="flex items-start gap-4 mb-6">
-              <span className="text-5xl neon-breath">🎯</span>
+              <span className="text-5xl">🎯</span>
               <div className="flex-1">
                 <h2 className="text-2xl font-bold text-glow-magenta mb-2">Priority Task</h2>
                 <p className="text-sm text-gray-400">{dailyPriority.pillar.name}</p>
@@ -159,12 +168,12 @@ const TodayPremium: React.FC = () => {
                     disabled={false}
                     className={`w-10 h-10 rounded-lg border-3 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
                       task.progress >= 100
-                        ? 'bg-gradient-to-br from-neon-cyan to-cyan-400 border-neon-cyan shadow-lg shadow-cyan-500/50'
-                        : 'border-gray-300 hover:border-neon-cyan hover:shadow-lg hover:shadow-cyan-500/30 bg-white/5'
+                        ? 'bg-gradient-to-br from-neon-cyan to-neon-cyan border-neon-cyan shadow-glow-cyan'
+                        : 'border-white/20 hover:border-neon-cyan hover:shadow-glow-cyan bg-white/5'
                     }`}
                   >
                     {task.progress >= 100 && (
-                      <span className="text-black font-bold text-lg animate-pulse">✓</span>
+                      <span className="text-black font-bold text-lg">✓</span>
                     )}
                     {task.progress < 100 && (
                       <span className="text-gray-400 text-xs opacity-60">○</span>
@@ -185,8 +194,8 @@ const TodayPremium: React.FC = () => {
                       <span
                         className={`px-2 py-1 rounded-widget-sm text-xs font-bold uppercase ${
                           task.type === 'close'
-                            ? 'bg-red-500/20 border border-red-500/50 text-red-400'
-                            : 'bg-blue-500/20 border border-blue-500/50 text-blue-400'
+                            ? 'bg-[color:color-mix(in_srgb,var(--accent-danger)_18%,transparent)] border border-[color:color-mix(in_srgb,var(--accent-danger)_50%,transparent)] text-[var(--accent-danger)]'
+                            : 'bg-[color:color-mix(in_srgb,var(--accent-cyan)_18%,transparent)] border border-[color:color-mix(in_srgb,var(--accent-cyan)_50%,transparent)] text-[var(--accent-cyan)]'
                         }`}
                       >
                         {task.type}

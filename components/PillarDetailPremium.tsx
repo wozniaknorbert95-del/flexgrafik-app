@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import type { GoalAiTone, GoalType, Pillar } from '../types';
 import { useAppContext } from '../contexts/AppContext';
 import { generateTaskId, calculateTaskStatus } from '../utils/taskHelpers';
-import { buildIdeaSuggestionPrompt, ollamaGenerateText } from '../utils/aiPrompts';
+import { buildIdeaSuggestionPrompt } from '../utils/aiPrompts';
+import { providerGenerateText } from '../utils/aiProvider';
 // import { NormalizedSelectors } from '../types/normalized'; // TEMPORARILY DISABLED
 // import { OptimisticState } from '../utils/optimisticUpdates'; // TEMPORARILY DISABLED
 
@@ -342,14 +343,26 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
                     onClick={async () => {
                       setIsGeneratingStrategyAI(true);
                       try {
+                        const aiEnabled = Boolean((data as any)?.settings?.ai?.enabled);
+                        const apiKey = aiEnabled
+                          ? String((data as any)?.settings?.ai?.apiKey ?? '').trim()
+                          : '';
+                        if (!apiKey) {
+                          setStrategyAISuggestion(
+                            aiEnabled
+                              ? 'AI jest włączone, ale brakuje API key (Config → AI).'
+                              : 'AI jest wyłączone (Config → AI).'
+                          );
+                          return;
+                        }
                         const prompt = buildIdeaSuggestionPrompt({
                           pillar: pillarData as any,
                           task: null,
                           ideas: relevantIdeasForPillar,
                           useCase: 'goal_planning',
                         });
-                        const text = await ollamaGenerateText(
-                          { prompt, temperature: 0.6, topP: 0.9, numPredict: 180, maxLen: 420 },
+                        const text = await providerGenerateText(
+                          { apiKey, prompt, temperature: 0.6, maxTokens: 420, maxLen: 420 },
                           { timeoutMs: 12_000 }
                         );
                         setStrategyAISuggestion(text || '');

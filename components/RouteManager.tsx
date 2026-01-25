@@ -191,10 +191,10 @@ export const RouteManager: React.FC<RouteManagerProps> = ({
                           <span
                             className={`text-xs px-3 py-1 rounded-widget-sm font-bold uppercase tracking-wider ${
                               notification.response === 'checked_in'
-                                ? 'bg-green-500/20 border border-green-500/50 text-green-400'
+                                ? 'bg-[color:color-mix(in_srgb,var(--accent-success)_18%,transparent)] border border-[color:color-mix(in_srgb,var(--accent-success)_50%,transparent)] text-[var(--accent-success)]'
                                 : notification.response === 'acknowledged'
-                                  ? 'bg-blue-500/20 border border-blue-500/50 text-blue-400'
-                                  : 'bg-gray-500/20 border border-gray-500/50 text-gray-400'
+                                  ? 'bg-[color:color-mix(in_srgb,var(--accent-cyan)_18%,transparent)] border border-[color:color-mix(in_srgb,var(--accent-cyan)_50%,transparent)] text-[var(--accent-cyan)]'
+                                  : 'bg-[color:color-mix(in_srgb,var(--accent-warning)_18%,transparent)] border border-[color:color-mix(in_srgb,var(--accent-warning)_50%,transparent)] text-[var(--accent-warning)]'
                             }`}
                           >
                             {notification.response === 'checked_in'

@@ -128,6 +128,26 @@ export default {
           medium: 'var(--color-glass-medium)',
           heavy: 'var(--color-glass-heavy)',
         },
+        // Cyberpunk semantic aliases used in TSX
+        neon: {
+          cyan: 'var(--accent-cyan)',
+          magenta: 'var(--accent-magenta)',
+        },
+        gold: 'var(--accent-gold)',
+        obsidian: {
+          DEFAULT: 'var(--bg-base)',
+          light: 'var(--color-bg-secondary)',
+        },
+        surface: 'var(--bg-surface)',
+        elevated: 'var(--bg-elevated)',
+        // Legacy screen-level names (used in components)
+        dark: {
+          bg: 'var(--bg-base)',
+        },
+        cyber: {
+          black: 'var(--bg-base)',
+          cyan: 'var(--accent-cyan)',
+        },
         // White and black
         white: 'var(--color-white)',
         black: 'var(--color-black)',

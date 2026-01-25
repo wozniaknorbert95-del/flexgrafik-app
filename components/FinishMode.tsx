@@ -8,8 +8,8 @@ import {
   buildIdeaSuggestionPrompt,
   buildImplementationIntentionPrompt,
   buildFinishSessionInSessionPrompt,
-  ollamaGenerateText,
 } from '../utils/aiPrompts';
+import { providerGenerateText } from '../utils/aiProvider';
 
 type GoalType = 'main' | 'secondary' | 'lab';
 
@@ -45,6 +45,7 @@ export const FinishMode: React.FC = () => {
     ideas,
     activateImplementationIntention,
     setCurrentView,
+    setActiveProjectId,
     activeProjectId,
     currentFinishSession,
     startFinishSession,
@@ -75,6 +76,36 @@ export const FinishMode: React.FC = () => {
     insight: analyzeTaskProgression(task),
   }));
 
+  // Core flow (PLAN 5.3): allow selecting ANY task to finish (not only stuck).
+  const selectableTasks = useMemo(() => {
+    const pillars = Array.isArray(data?.pillars) ? data.pillars : [];
+    const activePillars = pillars.filter(
+      (p: any) => p && p.status !== 'done' && (p.activation ?? 'active') === 'active'
+    );
+
+    const list: Array<{ task: Task; pillar: Pillar }> = [];
+    for (const p of activePillars as any[]) {
+      const tasks = Array.isArray(p.tasks) ? (p.tasks as Task[]) : [];
+      for (const t of tasks) {
+        if (!t) continue;
+        if (t.progress >= 100 || t.status === 'done' || t.status === 'abandoned') continue;
+        list.push({ task: t, pillar: p });
+      }
+    }
+
+    // Prefer close tasks and higher progress (finish-first)
+    return list.sort((a, b) => {
+      const aClose = a.task.type === 'close' ? 1 : 0;
+      const bClose = b.task.type === 'close' ? 1 : 0;
+      if (aClose !== bClose) return bClose - aClose;
+      const byProgress = Number(b.task.progress ?? 0) - Number(a.task.progress ?? 0);
+      if (byProgress !== 0) return byProgress;
+      const byPillar = String(a.pillar.name || '').localeCompare(String(b.pillar.name || ''));
+      if (byPillar !== 0) return byPillar;
+      return Number(a.task.id) - Number(b.task.id);
+    });
+  }, [data?.pillars]);
+
   const selectedPillar = useMemo(() => {
     if (!selectedTask) return null;
     return findPillarForTask(data, selectedTask.id);
@@ -100,11 +131,11 @@ export const FinishMode: React.FC = () => {
   }, [selectedTask, stuckTasksWithInsights]);
 
   // Best-effort default selection when entering Finish Mode:
-  // - if user came from pillar detail: pick first stuck task in that pillar
-  // - if only 1 stuck task exists: auto-select it
+  // - if there is an active Finish session: select its task
+  // - if user came from pillar detail: pick first stuck task in that pillar, else first incomplete
+  // - else: prefer stuck task, else first incomplete task from active goals
   useEffect(() => {
     if (selectedTask) return;
-    if (!stuckTasksWithInsights.length) return;
 
     // If there's an active Finish session, prioritize its task
     if (currentFinishSession?.status === 'in_progress' && currentFinishSession.endTime == null) {
@@ -127,13 +158,44 @@ export const FinishMode: React.FC = () => {
           setSelectedTask(byPillar.task);
           return;
         }
+
+        const firstIncomplete = (pillar.tasks || []).find(
+          (t: any) => t && t.progress < 100 && t.status !== 'done' && t.status !== 'abandoned'
+        );
+        if (firstIncomplete) {
+          setSelectedTask(firstIncomplete as Task);
+          return;
+        }
       }
     }
 
     if (stuckTasksWithInsights.length === 1) {
       setSelectedTask(stuckTasksWithInsights[0].task);
+      return;
     }
-  }, [activeProjectId, currentFinishSession, data.pillars, selectedTask, stuckTasksWithInsights]);
+
+    if (stuckTasksWithInsights.length > 0) {
+      setSelectedTask(stuckTasksWithInsights[0].task);
+      return;
+    }
+
+    // No stuck tasks: pick first incomplete from active goals (prefer main goal).
+    const mainFirst = selectableTasks.find((x: any) => (x.pillar as any)?.type === 'main') || null;
+    if (mainFirst) {
+      setSelectedTask(mainFirst.task);
+      return;
+    }
+    if (selectableTasks.length > 0) {
+      setSelectedTask(selectableTasks[0].task);
+    }
+  }, [
+    activeProjectId,
+    currentFinishSession,
+    data.pillars,
+    selectableTasks,
+    selectedTask,
+    stuckTasksWithInsights,
+  ]);
 
   const goalTypeLabel = useMemo(() => {
     if (!selectedPillar) return 'not set';
@@ -203,11 +265,33 @@ export const FinishMode: React.FC = () => {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen p-6"
-      style={{
-        background: 'linear-gradient(135deg, #0F0F23 0%, #1A1A2E 50%, #16213E 100%)',
-      }}
+      className="min-h-screen p-6 bg-dark-bg"
     >
+      {/* Top-bar navigation (dock is hidden in Finish Mode) */}
+      <div className="sticky top-0 z-40 -mx-6 mb-6">
+        <div
+          className="bg-black/50 backdrop-blur border-b border-white/10"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        >
+          <div className="h-12 px-4 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setCurrentView('home')}
+              className="text-sm font-bold text-gray-200 hover:text-white"
+            >
+              ← Dashboard
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentView('ai_coach')}
+              className="text-sm font-bold text-gray-200 hover:text-white"
+            >
+              🧠 AI
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <motion.div
         initial={{ y: -20, opacity: 0 }}
@@ -218,9 +302,81 @@ export const FinishMode: React.FC = () => {
           FINISH MODE
         </h1>
         <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-          Break through the final 10%. These tasks are stuck at the finish line - let's get them
-          done with psychology-backed strategies.
+          🏁 Wybierz task i domknij go. System pomoże Ci przebić się przez ostatnie 10%.
         </p>
+      </motion.div>
+
+      {/* Task selector (core flow) */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.12 }}
+        className="mb-6"
+      >
+        <div className="glass-card p-6 border border-white/10">
+          <div className="text-xs text-gray-400 uppercase tracking-wider mb-2">Select task</div>
+          <select
+            value={selectedTask?.id ?? ''}
+            onChange={(e) => {
+              const id = Number(e.target.value);
+              const next = selectableTasks.find((x) => x.task.id === id) || null;
+              setSelectedTask(next ? next.task : null);
+              setShowEndForm(false);
+              setClassificationNote('');
+              setSelectedStatus(null);
+              setIdeaSuggestion('');
+              setInSessionSupport('');
+            }}
+            className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:border-cyan-400"
+          >
+            <option value="">Select a task…</option>
+            {selectableTasks.slice(0, 60).map(({ task, pillar }) => (
+              <option key={`${pillar.id}_${task.id}`} value={task.id}>
+                {pillar.name} — {task.name} ({Math.round(task.progress)}%)
+              </option>
+            ))}
+          </select>
+          <div className="mt-2 text-[11px] text-gray-400">
+            Showing active goals only. If you don’t see a task, move its goal from backlog → active.
+          </div>
+
+          {/* Empty state: no tasks to finish yet (critical onboarding) */}
+          {selectableTasks.length === 0 && (
+            <div className="mt-4 p-4 rounded-lg bg-white/5 border border-white/10">
+              <div className="text-white font-bold mb-1">Brak tasków do domknięcia.</div>
+              <div className="text-sm text-gray-300">
+                Dodaj przynajmniej 1 task z Definicją DONE w widoku celu, a potem wróć tutaj.
+              </div>
+              <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const pillars = Array.isArray((data as any)?.pillars) ? ((data as any).pillars as any[]) : [];
+                    const active = pillars.filter(
+                      (p) => p && p.status !== 'done' && (p.activation ?? 'active') === 'active'
+                    );
+                    const byMain = active.find((p) => p.type === 'main') || null;
+                    const targetId = Number(
+                      activeProjectId ?? (byMain ? byMain.id : active[0]?.id ?? null)
+                    );
+                    if (Number.isFinite(targetId)) {
+                      setActiveProjectId(targetId);
+                      setCurrentView('pillar_detail');
+                    } else {
+                      setCurrentView('home');
+                    }
+                  }}
+                  className="btn-premium btn-magenta"
+                >
+                  ➕ Otwórz cel i dodaj task
+                </button>
+                <button type="button" onClick={() => setCurrentView('home')} className="btn-premium btn-cyan">
+                  ← Dashboard
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </motion.div>
 
       {/* Session Header (selected task context) */}
@@ -285,10 +441,8 @@ export const FinishMode: React.FC = () => {
 
                     {/* Definition of DONE */}
                     <div
-                      className={`p-4 rounded-lg border ${
-                        definitionOfDone
-                          ? 'bg-green-500/10 border-green-500/30'
-                          : 'bg-red-500/10 border-red-500/30'
+                      className={`p-4 rounded-lg border glass-card ${
+                        definitionOfDone ? 'glass-card-success' : 'glass-card-warning'
                       }`}
                     >
                       <div className="text-xs text-gray-200 uppercase tracking-wider font-semibold mb-2 flex items-center gap-2">
@@ -330,11 +484,7 @@ export const FinishMode: React.FC = () => {
                     <>
                       <button
                         onClick={() => setShowEndForm((v) => !v)}
-                        className="py-3 px-4 rounded-lg font-bold text-white transition-all duration-200"
-                        style={{
-                          background: 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)',
-                          boxShadow: '0 4px 16px rgba(239, 68, 68, 0.25)',
-                        }}
+                        className="btn btn-error btn-md"
                       >
                         End session
                       </button>
@@ -359,7 +509,14 @@ export const FinishMode: React.FC = () => {
                                 const aiEnabled = Boolean((data as any)?.settings?.ai?.enabled);
                                 if (!aiEnabled) {
                                   setInSessionSupport(
-                                    'AI jest wyłączone. Włącz w Settings → AI, albo użyj Definicji DONE jako checklisty na teraz.'
+                                    'AI jest wyłączone. Włącz w Config (⚙) → AI Assistant i ustaw API key.'
+                                  );
+                                  return;
+                                }
+                                const apiKey = String((data as any)?.settings?.ai?.apiKey ?? '').trim();
+                                if (!apiKey) {
+                                  setInSessionSupport(
+                                    'AI jest włączone, ale brakuje API key. Otwórz Config (⚙) → AI Assistant → wklej API key.'
                                   );
                                   return;
                                 }
@@ -372,8 +529,8 @@ export const FinishMode: React.FC = () => {
                                   ideas: relevantIdeas,
                                   request: 'what_now',
                                 });
-                                const text = await ollamaGenerateText(
-                                  { prompt, temperature: 0.6, topP: 0.9, numPredict: 140, maxLen: 520 },
+                                const text = await providerGenerateText(
+                                  { apiKey, prompt, temperature: 0.6, maxTokens: 520, maxLen: 520 },
                                   { timeoutMs: 12_000 }
                                 );
                                 if (!text) {
@@ -389,7 +546,7 @@ export const FinishMode: React.FC = () => {
                               }
                             }}
                             disabled={isGeneratingInSessionSupport}
-                            className="px-3 py-2 rounded-lg bg-cyan-500/15 border border-cyan-400/40 text-cyan-200 text-[11px] font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="min-h-[44px] px-3 py-3 rounded-lg bg-cyan-500/15 border border-cyan-400/40 text-cyan-200 text-[11px] font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {isGeneratingInSessionSupport ? 'Generuję…' : '💡 Co robić teraz?'}
                           </button>
@@ -406,6 +563,13 @@ export const FinishMode: React.FC = () => {
                                   );
                                   return;
                                 }
+                                const apiKey = String((data as any)?.settings?.ai?.apiKey ?? '').trim();
+                                if (!apiKey) {
+                                  setInSessionSupport(
+                                    'AI jest włączone, ale brakuje API key. Otwórz Config (⚙) → AI Assistant → wklej API key.'
+                                  );
+                                  return;
+                                }
 
                                 const prompt = buildFinishSessionInSessionPrompt({
                                   pillar: selectedPillar,
@@ -415,8 +579,8 @@ export const FinishMode: React.FC = () => {
                                   ideas: relevantIdeas,
                                   request: 'micro_step',
                                 });
-                                const text = await ollamaGenerateText(
-                                  { prompt, temperature: 0.6, topP: 0.9, numPredict: 120, maxLen: 420 },
+                                const text = await providerGenerateText(
+                                  { apiKey, prompt, temperature: 0.6, maxTokens: 420, maxLen: 420 },
                                   { timeoutMs: 12_000 }
                                 );
                                 if (!text) {
@@ -431,7 +595,7 @@ export const FinishMode: React.FC = () => {
                               }
                             }}
                             disabled={isGeneratingInSessionSupport}
-                            className="px-3 py-2 rounded-lg bg-purple-500/15 border border-purple-400/40 text-purple-200 text-[11px] font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="min-h-[44px] px-3 py-3 rounded-lg bg-purple-500/15 border border-purple-400/40 text-purple-200 text-[11px] font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {isGeneratingInSessionSupport ? 'Generuję…' : '🧩 Mikrokrok (5–10 min)'}
                           </button>
@@ -446,7 +610,7 @@ export const FinishMode: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setInSessionSupport('')}
-                                className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-gray-300 text-[11px] font-bold uppercase tracking-wider"
+                                className="min-h-[44px] px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 text-[11px] font-bold uppercase tracking-wider"
                               >
                                 Wyczyść
                               </button>
@@ -470,12 +634,13 @@ export const FinishMode: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setSelectedStatus('done')}
-                                className={`w-full px-3 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider transition-colors ${
+                                className={`w-full min-h-[44px] px-3 py-3 rounded-lg border text-xs font-bold uppercase tracking-wider transition-colors ${
                                   selectedStatus === 'done'
-                                    ? 'bg-green-500/20 border-green-500/60 text-green-200'
+                                    ? 'bg-success-500/20 border-success-500/60 text-success-200'
                                     : 'bg-white/5 border-white/10 text-gray-200 hover:bg-white/10'
                                 }`}
                                 aria-pressed={selectedStatus === 'done'}
+                                style={selectedStatus === 'done' ? { boxShadow: 'var(--glow-gold)' } : undefined}
                               >
                                 DONE (zadanie zakończone)
                               </button>
@@ -483,7 +648,7 @@ export const FinishMode: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setSelectedStatus('in_progress')}
-                                className={`w-full px-3 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider transition-colors ${
+                                className={`w-full min-h-[44px] px-3 py-3 rounded-lg border text-xs font-bold uppercase tracking-wider transition-colors ${
                                   selectedStatus === 'in_progress'
                                     ? 'bg-cyan-500/15 border-cyan-400/60 text-cyan-200'
                                     : 'bg-white/5 border-white/10 text-gray-200 hover:bg-white/10'
@@ -496,9 +661,9 @@ export const FinishMode: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => setSelectedStatus('stuck')}
-                                className={`w-full px-3 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider transition-colors ${
+                                className={`w-full min-h-[44px] px-3 py-3 rounded-lg border text-xs font-bold uppercase tracking-wider transition-colors ${
                                   selectedStatus === 'stuck'
-                                    ? 'bg-red-500/15 border-red-400/60 text-red-200'
+                                    ? 'bg-error-500/15 border-error-500/60 text-error-200'
                                     : 'bg-white/5 border-white/10 text-gray-200 hover:bg-white/10'
                                 }`}
                                 aria-pressed={selectedStatus === 'stuck'}
@@ -531,20 +696,26 @@ export const FinishMode: React.FC = () => {
                                   if (!selectedPillar || !selectedTask) return;
                                   setIsGeneratingIdeaSuggestion(true);
                                   try {
+                                    const aiEnabled = Boolean((data as any)?.settings?.ai?.enabled);
+                                    const apiKey = aiEnabled
+                                      ? String((data as any)?.settings?.ai?.apiKey ?? '').trim()
+                                      : '';
+                                    if (!apiKey) {
+                                      setIdeaSuggestion(
+                                        aiEnabled
+                                          ? 'AI jest włączone, ale brakuje API key (Config → AI).'
+                                          : 'AI jest wyłączone (Config → AI).'
+                                      );
+                                      return;
+                                    }
                                     const prompt = buildIdeaSuggestionPrompt({
                                       pillar: selectedPillar,
                                       task: selectedTask,
                                       ideas: relevantIdeas,
                                       useCase: 'finish_mode',
                                     });
-                                    const text = await ollamaGenerateText(
-                                      {
-                                        prompt,
-                                        temperature: 0.6,
-                                        topP: 0.9,
-                                        numPredict: 120,
-                                        maxLen: 220,
-                                      },
+                                    const text = await providerGenerateText(
+                                      { apiKey, prompt, temperature: 0.6, maxTokens: 220, maxLen: 220 },
                                       { timeoutMs: 12_000 }
                                     );
                                     setIdeaSuggestion(text || 'Brak pasującego pomysłu.');
@@ -555,7 +726,7 @@ export const FinishMode: React.FC = () => {
                                 disabled={
                                   isGeneratingIdeaSuggestion || !selectedPillar || !selectedTask
                                 }
-                                className="px-2 py-1 rounded-lg bg-cyan-500/15 border border-cyan-400/40 text-cyan-200 text-[11px] font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="min-h-[44px] px-3 py-2 rounded-lg bg-cyan-500/15 border border-cyan-400/40 text-cyan-200 text-[11px] font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 {isGeneratingIdeaSuggestion ? 'Generuję…' : '🤖 Sugestia'}
                               </button>
@@ -570,7 +741,7 @@ export const FinishMode: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => setIdeaSuggestion('')}
-                                    className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-gray-300 text-[11px] font-bold uppercase tracking-wider"
+                                    className="min-h-[44px] px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 text-[11px] font-bold uppercase tracking-wider"
                                   >
                                     Wyczyść
                                   </button>
@@ -582,7 +753,7 @@ export const FinishMode: React.FC = () => {
                                       const merged = next ? `${next}\n${append}` : append;
                                       setClassificationNote(merged.slice(0, 500));
                                     }}
-                                    className="px-2 py-1 rounded-lg bg-green-500/15 border border-green-500/40 text-green-200 text-[11px] font-bold uppercase tracking-wider"
+                                    className="min-h-[44px] px-3 py-2 rounded-lg bg-green-500/15 border border-green-500/40 text-green-200 text-[11px] font-bold uppercase tracking-wider"
                                   >
                                     Wklej do notatki
                                   </button>
@@ -608,6 +779,7 @@ export const FinishMode: React.FC = () => {
                                       userNote: classificationNote || undefined,
                                       sessionStartTime: activeSession!.startTime,
                                       sessionEndTime: new Date().toISOString(),
+                                      ai: (data as any)?.settings?.ai,
                                     });
 
                                     endFinishSession(activeSession!.id, {
@@ -631,7 +803,7 @@ export const FinishMode: React.FC = () => {
                                 run();
                               }}
                               disabled={!selectedStatus}
-                              className="px-3 py-2 rounded-lg bg-green-500/20 border border-green-500/50 text-green-300 text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="min-h-[44px] px-3 py-3 rounded-lg bg-green-500/20 border border-green-500/50 text-green-300 text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {isGeneratingSummary ? 'Generuję…' : 'Zapisz'}
                             </button>
@@ -643,7 +815,7 @@ export const FinishMode: React.FC = () => {
                                 setIdeaSuggestion('');
                               }}
                               disabled={isGeneratingSummary}
-                              className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="min-h-[44px] px-3 py-3 rounded-lg bg-white/5 border border-white/10 text-gray-300 text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               Anuluj
                             </button>
@@ -674,11 +846,7 @@ export const FinishMode: React.FC = () => {
                           setClassificationNote('');
                           setSelectedStatus(null);
                         }}
-                        className="py-3 px-4 rounded-lg font-bold text-white transition-all duration-200"
-                        style={{
-                          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                          boxShadow: '0 4px 16px rgba(16, 185, 129, 0.25)',
-                        }}
+                        className="btn btn-success btn-md"
                       >
                         Start session
                       </button>
@@ -849,11 +1017,7 @@ export const FinishMode: React.FC = () => {
       >
         <button
           onClick={() => setCurrentView('home')}
-          className="py-3 px-8 rounded-lg font-bold text-white transition-all duration-200"
-          style={{
-            background: 'linear-gradient(135deg, #6B7280 0%, #4B5563 100%)',
-            boxShadow: '0 4px 16px rgba(107, 114, 128, 0.3)',
-          }}
+          className="btn btn-ghost btn-primary btn-lg"
         >
           ← Back to Dashboard
         </button>
@@ -1002,11 +1166,12 @@ export const DoneCriteria: React.FC<DoneCriteriaProps> = ({ task }) => {
           >
             <button
               onClick={() => toggleCriterion(criterion.id)}
-              className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
+              className={`w-11 h-11 flex-shrink-0 rounded border-2 flex items-center justify-center transition-all ${
                 criterion.completed
                   ? 'bg-green-500 border-green-500'
                   : 'border-gray-400 hover:border-cyan-400'
               }`}
+              aria-label={criterion.completed ? 'Odhacz kryterium DONE' : 'Zaznacz kryterium DONE'}
             >
               {criterion.completed && <span className="text-white text-sm">✓</span>}
             </button>
@@ -1021,7 +1186,8 @@ export const DoneCriteria: React.FC<DoneCriteriaProps> = ({ task }) => {
 
             <button
               onClick={() => removeCriterion(criterion.id)}
-              className="text-gray-500 hover:text-red-400 transition-colors"
+              className="w-11 h-11 flex-shrink-0 rounded-lg text-gray-400 hover:text-red-400 hover:bg-white/5 transition-colors flex items-center justify-center"
+              aria-label="Usuń kryterium"
             >
               ✕
             </button>
@@ -1031,7 +1197,7 @@ export const DoneCriteria: React.FC<DoneCriteriaProps> = ({ task }) => {
 
       <button
         onClick={addCriterion}
-        className="w-full py-2 px-4 rounded-lg border-2 border-dashed border-gray-500 hover:border-cyan-400 text-gray-400 hover:text-cyan-400 transition-all duration-200"
+        className="w-full min-h-[44px] py-3 px-4 rounded-lg border-2 border-dashed border-gray-500 hover:border-cyan-400 text-gray-400 hover:text-cyan-400 transition-all duration-200"
       >
         + Add Criterion
       </button>
@@ -1040,15 +1206,12 @@ export const DoneCriteria: React.FC<DoneCriteriaProps> = ({ task }) => {
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mt-4 p-4 rounded-lg text-center"
-          style={{
-            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-            boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)',
-          }}
+          className="mt-4 p-4 rounded-lg text-center glass-card glass-card-success"
+          style={{ boxShadow: 'var(--glow-gold)' }}
         >
           <div className="text-2xl mb-2">🎉</div>
           <div className="text-white font-bold">All Criteria Met!</div>
-          <div className="text-green-100 text-sm">Ready to mark as complete</div>
+          <div className="text-gold text-sm font-semibold">Ready to mark as complete</div>
         </motion.div>
       )}
     </motion.div>
@@ -1102,14 +1265,22 @@ export const ImplementationIntentionForm: React.FC<ImplementationIntentionFormPr
 
     setIsGeneratingAI(true);
     try {
+      const aiEnabled = Boolean((data as any)?.settings?.ai?.enabled);
+      const apiKey = aiEnabled ? String((data as any)?.settings?.ai?.apiKey ?? '').trim() : '';
+      if (!apiKey) {
+        setAiSuggestion(
+          aiEnabled ? 'AI jest włączone, ale brakuje API key (Config → AI).' : 'AI jest wyłączone (Config → AI).'
+        );
+        return;
+      }
       const pillar = findPillarForTask(data, selectedTask.id);
       const prompt = buildImplementationIntentionPrompt({
         pillar,
         task: selectedTask,
         ideas: data?.ideas ?? [],
       });
-      const suggestion = await ollamaGenerateText(
-        { prompt, temperature: 0.8, topP: 0.9, numPredict: 80, maxLen: 160 },
+      const suggestion = await providerGenerateText(
+        { apiKey, prompt, temperature: 0.8, maxTokens: 220, maxLen: 160 },
         { timeoutMs: 12_000 }
       );
 
@@ -1123,7 +1294,7 @@ export const ImplementationIntentionForm: React.FC<ImplementationIntentionFormPr
         }
       }
     } catch (error) {
-      console.warn('Ollama integration failed:', error);
+      console.warn('AI integration failed:', error);
       setAiSuggestion('AI unavailable - using fallback templates above');
     } finally {
       setIsGeneratingAI(false);
@@ -1146,11 +1317,7 @@ export const ImplementationIntentionForm: React.FC<ImplementationIntentionFormPr
     return (
       <button
         onClick={onToggleVisibility}
-        className="w-full py-3 px-6 rounded-lg font-bold text-white transition-all duration-200"
-        style={{
-          background: 'linear-gradient(135deg, #00F3FF 0%, #0099CC 100%)',
-          boxShadow: '0 4px 16px rgba(0, 243, 255, 0.3)',
-        }}
+        className="btn btn-primary btn-lg w-full"
       >
         🧠 Create Implementation Intention
       </button>
@@ -1197,11 +1364,7 @@ export const ImplementationIntentionForm: React.FC<ImplementationIntentionFormPr
           <button
             onClick={generateAISuggestion}
             disabled={!selectedTask || isGeneratingAI}
-            className="px-3 py-1 rounded-lg text-xs font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-1"
-            style={{
-              background: 'linear-gradient(135deg, #00F3FF 0%, #0099CC 100%)',
-              boxShadow: '0 2px 8px rgba(0, 243, 255, 0.3)',
-            }}
+            className="btn btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1 text-xs flex items-center gap-1"
           >
             <span>🤖</span>
             {isGeneratingAI ? 'Generating...' : 'AI Suggest'}
@@ -1279,11 +1442,7 @@ export const ImplementationIntentionForm: React.FC<ImplementationIntentionFormPr
         <button
           onClick={handleSubmit}
           disabled={!selectedTask || !trigger.trim() || !action.trim()}
-          className="flex-1 py-3 px-4 rounded-lg font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{
-            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-            boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)',
-          }}
+          className="btn btn-success btn-md flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Activate Intention
         </button>

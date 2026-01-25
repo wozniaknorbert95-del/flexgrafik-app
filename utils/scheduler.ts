@@ -7,6 +7,10 @@ import { detectStuckAt90 } from './taskHelpers';
 import { Task } from '../types';
 import { loadAppData } from './storageManager';
 
+// Minimal action shape for in-app notifications.
+// Note: Browser `Notification` constructor does NOT support actions; actions are SW-only.
+type NotificationAction = { action: string; title: string; icon?: string };
+
 // ============================================================================
 // SCHEDULER CORE
 // ============================================================================
@@ -27,7 +31,9 @@ export const scheduleStuckTasksAudit = () => {
     localStorage.setItem('stuckTasksScheduler', 'running');
 
     // Uruchom codzienny audyt
-    scheduleDaily(checkStuckTasks, '10:00');
+    scheduleDaily(() => {
+      void checkStuckTasks();
+    }, '10:00');
 
     console.log('🕐 Stuck tasks scheduler started - daily audits at 10:00');
   }
@@ -236,8 +242,15 @@ export const scheduleDaily = (callback: () => void | Promise<void>, timeString: 
  */
 export const showStuckTasksNotification = async (stuckTasks: Task[]) => {
   try {
-    // Generuj dynamiczny tytuł i treść przez Ollama
-    const { title, body } = await generateNotificationContent(stuckTasks);
+    // Settings-driven AI: if disabled/no key → fallback text (no network calls).
+    const appData = await loadAppData().catch(() => null);
+    const aiEnabled = Boolean((appData as any)?.settings?.ai?.enabled);
+    const apiKey = aiEnabled ? String((appData as any)?.settings?.ai?.apiKey ?? '').trim() : '';
+
+    const { title, body } = await generateNotificationContent(stuckTasks, {
+      enabled: aiEnabled,
+      apiKey,
+    });
 
     showNotification({
       title,
@@ -289,10 +302,11 @@ export const showStuckTasksNotification = async (stuckTasks: Task[]) => {
 };
 
 /**
- * Generuj treść powiadomienia przez Ollama (Summary of Shame)
+ * Generuj treść powiadomienia (AI provider lub fallback)
  */
 const generateNotificationContent = async (
-  stuckTasks: Task[]
+  stuckTasks: Task[],
+  ai: { enabled: boolean; apiKey: string }
 ): Promise<{ title: string; body: string }> => {
   const taskNames = stuckTasks.map((t) => t.name).join(', ');
   const taskCount = stuckTasks.length;
@@ -305,49 +319,61 @@ const generateNotificationContent = async (
 
   Odpowiedź w formacie JSON: {"title": "...", "body": "..."}`;
 
+  // AC: If AI disabled → do not call any AI. Use deterministic fallback.
+  if (!ai?.enabled) {
+    return {
+      title: `🎯 ${taskCount} zadań na finiszu`,
+      body: `Masz ${taskCount} zadań powyżej 90%, które czekają na ukończenie. Czas je domknąć!`,
+    };
+  }
+
+  const apiKey = String(ai?.apiKey ?? '').trim();
+  if (!apiKey) {
+    // AC: enabled without key → fallback, no fetch errors.
+    return {
+      title: `🎯 ${taskCount} zadań na finiszu`,
+      body: `AI włączone, ale brak API key. Masz ${taskCount} zadań >90% — odpal Finish Mode i domknij 1 task.`,
+    };
+  }
+
   try {
-    const response = await fetch('http://localhost:11434/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama2',
-        prompt: prompt,
-        stream: false,
-        options: {
-          temperature: 0.8,
-          top_p: 0.9,
-          num_predict: 100,
-        },
-      }),
-    });
+    // Lazy import to avoid loading AI config in paths that don't need it (tests/offline).
+    const { providerGenerateText } = await import('./aiProvider');
+    const text = await providerGenerateText(
+      { apiKey, prompt, temperature: 0.8, maxTokens: 180, maxLen: 520 },
+      { timeoutMs: 10_000 }
+    );
 
-    if (response.ok) {
-      const data = await response.json();
-      const aiResponse = data.response?.trim();
-
-      // Spróbuj parsować JSON z odpowiedzi AI
-      try {
-        const parsed = JSON.parse(aiResponse);
-        if (parsed.title && parsed.body) {
-          return {
-            title: parsed.title.substring(0, 50), // Limit długości
-            body: parsed.body.substring(0, 120),
-          };
-        }
-      } catch (parseError) {
-        // Jeśli AI nie zwrócił prawidłowego JSON, użyj surowej odpowiedzi
-        console.warn('AI returned invalid JSON, using raw response');
-        return {
-          title: `🎯 ${taskCount} zadań czeka`,
-          body: aiResponse.substring(0, 120),
-        };
-      }
+    if (!text) {
+      return {
+        title: `🎯 ${taskCount} zadań na finiszu`,
+        body: `Masz ${taskCount} zadań powyżej 90%, które czekają na ukończenie. Czas je domknąć!`,
+      };
     }
 
-    throw new Error('Ollama API failed');
+    // Try to parse JSON from AI response; if invalid, use raw text safely.
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed?.title && parsed?.body) {
+        return {
+          title: String(parsed.title).substring(0, 50),
+          body: String(parsed.body).substring(0, 120),
+        };
+      }
+    } catch (_) {
+      // ignore parse error
+    }
+
+    return {
+      title: `🎯 ${taskCount} zadań czeka`,
+      body: String(text).trim().substring(0, 120),
+    };
   } catch (error) {
-    console.warn('Ollama notification generation failed:', error);
-    throw error;
+    console.warn('AI notification generation failed, using fallback:', error);
+    return {
+      title: `🎯 ${taskCount} zadań na finiszu`,
+      body: `Masz ${taskCount} zadań powyżej 90%, które czekają na ukończenie. Czas je domknąć!`,
+    };
   }
 };
 
@@ -410,7 +436,6 @@ const showNativeNotification = (
       tag: options.tag || 'stuck-tasks',
       requireInteraction: options.requireInteraction || false,
       silent: options.silent || false,
-      actions: options.actions,
       data: options.data,
     });
 

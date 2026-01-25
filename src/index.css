@@ -1,0 +1,11 @@
+/* Entry CSS for Vite bundle:
+   - Tailwind v4 utilities
+   - FlexGrafik design system tokens/components
+*/
+
+@import "tailwindcss";
+@import "./styles/design-system.css";
+
+/* Tailwind v4: load legacy JS config (custom colors/radii/shadows) */
+@config "../tailwind.config.js";
+

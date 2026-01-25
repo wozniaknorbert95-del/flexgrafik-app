@@ -259,5 +259,8 @@ export const INITIAL_DATA: AppData = {
       enabled: false,
       customSystemPrompt: undefined,
     },
+    goals: {
+      maxActive: 3,
+    },
   },
 };

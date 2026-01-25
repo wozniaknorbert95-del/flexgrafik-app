@@ -13,7 +13,7 @@
  * - Cache `/api/*` responses (backend is optional; avoid masking failures).
  */
 
-const SW_VERSION = '2026-01-24-1';
+const SW_VERSION = '2026-01-25-1';
 const PRECACHE_NAME = `flexgrafik-precache-${SW_VERSION}`;
 const RUNTIME_CACHE_NAME = `flexgrafik-runtime-${SW_VERSION}`;
 

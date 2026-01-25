@@ -58,11 +58,11 @@ function formatChatHistoryForPrompt(history: ChatMessage[] | null | undefined, m
     .join('\n');
 }
 
-function formatPillarsSnapshotForPrompt(pillars: Pillar[], maxGoals: number): string {
+function formatPillarsSnapshotForPrompt(pillars: Pillar[], maxGoals: number, maxActive: number): string {
   const list = Array.isArray(pillars) ? pillars : [];
   if (list.length === 0) return 'Brak celów.';
 
-  const active = list.filter((p) => p.status !== 'done');
+  const active = list.filter((p: any) => p.status !== 'done' && (p.activation ?? 'active') === 'active');
   const main = active.find((p: any) => p.type === 'main') || null;
 
   const sorted = [...active].sort((a: any, b: any) => {
@@ -86,7 +86,7 @@ function formatPillarsSnapshotForPrompt(pillars: Pillar[], maxGoals: number): st
   const activeCount = active.length;
   const mainName = main ? compactText((main as any).name, 80) : null;
 
-  return `Aktywne cele: ${activeCount}/3.${mainName ? ` Cel główny: "${mainName}".` : ''}\n${lines.join('\n')}`;
+  return `Aktywne cele: ${activeCount}/${maxActive}.${mainName ? ` Cel główny: "${mainName}".` : ''}\n${lines.join('\n')}`;
 }
 
 function formatRecentFinishSessionsForPrompt(
@@ -213,7 +213,8 @@ function extractUserDeclarations(params: {
   }
 
   const pillars = Array.isArray(params.data?.pillars) ? params.data.pillars : [];
-  const active = pillars.filter((p) => p.status !== 'done');
+  // D-003: "active goals" are status !== 'done' AND activation === 'active' (default for legacy data).
+  const active = pillars.filter((p: any) => p?.status !== 'done' && (p.activation ?? 'active') === 'active');
   const strategies = active
     .map((p: any) => {
       const name = compactText(p?.name, 60) || 'nieznany cel';
@@ -564,9 +565,12 @@ export function buildAssistantChatPrompt(params: {
   const primaryId = Number.isFinite(Number(params.primaryPillarId)) ? Number(params.primaryPillarId) : null;
   const primaryPillar = primaryId ? (pillars.find((p) => Number((p as any).id) === primaryId) as any) : null;
   const tone = getToneLabel(primaryPillar);
-  const activeGoalsCount = pillars.filter((p) => p.status !== 'done').length;
+  const maxActive = Number((params.data as any)?.settings?.goals?.maxActive ?? 3) || 3;
+  const activeGoalsCount = pillars.filter(
+    (p: any) => p.status !== 'done' && (p.activation ?? 'active') === 'active'
+  ).length;
 
-  const goalsSnapshot = formatPillarsSnapshotForPrompt(pillars, 3);
+  const goalsSnapshot = formatPillarsSnapshotForPrompt(pillars, maxActive, maxActive);
   const sessionsSnapshot = formatRecentFinishSessionsForPrompt(sessions, 6);
   const ideasSnapshot = formatIdeasForPrompt({ ideas, pillarId: primaryId ?? undefined, maxItems: 8 });
   const historySnapshot = formatChatHistoryForPrompt(chatHistory, 10);
@@ -579,7 +583,8 @@ export function buildAssistantChatPrompt(params: {
   const looksLikeNewGoalRequest =
     /\b(dodaj|dodać|nowy|nową|new)\b/i.test(message) && /\b(cel|cele|goal|goals)\b/i.test(message);
   const looksLikeFourthGoal = /\b4\b.*\b(cel|cele|goal|goals)\b/i.test(message) || /\bczwart/i.test(message);
-  const shouldRemindMax3 = activeGoalsCount >= 3 && (looksLikeNewGoalRequest || looksLikeFourthGoal);
+  const shouldRemindMax3 =
+    activeGoalsCount >= maxActive && (looksLikeNewGoalRequest || looksLikeFourthGoal);
 
   return `Jesteś głównym asystentem w aplikacji ADHD Accountability Assistant (anti‑90% / finish‑first).
 Masz być szczery, konkretny i oparty o FAKTY z aplikacji. Nie wymyślaj danych.
@@ -603,7 +608,7 @@ ${historySnapshot || '(brak historii)'}
 Instrukcja “pamiętania zasad”:
 - Jeśli odpowiadasz o zasadach/limitach, ZACYTUJ 1 krótki cytat użytkownika z sekcji wyżej (dokładnie, z datą) i dopiero potem doradzaj.
 - Jeśli nie ma cytatu użytkownika dla danej zasady, nazwij to wprost jako “zasadę systemu”.
-${shouldRemindMax3 ? `- UWAGA: Użytkownik ma teraz ${activeGoalsCount}/3 aktywnych celów, a wiadomość wygląda jak próba dodania kolejnego celu. ZACZNIJ odpowiedź od przypomnienia (z cytatem) i poproś o wybór: który cel zamykamy / przenosimy do backlogu.` : ''}
+${shouldRemindMax3 ? `- UWAGA: Użytkownik ma teraz ${activeGoalsCount}/${maxActive} aktywnych celów, a wiadomość wygląda jak próba dodania kolejnego celu. ZACZNIJ odpowiedź od przypomnienia (z cytatem) i poproś o wybór: który cel zamykamy / przenosimy do backlogu.` : ''}
 
 Zadanie:
 Odpowiedz po polsku na ostatnią wiadomość użytkownika: "${message}"

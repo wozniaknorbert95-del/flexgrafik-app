@@ -56,9 +56,9 @@
 
 /* Glass morphism variant */
 .glass-card {
-  background: var(--color-glass-medium);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--color-glass-heavy);
+  background: var(--bg-surface);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-glass);
 }
 
@@ -138,68 +138,76 @@
 .card-success,
 .glass-card-success {
   border-color: var(--color-success-500);
+  background: color-mix(in srgb, var(--accent-success) 12%, var(--bg-surface));
   box-shadow:
     var(--shadow-card),
-    0 0 0 1px rgba(34, 197, 94, 0.2);
+    0 0 0 1px color-mix(in srgb, var(--accent-success) 30%, transparent);
 }
 
 .card-success:hover,
 .glass-card-success:hover {
   border-color: var(--color-success-400);
+  background: color-mix(in srgb, var(--accent-success) 16%, var(--bg-surface));
   box-shadow:
     var(--shadow-card-hover),
-    0 0 0 1px rgba(34, 197, 94, 0.3);
+    0 0 0 1px color-mix(in srgb, var(--accent-success) 40%, transparent);
 }
 
 /* Warning card */
 .card-warning,
 .glass-card-warning {
   border-color: var(--color-warning-500);
+  background: color-mix(in srgb, var(--accent-warning) 12%, var(--bg-surface));
   box-shadow:
     var(--shadow-card),
-    0 0 0 1px rgba(245, 158, 11, 0.2);
+    0 0 0 1px color-mix(in srgb, var(--accent-warning) 30%, transparent);
 }
 
 .card-warning:hover,
 .glass-card-warning:hover {
   border-color: var(--color-warning-400);
+  background: color-mix(in srgb, var(--accent-warning) 16%, var(--bg-surface));
   box-shadow:
     var(--shadow-card-hover),
-    0 0 0 1px rgba(245, 158, 11, 0.3);
+    0 0 0 1px color-mix(in srgb, var(--accent-warning) 40%, transparent);
 }
 
 /* Error card */
 .card-error,
 .glass-card-error {
   border-color: var(--color-error-500);
+  background: color-mix(in srgb, var(--accent-danger) 10%, var(--bg-surface));
   box-shadow:
     var(--shadow-card),
-    0 0 0 1px rgba(239, 68, 68, 0.2);
+    0 0 0 1px color-mix(in srgb, var(--accent-danger) 30%, transparent);
 }
 
 .card-error:hover,
 .glass-card-error:hover {
   border-color: var(--color-error-400);
+  background: color-mix(in srgb, var(--accent-danger) 14%, var(--bg-surface));
   box-shadow:
     var(--shadow-card-hover),
-    0 0 0 1px rgba(239, 68, 68, 0.3);
+    0 0 0 1px color-mix(in srgb, var(--accent-danger) 40%, transparent);
 }
 
 /* Info card */
 .card-info,
 .glass-card-info {
   border-color: var(--color-info-500);
+  background: color-mix(in srgb, var(--color-info-500) 10%, var(--bg-surface));
   box-shadow:
     var(--shadow-card),
-    0 0 0 1px rgba(99, 102, 241, 0.2);
+    0 0 0 1px color-mix(in srgb, var(--color-info-500) 30%, transparent);
 }
 
 .card-info:hover,
 .glass-card-info:hover {
   border-color: var(--color-info-400);
+  background: color-mix(in srgb, var(--color-info-500) 14%, var(--bg-surface));
   box-shadow:
     var(--shadow-card-hover),
-    0 0 0 1px rgba(99, 102, 241, 0.3);
+    0 0 0 1px color-mix(in srgb, var(--color-info-500) 40%, transparent);
 }
 
 /* ==========================================================================
@@ -417,7 +425,12 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--text-primary) 12%, transparent),
+    transparent
+  );
   animation: card-shine 3s ease-in-out infinite;
 }
 

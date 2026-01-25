@@ -28,7 +28,7 @@ import { INITIAL_DATA } from '../constants';
 import { loadAppData, debouncedSaveAppData } from '../utils/storageManager';
 import { handleError } from '../utils/errorHandler';
 import { useDebounce } from '../hooks/useDebounce';
-import { normalizeData, denormalizeData, isNormalized } from '../utils/dataMigration';
+// Normalized migration is currently disabled for stability (D-051 staged refactor).
 import {
   analyzeTaskProgression,
   analyzePillarProgression,
@@ -42,7 +42,8 @@ import {
 import { PROGRESS_UPDATE_DEBOUNCE_MS, API_REQUEST_TIMEOUT_MS } from '../utils/config';
 import { computeBasicStats, type BasicStats } from '../utils/stats';
 import { validateChatMessage } from '../utils/inputValidation';
-import { buildAssistantChatPrompt, ollamaGenerateText } from '../utils/aiPrompts';
+import { buildAssistantChatPrompt } from '../utils/aiPrompts';
+import { providerGenerateText } from '../utils/aiProvider';
 
 // ============================================================================
 // APP CONTEXT - Centralized State Management
@@ -382,38 +383,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       try {
         const loadedData = await loadAppData();
         const loadedWithSessions = ensureFinishSessionDefaults(loadedData);
-
-        // Check if data is already normalized
-        if (isNormalized(loadedWithSessions as any)) {
-          console.log('✅ Loaded normalized data directly');
-          console.log('Normalized data info:', {
-            version: (loadedWithSessions as any)._version,
-            pillarCount: Object.keys((loadedWithSessions as any).entities.pillars).length,
-            taskCount: Object.keys((loadedWithSessions as any).entities.tasks).length,
-          });
-          setNormalizedData(loadedWithSessions as any);
-          const denormalized = ensureFinishSessionDefaults(
-            denormalizeData(loadedWithSessions as any)
-          ); // Convert for legacy compatibility
-          console.log('🔄 Denormalized data:', denormalized);
-          setData(denormalized);
-          setMigrationStatus('completed');
-        } else {
-          console.log('🔄 Legacy data format detected, starting migration...');
-          console.log('Legacy data info:', {
-            pillarCount: loadedWithSessions.pillars?.length || 0,
-            totalTasks:
-              loadedWithSessions.pillars?.reduce((acc, p) => acc + p.tasks.length, 0) || 0,
-          });
-          // TEMPORARILY DISABLE MIGRATION DUE TO DATA INCONSISTENCY
-          console.log('⚠️ Migration temporarily disabled due to data inconsistency');
-          console.log('   Error: Message count mismatch: entities(1) vs ids(2)');
-          setData(loadedWithSessions);
-          setMigrationStatus('error');
-
-          // TODO: Fix migration data inconsistency and re-enable
-          // The issue is that normalized data has inconsistent message counts
-        }
+        // Normalized data migration is intentionally disabled for stability.
+        // Keep the app local-first and predictable (PLAN: stability > novelty).
+        setNormalizedData(null);
+        setData(loadedWithSessions);
+        setMigrationStatus('not_started');
 
         console.log('✅ App data loaded successfully');
       } catch (error) {
@@ -900,27 +874,36 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       if (!aiEnabled) {
         setAiStatus({ state: 'disabled', updatedAt: new Date().toISOString() });
         assistantText =
-          'AI jest wyłączone. Otwórz Config (⚙) → AI Assistant → Enable AI Support. ' +
-          'Jeśli nie masz lokalnej Ollamy, AI zadziała w trybie fallback (bez generowania).';
+          'AI jest wyłączone. Otwórz Config (⚙) → AI Assistant → Enable AI Support i ustaw API key (Groq).';
       } else {
+        const apiKey = String((snapshot.d as any)?.settings?.ai?.apiKey ?? '').trim();
+        if (!apiKey) {
+          setAiStatus({ state: 'offline', updatedAt: new Date().toISOString() });
+          assistantText =
+            'AI jest włączone, ale brakuje API key. Otwórz Config (⚙) → AI Assistant → wklej API key (Groq).';
+        } else {
         const prompt = buildAssistantChatPrompt({
           data: snapshot.d,
           message,
           primaryPillarId: snapshot.pillarId,
         });
 
-        assistantText = await ollamaGenerateText(
-          { prompt, temperature: 0.6, topP: 0.9, numPredict: 220, maxLen: 700 },
-          { timeoutMs: 12_000 }
-        );
+          assistantText = await providerGenerateText(
+            { apiKey, prompt, temperature: 0.6, maxTokens: 700, maxLen: 700 },
+            { timeoutMs: 12_000 }
+          );
 
-        // Local-first fallback if Ollama/CORS/timeout fails.
-        if (!assistantText) {
-          setAiStatus({ state: 'offline', updatedAt: new Date().toISOString() });
-          const activeCount = (snapshot.d.pillars || []).filter((p) => p.status !== 'done').length;
-          assistantText = `AI niedostępne (Ollama offline / CORS / timeout). Fakty: masz ${activeCount}/3 aktywne cele. Następny krok: wybierz 1 task i wejdź w Finish Mode na 25 min, z twardą Definicją DONE.`;
-        } else {
-          setAiStatus({ state: 'online', updatedAt: new Date().toISOString() });
+          // Local-first fallback if provider/timeout fails.
+          if (!assistantText) {
+            setAiStatus({ state: 'offline', updatedAt: new Date().toISOString() });
+            const maxActive = Number((snapshot.d as any)?.settings?.goals?.maxActive ?? 3) || 3;
+            const activeCount = (snapshot.d.pillars || []).filter(
+              (p: any) => p.status !== 'done' && (p.activation ?? 'active') === 'active'
+            ).length;
+            assistantText = `AI niedostępne (provider offline / timeout). Fakty: masz ${activeCount}/${maxActive} aktywne cele. Następny krok: wybierz 1 task i wejdź w Finish Mode na 25 min, z twardą Definicją DONE.`;
+          } else {
+            setAiStatus({ state: 'online', updatedAt: new Date().toISOString() });
+          }
         }
       }
 
@@ -955,14 +938,18 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       setData((prev) => {
         // D-003: max 3 active goals (finish-first)
-        // We treat "active" as pillar.status !== 'done' (hard limit).
-        const activeCount = (prev.pillars || []).filter((p) => p.status !== 'done').length;
-        const MAX_ACTIVE_GOALS = 3;
+        // We treat "active" as: status !== 'done' AND activation === 'active'.
+        const maxActive =
+          Number((prev as any)?.settings?.goals?.maxActive ?? 3) || 3;
+        const activeCount = (prev.pillars || []).filter(
+          (p: any) => p.status !== 'done' && (p.activation ?? 'active') === 'active'
+        ).length;
+        const MAX_ACTIVE_GOALS = maxActive;
         if (activeCount >= MAX_ACTIVE_GOALS) {
           const msg =
             `Limit ${MAX_ACTIVE_GOALS} aktywnych celów (D-003). ` +
             `Masz teraz ${activeCount}/${MAX_ACTIVE_GOALS}. ` +
-            `Najpierw zakończ (DONE) jeden cel, zanim dodasz kolejny.`;
+            `Najpierw zakończ (DONE) lub przenieś do backlogu jeden cel, zanim dodasz kolejny.`;
           console.warn(`🚫 createPillar blocked: ${msg}`);
           // Best-effort UX: push a visible notification (local-first).
           notificationCenter?.send('custom', msg, 'rule_max_3_goals');
@@ -981,6 +968,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           last_activity_date: new Date().toISOString(),
           done_definition: { tech: '', live: '', battle: '' },
           tasks: [],
+          activation: 'active' as const,
           type: payload.type ?? 'secondary',
           strategy: payload.strategy?.trim() || '',
           aiTone: payload.aiTone ?? 'psychoeducation',
@@ -1011,31 +999,54 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         type: 'main' | 'secondary' | 'lab';
         strategy: string;
         aiTone: 'military' | 'psychoeducation' | 'raw_facts';
+        activation: 'active' | 'backlog';
       }>
     ) => {
-      setData((prev) => ({
-        ...prev,
-        pillars: prev.pillars.map((p) => {
-          // Enforce "max 1 main goal" (D-003): if we're setting this pillar to main,
-          // automatically downgrade any other main pillar to secondary.
-          if (updates.type === 'main' && p.id !== pillarId && p.type === 'main') {
-            return { ...p, type: 'secondary' };
+      setData((prev) => {
+        // D-003: activation changes must respect maxActive.
+        if (updates.activation === 'active') {
+          const maxActive = Number((prev as any)?.settings?.goals?.maxActive ?? 3) || 3;
+          const currentActiveCount = (prev.pillars || []).filter(
+            (p: any) => p.status !== 'done' && (p.activation ?? 'active') === 'active'
+          ).length;
+          const target = prev.pillars.find((p: any) => p.id === pillarId) as any;
+          const targetAlreadyActive = Boolean(target && (target.activation ?? 'active') === 'active');
+
+          if (!targetAlreadyActive && currentActiveCount >= maxActive) {
+            const msg =
+              `Limit ${maxActive} aktywnych celów (D-003). ` +
+              `Masz teraz ${currentActiveCount}/${maxActive}. ` +
+              `Najpierw przenieś inny cel do backlogu albo zakończ (DONE).`;
+            notificationCenter?.send('custom', msg, 'rule_max_active_goals_activation');
+            return prev;
           }
+        }
 
-          if (p.id !== pillarId) return p;
+        return {
+          ...prev,
+          pillars: prev.pillars.map((p) => {
+            // Enforce "max 1 main goal" (D-003): if we're setting this pillar to main,
+            // automatically downgrade any other main pillar to secondary.
+            if (updates.type === 'main' && p.id !== pillarId && p.type === 'main') {
+              return { ...p, type: 'secondary' };
+            }
 
-          return {
-            ...p,
-            ...(updates.name !== undefined ? { name: updates.name } : {}),
-            ...(updates.description !== undefined ? { description: updates.description } : {}),
-            ...(updates.type !== undefined ? { type: updates.type } : {}),
-            ...(updates.strategy !== undefined ? { strategy: updates.strategy } : {}),
-            ...(updates.aiTone !== undefined ? { aiTone: updates.aiTone } : {}),
-          };
-        }),
-      }));
+            if (p.id !== pillarId) return p;
+
+            return {
+              ...p,
+              ...(updates.name !== undefined ? { name: updates.name } : {}),
+              ...(updates.description !== undefined ? { description: updates.description } : {}),
+              ...(updates.type !== undefined ? { type: updates.type } : {}),
+              ...(updates.strategy !== undefined ? { strategy: updates.strategy } : {}),
+              ...(updates.aiTone !== undefined ? { aiTone: updates.aiTone } : {}),
+              ...(updates.activation !== undefined ? { activation: updates.activation } : {}),
+            };
+          }),
+        };
+      });
     },
-    []
+    [notificationCenter]
   );
 
   const addReward = useCallback(
@@ -1323,31 +1334,35 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }));
   }, []);
 
-  // Ollama AI Nudge Trigger
-  const triggerOllamaNudge = useCallback(async (task: any) => {
-    try {
-      const prompt = `Użytkownik utknął na ${task.progress}% w zadaniu "${task.name}". Daj mu jedną, brutalnie szczerą poradę w stylu Navy SEALs, jak dobić do 100%.`;
+  // AI Nudge Trigger (Settings-driven; no hardcoded Ollama)
+  const triggerOllamaNudge = useCallback(
+    async (task: any) => {
+      // AC: if AI disabled → do not do any AI calls (and do not spam errors).
+      const aiEnabled = Boolean((data as any)?.settings?.ai?.enabled);
+      if (!aiEnabled) return;
 
-      const ollamaResponse = await fetch('http://localhost:11434/api/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama2',
-          prompt: prompt,
-          stream: false,
-          options: {
-            temperature: 0.9,
-            top_p: 0.9,
-            num_predict: 80,
-          },
-        }),
-      });
+      const apiKey = String((data as any)?.settings?.ai?.apiKey ?? '').trim();
 
-      if (ollamaResponse.ok) {
-        const data = await ollamaResponse.json();
-        const aiNudge = data.response?.trim();
+      try {
+        const name = String(task?.name ?? '').trim().slice(0, 140) || 'zadaniu';
+        const progress = Math.max(0, Math.min(100, Math.round(Number(task?.progress ?? 0) || 0)));
+        const done = String(task?.definitionOfDone ?? '').trim().slice(0, 140);
+
+        const prompt = `Użytkownik utknął na ${progress}% w zadaniu "${name}".
+Daj mu jedną, brutalnie szczerą poradę w stylu Navy SEALs, jak dobić do 100%.
+Max 20 słów. Bez waty.`;
+
+        const aiNudgeFromProvider = apiKey
+          ? await providerGenerateText(
+              { apiKey, prompt, temperature: 0.9, maxTokens: 120, maxLen: 180 },
+              { timeoutMs: 10_000 }
+            )
+          : null;
+
+        // AC: AI enabled without key → deterministic fallback, no fetch errors.
+        const aiNudge =
+          (aiNudgeFromProvider || '').trim() ||
+          `Masz ${progress}%. Mikrokrok: ${done ? `zrób 1 brakujący punkt DONE („${done}”).` : 'doprecyzuj 1 zdaniem Definicję DONE i zrób pierwszy punkt.'}`;
 
         if (aiNudge && aiNudge.length <= 200) {
           // Local-first: persist nudge inside task for later display (no backend dependency).
@@ -1361,14 +1376,13 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
               ),
             })),
           }));
-
-          console.log('AI Nudge generated (local-only):', aiNudge);
         }
+      } catch (error) {
+        console.warn('AI nudge generation failed (provider), skipped:', error);
       }
-    } catch (error) {
-      console.warn('Ollama nudge generation failed:', error);
-    }
-  }, []);
+    },
+    [data]
+  );
 
   // Context value
   const value: AppContextType = {

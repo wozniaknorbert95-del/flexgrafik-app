@@ -127,7 +127,7 @@ export const loadAppData = async (): Promise<AppData> => {
     const saved = localStorage.getItem('flexgrafik-data');
     if (!saved) {
       console.log('📝 No saved data found, using defaults');
-      return INITIAL_DATA;
+      return migrateData(INITIAL_DATA);
     }
 
     const parsed = JSON.parse(saved);
@@ -140,7 +140,7 @@ export const loadAppData = async (): Promise<AppData> => {
       action: 'loadAppData',
       userMessage: 'Failed to load data, using defaults',
     });
-    return INITIAL_DATA;
+    return migrateData(INITIAL_DATA);
   }
 };
 
