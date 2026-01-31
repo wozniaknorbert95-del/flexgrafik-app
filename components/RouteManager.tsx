@@ -1,17 +1,26 @@
-import React from 'react';
-import { ViewState, AppData } from '../types';
+import React, { useState, useMemo, Suspense, lazy } from 'react';
+import { ViewState, AppData, TimerState, FinishSession } from '../types';
 import { NormalizedAppData } from '../types/normalized';
+import { BasicStats } from '../utils/stats';
 
-// TEMPORARY: Synchronous imports to test app startup
+// Critical components loaded immediately (needed for initial render)
 import Dashboard from './DashboardPremium';
 import Today from './TodayPremium';
-import Timer from './TimerPremium';
-import SprintView from './SprintViewPremium';
-import AICoach from './screens/AICoachPremium';
-import Settings from './SettingsPremium';
-import FinishMode from './FinishMode';
-import PillarDetail from './PillarDetailPremium';
-import Rules from './RulesPremium';
+import Navigation from './Navigation';
+
+// Lazy loaded components (loaded on demand)
+const Timer = lazy(() => import('./TimerPremium'));
+const AICoach = lazy(() => import('./screens/AICoachPremium'));
+const Settings = lazy(() => import('./SettingsPremium'));
+const FinishMode = lazy(() => import('./FinishMode'));
+const PillarDetail = lazy(() => import('./PillarDetailPremium'));
+const Rules = lazy(() => import('./RulesPremium'));
+const IdeasVault = lazy(() => import('./IdeasVaultPremium'));
+const EveningProtocolPremium = lazy(() => import('./EveningProtocolPremium'));
+const CalendarPremium = lazy(() => import('./CalendarPremium'));
+const WeeklyReviewPremium = lazy(() => import('./WeeklyReviewPremium'));
+
+import { ComponentLoadingFallback } from './common/LoadingSpinner';
 
 interface RouteManagerProps {
   currentView: ViewState;
@@ -25,14 +34,14 @@ interface RouteManagerProps {
   handleToggleTask: (taskId: number, newProgress?: number) => Promise<void>;
   handleUpdateSettings: (settings: AppData['settings']) => void;
   handleUpdateChatHistory: (history: AppData['aiChatHistory']) => void;
-  handleSprintDayToggle: (idx: number) => void;
   handleUpdateRules: (rules: AppData['customRules']) => void;
-  resetSprint: () => void;
   isTimerRunning: boolean;
-  timerState: any;
+  timerState: TimerState | null;
   setIsTimerRunning: (running: boolean) => void;
-  setTimerState: (state: any) => void;
+  setTimerState: (state: TimerState | null) => void;
   onSendAICoachMessage: (message: string) => Promise<void>;
+  basicStats: BasicStats;
+  finishSessionsHistory: FinishSession[];
 }
 
 // Loading fallback component
@@ -40,7 +49,7 @@ const LoadingScreen = () => (
   <div className="min-h-screen flex items-center justify-center bg-obsidian">
     <div className="text-center">
       <div className="inline-block w-16 h-16 border-4 border-neon-cyan border-t-transparent rounded-full animate-spin mb-4"></div>
-      <p className="text-gray-400 text-sm uppercase tracking-wider">Loading...</p>
+      <p className="text-gray-400 text-sm uppercase tracking-wider">Ładuję…</p>
     </div>
   </div>
 );
@@ -59,14 +68,14 @@ export const RouteManager: React.FC<RouteManagerProps> = ({
   handleToggleTask,
   handleUpdateSettings,
   handleUpdateChatHistory,
-  handleSprintDayToggle,
   handleUpdateRules,
-  resetSprint,
   isTimerRunning,
   timerState,
   setIsTimerRunning,
   setTimerState,
   onSendAICoachMessage,
+  basicStats,
+  finishSessionsHistory,
 }) => {
   const renderView = () => {
     // Safety check
@@ -80,32 +89,42 @@ export const RouteManager: React.FC<RouteManagerProps> = ({
         return <Today key="today" />;
 
       case 'finish':
-        return <FinishMode key="finish" />;
+        return (
+          <Suspense fallback={<ComponentLoadingFallback />}>
+            <FinishMode key="finish" />
+          </Suspense>
+        );
+
+      case 'calendar':
+        return (
+          <Suspense fallback={<ComponentLoadingFallback />}>
+            <CalendarPremium key="calendar" />
+          </Suspense>
+        );
 
       case 'sprint':
         return (
-          <SprintView
-            key="sprint"
-            data={data}
-            normalizedData={normalizedData}
-            onToggleDay={handleSprintDayToggle}
-            onBack={() => setCurrentView('home')}
-          />
+          <Suspense fallback={<ComponentLoadingFallback />}>
+            {/* FAZA 3: Sprint scalamy z tygodniem (kalendarz Pn–Nd). */}
+            <CalendarPremium key="week" />
+          </Suspense>
         );
 
       case 'pillar_detail':
         const pillar = data.pillars.find((p) => p.id === activeProjectId);
         if (!pillar) return <Dashboard key="home-fallback" />;
         return (
-          <PillarDetail
-            key={`pillar-${activeProjectId}`}
-            pillar={pillar}
-            normalizedData={normalizedData}
-            optimisticState={undefined}
-            onBack={() => setCurrentView('home')}
-            onToggleTask={handleToggleTask}
-            onEnterFinishMode={() => setCurrentView('finish')}
-          />
+          <Suspense fallback={<ComponentLoadingFallback />}>
+            <PillarDetail
+              key={`pillar-${activeProjectId}`}
+              pillar={pillar}
+              normalizedData={normalizedData}
+              optimisticState={undefined}
+              onBack={() => setCurrentView('home')}
+              onToggleTask={handleToggleTask}
+              onEnterFinishMode={() => setCurrentView('finish')}
+            />
+          </Suspense>
         );
 
       case 'accountability':
@@ -114,20 +133,20 @@ export const RouteManager: React.FC<RouteManagerProps> = ({
             {/* Header */}
             <div className="widget-container mb-12">
               <button onClick={() => setCurrentView('home')} className="btn-premium btn-cyan mb-8">
-                ← Back
+                ← Wróć
               </button>
               <div className="flex items-center gap-4 mb-4">
                 <span className="text-6xl">📊</span>
                 <h1 className="text-6xl font-extrabold text-gradient-gold tracking-wider uppercase">
-                  Accountability
+                  Rozliczalność
                 </h1>
               </div>
               <p className="text-sm text-gray-400 uppercase tracking-wider">
-                /// Notification History & Stats
+                /// Historia powiadomień i statystyki
               </p>
             </div>
 
-            {/* Stats */}
+            {/* Quick Stats */}
             <div className="widget-container mb-12">
               <div className="grid grid-cols-2 gap-6">
                 <div className="glass-card glass-card-magenta space-widget text-center">
@@ -135,7 +154,7 @@ export const RouteManager: React.FC<RouteManagerProps> = ({
                     {data.user.streak}
                   </div>
                   <div className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
-                    Streak Days
+                    Dni serii
                   </div>
                 </div>
                 <div className="glass-card glass-card-cyan space-widget text-center">
@@ -143,24 +162,112 @@ export const RouteManager: React.FC<RouteManagerProps> = ({
                     {data.notificationHistory.length}
                   </div>
                   <div className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
-                    Notifications
+                    Powiadomienia
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Notification History */}
+            {/* Finish Mode Statistics (7D) */}
+            <div className="widget-container mb-12">
+              <h2 className="text-2xl font-bold text-white uppercase tracking-wider flex items-center gap-3 mb-6">
+                <span className="text-3xl">📊</span>
+                <span>Statystyki Trybu Domykania (7 dni)</span>
+              </h2>
+
+              {(() => {
+                const hasAnyStats =
+                  Number(basicStats?.finishSessionsLast7DaysCount ?? 0) > 0 ||
+                  Number(basicStats?.finishSessionsLast7DaysTotalMinutes ?? 0) > 0 ||
+                  Number(basicStats?.tasksCompletedLast7DaysCount ?? 0) > 0 ||
+                  Number(basicStats?.stuckTasksClassifiedLast7DaysCount ?? 0) > 0;
+
+                if (!hasAnyStats) {
+                  return (
+                    <div className="glass-card space-widget-lg text-center">
+                      <span className="text-6xl mb-4 block">📭</span>
+                      <p className="text-white text-xl mb-2">Brak statystyk</p>
+                      <p className="text-sm text-gray-400">
+                        Zacznij sesję Trybu Domykania, żeby zobaczyć statystyki z ostatnich 7 dni.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-6">
+                    {/* Primary metric */}
+                    <div className="glass-card p-6 border border-gold/40">
+                      <div className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
+                        Utknęło→DONE (7 dni)
+                      </div>
+                      <div className="mt-2 flex items-end justify-between gap-4">
+                        <div className="text-4xl md:text-5xl font-black text-gold">
+                          {basicStats.stuckTasksClassifiedLast7DaysCount &&
+                          basicStats.stuckTasksClassifiedLast7DaysCount > 0
+                            ? `${Math.round((basicStats.stuckToDoneRateLast7Days ?? 0) * 100)}%`
+                            : '—'}
+                        </div>
+                        {basicStats.stuckTasksClassifiedLast7DaysCount &&
+                        basicStats.stuckTasksClassifiedLast7DaysCount > 0 ? (
+                          <div className="text-sm text-gray-300">
+                            {basicStats.stuckToDoneLast7DaysCount ?? 0}/
+                            {basicStats.stuckTasksClassifiedLast7DaysCount ?? 0} zadań
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-400">Brak danych</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Secondary metrics */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="glass-card p-4 border border-white/10">
+                        <div className="text-xs text-gray-400 uppercase tracking-wider">Sesje</div>
+                        <div className="text-2xl font-black text-white">
+                          {basicStats.finishSessionsLast7DaysCount ?? 0}
+                        </div>
+                      </div>
+                      <div className="glass-card p-4 border border-white/10">
+                        <div className="text-xs text-gray-400 uppercase tracking-wider">Minuty</div>
+                        <div className="text-2xl font-black text-white">
+                          {Math.round(Number(basicStats.finishSessionsLast7DaysTotalMinutes ?? 0))}
+                        </div>
+                      </div>
+                      <div className="glass-card p-4 border border-white/10">
+                        <div className="text-xs text-gray-400 uppercase tracking-wider">
+                          Zrobione zadania
+                        </div>
+                        <div className="text-2xl font-black text-white">
+                          {basicStats.tasksCompletedLast7DaysCount ?? 0}
+                        </div>
+                      </div>
+                      <div className="glass-card p-4 border border-white/10">
+                        <div className="text-xs text-gray-400 uppercase tracking-wider">
+                          Średnio (min)
+                        </div>
+                        <div className="text-2xl font-black text-white">
+                          {Number(basicStats.finishSessionsLast7DaysAvgMinutes ?? 0).toFixed(1)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Historia powiadomień */}
             <div className="widget-container">
               <h2 className="text-2xl font-bold text-white uppercase tracking-wider flex items-center gap-3 mb-8">
                 <span className="text-3xl">🔔</span>
-                <span>Notification History</span>
+                <span>Historia powiadomień</span>
               </h2>
 
               {data.notificationHistory.length === 0 ? (
                 <div className="glass-card space-widget-lg text-center">
                   <span className="text-6xl mb-4 block">📭</span>
-                  <p className="text-white text-xl mb-2">No notifications yet</p>
-                  <p className="text-sm text-gray-400">Your notifications will appear here</p>
+                  <p className="text-white text-xl mb-2">Brak powiadomień</p>
+                  <p className="text-sm text-gray-400">Twoje powiadomienia będą się tu pojawiać</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -179,7 +286,7 @@ export const RouteManager: React.FC<RouteManagerProps> = ({
                             {notification.type === 'ai' && '🤖'}
                           </span>
                           <span className="text-xs text-gray-500 uppercase tracking-wider">
-                            {new Date(notification.timestamp).toLocaleString('en-US', {
+                            {new Date(notification.timestamp).toLocaleString('pl-PL', {
                               month: 'short',
                               day: 'numeric',
                               hour: '2-digit',
@@ -229,67 +336,99 @@ export const RouteManager: React.FC<RouteManagerProps> = ({
 
       case 'settings':
         return (
-          <Settings
-            key="settings"
-            data={data}
-            normalizedData={normalizedData}
-            onUpdateSettings={handleUpdateSettings}
-            onBack={() => setCurrentView('home')}
-          />
+          <Suspense fallback={<ComponentLoadingFallback />}>
+            <Settings
+              key="settings"
+              data={data}
+              normalizedData={normalizedData}
+              onUpdateSettings={handleUpdateSettings}
+              onBack={() => setCurrentView('home')}
+            />
+          </Suspense>
         );
 
       case 'rules':
         return (
-          <Rules
-            key="rules"
-            data={data}
-            normalizedData={normalizedData}
-            onUpdateRules={handleUpdateRules}
-            onBack={() => setCurrentView('home')}
-          />
+          <Suspense fallback={<ComponentLoadingFallback />}>
+            <Rules
+              key="rules"
+              data={data}
+              normalizedData={normalizedData}
+              onUpdateRules={handleUpdateRules}
+              onBack={() => setCurrentView('home')}
+            />
+          </Suspense>
         );
 
       case 'ai_coach':
         return (
-          <AICoach
-            key="ai_coach"
-            data={data}
-            normalizedData={normalizedData}
-            onSendMessage={onSendAICoachMessage}
-            onBack={() => setCurrentView('home')}
-          />
+          <Suspense fallback={<ComponentLoadingFallback />}>
+            <AICoach
+              key="ai_coach"
+              data={data}
+              normalizedData={normalizedData}
+              onSendMessage={onSendAICoachMessage}
+              onBack={() => setCurrentView('home')}
+            />
+          </Suspense>
+        );
+
+      case 'ideas':
+        return (
+          <Suspense fallback={<ComponentLoadingFallback />}>
+            <IdeasVault key="ideas" onBack={() => setCurrentView('home')} />
+          </Suspense>
+        );
+
+      case 'evening_protocol':
+        return (
+          <Suspense fallback={<ComponentLoadingFallback />}>
+            <EveningProtocolPremium key="evening_protocol" />
+          </Suspense>
+        );
+
+      case 'weekly_review':
+        return (
+          <Suspense fallback={<ComponentLoadingFallback />}>
+            <WeeklyReviewPremium key="weekly_review" />
+          </Suspense>
         );
 
       case 'timer':
         return (
-          <div key="timer" className="min-h-screen pb-32 pt-8 px-6">
-            <div className="widget-container-narrow mb-12">
-              <button onClick={() => setCurrentView('home')} className="btn-premium btn-cyan mb-8">
-                ← Back
-              </button>
-              <div className="flex items-center gap-4 mb-4">
-                <span className="text-6xl">⏰</span>
-                <h1 className="text-6xl font-extrabold uppercase tracking-wider text-gradient-gold">
-                  Timer
-                </h1>
+          <Suspense fallback={<ComponentLoadingFallback />}>
+            <div key="timer" className="min-h-screen pb-32 pt-8 px-6">
+              <div className="widget-container-narrow mb-12">
+                <button
+                  onClick={() => setCurrentView('home')}
+                  className="btn-premium btn-cyan mb-8"
+                >
+                  ← Wróć
+                </button>
+                <div className="flex items-center gap-4 mb-4">
+                  <span className="text-6xl">⏰</span>
+                  <h1 className="text-6xl font-extrabold uppercase tracking-wider text-gradient-gold">
+                    Timer
+                  </h1>
+                </div>
+                <p className="text-sm text-gray-400 uppercase tracking-wider">
+                  /// System Pomodoro — fokus
+                </p>
               </div>
-              <p className="text-sm text-gray-400 uppercase tracking-wider">
-                /// Pomodoro Focus System
-              </p>
-            </div>
 
-            <div className="widget-container-narrow">
-              <Timer
-                normalizedData={normalizedData}
-                onTimerStart={(state) => setIsTimerRunning(true)}
-                onTimerPause={(state) => setIsTimerRunning(false)}
-                onTimerComplete={(state) => {
-                  setIsTimerRunning(false);
-                }}
-                onTimerReset={() => setIsTimerRunning(false)}
-              />
+              <div className="widget-container-narrow">
+                <Timer
+                  normalizedData={normalizedData}
+                  onTimerStart={(state) => setIsTimerRunning(true)}
+                  onTimerPause={(state) => setIsTimerRunning(false)}
+                  onTimerComplete={(state) => {
+                    setIsTimerRunning(false);
+                  }}
+                  onTimerReset={() => setIsTimerRunning(false)}
+                />
+              </div>
             </div>
-          </div>
+          </Suspense>
         );
 
       default:

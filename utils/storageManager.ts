@@ -3,6 +3,7 @@ import { INITIAL_DATA } from '../constants';
 import { handleError } from './errorHandler';
 import { migrateData } from './storageUtils';
 import * as IndexedDBStorage from './indexedDBStorage';
+import { secureStorage } from './secureStorage';
 
 // ============================================================================
 // STORAGE MANAGER - Unified API with Progressive Enhancement
@@ -12,6 +13,37 @@ type StorageType = 'indexeddb' | 'localstorage';
 
 let currentStorageType: StorageType | null = null;
 let migrationCompleted = false;
+
+const stripApiKeyFromAppData = (data: AppData): AppData => {
+  const ai = (data as any)?.settings?.ai;
+  const hasKey = typeof ai?.apiKey === 'string' && ai.apiKey.trim().length > 0;
+  if (!hasKey) return data;
+
+  return {
+    ...(data as any),
+    settings: {
+      ...(data as any).settings,
+      ai: {
+        ...(ai || {}),
+        apiKey: '',
+      },
+    },
+  } as AppData;
+};
+
+const extractApiKeyToSecureStorage = (data: AppData): AppData => {
+  try {
+    const key = String((data as any)?.settings?.ai?.apiKey ?? '').trim();
+    if (key) {
+      // Store separately; then remove from AppData (so it won't be persisted/exported by default).
+      secureStorage.setApiKey(key);
+      return stripApiKeyFromAppData(data);
+    }
+  } catch {
+    // ignore
+  }
+  return data;
+};
 
 // ============================================================================
 // STORAGE DETECTION & SELECTION
@@ -78,7 +110,7 @@ const migrateToIndexedDB = async (): Promise<void> => {
     // Perform migration
     console.log('🔄 Migrating data: localStorage → IndexedDB');
     const parsed = JSON.parse(localStorageData);
-    const migratedData = migrateData(parsed);
+    const migratedData = extractApiKeyToSecureStorage(migrateData(parsed));
 
     await IndexedDBStorage.saveToIndexedDB(migratedData);
 
@@ -116,8 +148,8 @@ export const loadAppData = async (): Promise<AppData> => {
 
       const data = await IndexedDBStorage.loadFromIndexedDB();
       if (data) {
-        // Apply any data migrations
-        const migratedData = migrateData(data);
+        // Apply schema + task migrations (safe, backward compatible)
+        const migratedData = extractApiKeyToSecureStorage(migrateData(data));
         console.log('✅ App data loaded from IndexedDB');
         return migratedData;
       }
@@ -131,7 +163,8 @@ export const loadAppData = async (): Promise<AppData> => {
     }
 
     const parsed = JSON.parse(saved);
-    const migratedData = migrateData(parsed);
+    // Apply schema + task migrations (safe, backward compatible)
+    const migratedData = extractApiKeyToSecureStorage(migrateData(parsed));
     console.log('✅ App data loaded from localStorage');
     return migratedData;
   } catch (error) {
@@ -140,7 +173,7 @@ export const loadAppData = async (): Promise<AppData> => {
       action: 'loadAppData',
       userMessage: 'Failed to load data, using defaults',
     });
-    return migrateData(INITIAL_DATA);
+    return extractApiKeyToSecureStorage(migrateData(INITIAL_DATA));
   }
 };
 
@@ -160,14 +193,15 @@ export const saveAppData = async (data: AppData): Promise<void> => {
 
   try {
     const storageType = await getStorageType();
+    const safeData = stripApiKeyFromAppData(data);
 
     if (storageType === 'indexeddb') {
-      await IndexedDBStorage.saveToIndexedDB(data);
+      await IndexedDBStorage.saveToIndexedDB(safeData);
       return;
     }
 
     // Fallback: Save to localStorage
-    localStorage.setItem('flexgrafik-data', JSON.stringify(data));
+    localStorage.setItem('flexgrafik-data', JSON.stringify(safeData));
     console.log('💾 Data saved to localStorage');
   } catch (error) {
     handleError(error, {
@@ -215,7 +249,7 @@ export const createManualBackup = async (data: AppData): Promise<void> => {
     // Fallback: Export to file
     const timestamp = new Date().toISOString();
     const backup = {
-      data,
+      data: stripApiKeyFromAppData(data),
       timestamp,
       version: 1,
     };
@@ -239,13 +273,14 @@ export const createManualBackup = async (data: AppData): Promise<void> => {
 /**
  * Export data to JSON file
  */
-export const exportDataToFile = (data: AppData): void => {
+export const exportDataToFile = (data: AppData, opts?: { includeApiKey?: boolean }): void => {
   try {
     const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const includeApiKey = Boolean(opts?.includeApiKey);
     const exportData = {
       exportedAt: new Date().toISOString(),
       version: 1,
-      data,
+      data: includeApiKey ? data : stripApiKeyFromAppData(data),
     };
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -284,7 +319,7 @@ export const importDataFromFile = (file: File): Promise<AppData> => {
         const importedData = parsed.data || parsed;
 
         // Apply migrations
-        const migratedData = migrateData(importedData);
+        const migratedData = extractApiKeyToSecureStorage(migrateData(importedData));
 
         // Validate
         if (!migratedData.pillars || !Array.isArray(migratedData.pillars)) {

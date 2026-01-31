@@ -30,10 +30,10 @@ function getPillarType(pillar: Pillar): 'main' | 'secondary' | 'lab' | 'unknown'
   return 'unknown';
 }
 
-function countFinishModeAttempts(params: {
-  sessions: FinishSession[];
-  taskId: number;
-}): { attempts: number; lastAttemptAt: string | null } {
+function countFinishModeAttempts(params: { sessions: FinishSession[]; taskId: number }): {
+  attempts: number;
+  lastAttemptAt: string | null;
+} {
   const list = Array.isArray(params.sessions) ? params.sessions : [];
   const forTask = list.filter((s) => Number(s.taskId) === params.taskId);
   if (forTask.length === 0) return { attempts: 0, lastAttemptAt: null };
@@ -45,12 +45,10 @@ function countFinishModeAttempts(params: {
   return { attempts, lastAttemptAt };
 }
 
-function scoreTask(params: {
-  task: Task;
-  pillar: Pillar;
-  sessions: FinishSession[];
-  now: Date;
-}): { score: number; reasons: string[] } {
+function scoreTask(params: { task: Task; pillar: Pillar; sessions: FinishSession[]; now: Date }): {
+  score: number;
+  reasons: string[];
+} {
   const { task, pillar, sessions, now } = params;
   const reasons: string[] = [];
 
@@ -97,7 +95,9 @@ function scoreTask(params: {
 
   if (attempts >= 2) {
     score += 15 + attempts * 4;
-    reasons.push(`próby Finish Mode: ${attempts}${lastAttemptAt ? ` (ostatnia: ${lastAttemptAt.slice(0, 10)})` : ''}`);
+    reasons.push(
+      `próby Finish Mode: ${attempts}${lastAttemptAt ? ` (ostatnia: ${lastAttemptAt.slice(0, 10)})` : ''}`
+    );
   }
 
   // Prefer finishing tasks & higher priority
@@ -160,4 +160,3 @@ export function getTodaysFinishRecommendations(params: {
 
   return recs.sort((a, b) => b.score - a.score).slice(0, limit);
 }
-

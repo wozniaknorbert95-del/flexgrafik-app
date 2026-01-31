@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 // CSS entry: Tailwind + design system (runtime critical)
 import './src/index.css';
 import App from './App';
-import { A11yStatus } from './components/A11yStatus';
 import { AppProvider } from './contexts/AppContext';
 
 // Expose context globally for testing
@@ -26,7 +25,6 @@ root.render(
   <React.StrictMode>
     <AppProvider>
       <App />
-      {import.meta.env.DEV && <A11yStatus />}
     </AppProvider>
   </React.StrictMode>
 );

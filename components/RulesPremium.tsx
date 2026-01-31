@@ -21,6 +21,21 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
   });
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
+  const formatTriggerLabel = (t: CustomRule['trigger']): string => {
+    if (t === 'time') return '🕐 czas';
+    if (t === 'data') return '📊 dane';
+    if (t === 'manual') return '👆 ręcznie';
+    return String(t);
+  };
+
+  const formatActionLabel = (a: CustomRule['action']): string => {
+    if (a === 'voice') return '🔊 głos';
+    if (a === 'ai_voice') return '🤖 AI + głos';
+    if (a === 'notification') return '🔔 powiadomienie';
+    if (a === 'block_action') return '🚫 blokada';
+    return String(a);
+  };
+
   const handleToggleRule = (ruleId: string) => {
     const updatedRules = data.customRules.map((rule) =>
       rule.id === ruleId ? { ...rule, active: !rule.active } : rule
@@ -41,24 +56,24 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
     const errors: Record<string, string> = {};
 
     if (!newRule.name?.trim()) {
-      errors.name = 'Rule name is required';
+      errors.name = 'Wpisz nazwę reguły.';
     } else if (newRule.name.length > 100) {
-      errors.name = 'Rule name too long (max 100 characters)';
+      errors.name = 'Nazwa jest za długa (max 100 znaków).';
     }
 
     if (!newRule.condition?.trim()) {
-      errors.condition = 'Condition is required';
+      errors.condition = 'Wpisz warunek.';
     } else {
       const conditionValidation = validateRuleCondition(newRule.condition);
       if (!conditionValidation.isValid) {
-        errors.condition = conditionValidation.error || 'Invalid condition';
+        errors.condition = conditionValidation.error || 'Nieprawidłowy warunek.';
       }
     }
 
     if (!newRule.message?.trim()) {
-      errors.message = 'Message is required';
+      errors.message = 'Wpisz wiadomość.';
     } else if (newRule.message.length > 200) {
-      errors.message = 'Message too long (max 200 characters)';
+      errors.message = 'Wiadomość jest za długa (max 200 znaków).';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -97,17 +112,17 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
         animate={{ opacity: 1, y: 0 }}
       >
         <button onClick={onBack} className="btn-premium btn-cyan mb-8">
-          ← Back
+          ← Wróć
         </button>
 
         <div className="flex items-center gap-4 mb-4">
           <span className="text-6xl">⚡</span>
           <h1 className="text-6xl font-extrabold uppercase tracking-wider text-gradient-gold">
-            Rules
+            Reguły
           </h1>
         </div>
         <p className="text-sm text-gray-400 uppercase tracking-wider">
-          /// Automated Notification System
+          /// Automatyczny system powiadomień
         </p>
       </motion.div>
 
@@ -120,7 +135,7 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
       >
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-gradient-neon uppercase tracking-wider">
-            Active Rules ({data.customRules.filter((r) => r.active).length}/
+            Aktywne reguły ({data.customRules.filter((r) => r.active).length}/
             {data.customRules.length})
           </h2>
         </div>
@@ -128,10 +143,12 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
         {data.customRules.length === 0 ? (
           <div className="glass-card space-widget-lg text-center">
             <span className="text-6xl mb-4 block">📋</span>
-            <h3 className="text-2xl font-bold text-white mb-3">No Rules Yet</h3>
-            <p className="text-gray-400 mb-6">Create automated notifications to stay accountable</p>
+            <h3 className="text-2xl font-bold text-white mb-3">Brak reguł</h3>
+            <p className="text-gray-400 mb-6">
+              Ustaw automatyczne powiadomienia, żeby trzymać się ustaleń
+            </p>
             <button onClick={() => setShowAddForm(true)} className="btn-premium btn-magenta">
-              Create First Rule
+              Utwórz pierwszą regułę
             </button>
           </div>
         ) : (
@@ -149,16 +166,16 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
                     <h3 className="text-xl font-bold text-white mb-2">{rule.name}</h3>
                     <div className="flex items-center gap-3 mb-3">
                       <span className="px-3 py-1 rounded-widget-sm text-xs font-bold uppercase bg-neon-cyan/20 border border-neon-cyan/50 text-glow-cyan">
-                        {rule.trigger}
+                        {formatTriggerLabel(rule.trigger)}
                       </span>
                       <span className="text-gray-500">→</span>
                       <span className="px-3 py-1 rounded-widget-sm text-xs font-bold uppercase bg-neon-magenta/20 border border-neon-magenta/50 text-glow-magenta">
-                        {rule.action}
+                        {formatActionLabel(rule.action)}
                       </span>
                     </div>
                     <div className="bg-obsidian-light rounded-widget-sm p-3 mb-3">
                       <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">
-                        Condition:
+                        Warunek:
                       </p>
                       <p className="text-sm font-mono text-white">{rule.condition}</p>
                     </div>
@@ -166,15 +183,22 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
                   </div>
 
                   <div className="flex items-center gap-3 ml-4">
-                    <div
+                    <button
+                      type="button"
                       className={`toggle-premium ${rule.active ? 'active' : ''}`}
                       onClick={() => handleToggleRule(rule.id)}
+                      aria-pressed={rule.active}
+                      aria-label={rule.active ? 'Wyłącz regułę' : 'Włącz regułę'}
+                      title={rule.active ? 'Wyłącz regułę' : 'Włącz regułę'}
                     >
                       <div className="toggle-thumb" />
-                    </div>
+                    </button>
                     <button
+                      type="button"
                       onClick={() => handleDeleteRule(rule.id)}
                       className="text-[var(--accent-danger)] hover:opacity-90 text-xl"
+                      aria-label="Usuń regułę"
+                      title="Usuń regułę"
                     >
                       🗑️
                     </button>
@@ -183,7 +207,7 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
 
                 {rule.lastTriggered && (
                   <div className="text-xs text-gray-500 pt-3 border-t border-white/10">
-                    Last triggered: {new Date(rule.lastTriggered).toLocaleString()}
+                    Ostatnio uruchomione: {new Date(rule.lastTriggered).toLocaleString('pl-PL')}
                   </div>
                 )}
               </motion.div>
@@ -196,7 +220,7 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
       {!showAddForm && data.customRules.length > 0 && (
         <div className="widget-container-narrow mb-12">
           <button onClick={() => setShowAddForm(true)} className="btn-premium btn-magenta w-full">
-            ➕ Add New Rule
+            ➕ Dodaj nową regułę
           </button>
         </div>
       )}
@@ -210,13 +234,13 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
         >
           <div className="glass-card glass-card-gold space-widget-lg">
             <h3 className="text-2xl font-bold text-white mb-6 uppercase tracking-wider">
-              New Rule
+              Nowa reguła
             </h3>
 
             <div className="space-y-5">
               <div>
                 <label className="block text-sm text-gray-400 mb-2 uppercase tracking-wider">
-                  Name
+                  Nazwa
                 </label>
                 <input
                   type="text"
@@ -227,17 +251,19 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
                       setValidationErrors({ ...validationErrors, name: '' });
                     }
                   }}
-                  placeholder="e.g. Morning Motivation"
+                  placeholder="np. Poranna motywacja"
                   className={`input-premium ${validationErrors.name ? 'border-[var(--accent-danger)]' : ''}`}
                 />
                 {validationErrors.name && (
-                  <p className="text-[var(--accent-danger)] text-xs mt-1">{validationErrors.name}</p>
+                  <p className="text-[var(--accent-danger)] text-xs mt-1">
+                    {validationErrors.name}
+                  </p>
                 )}
               </div>
 
               <div>
                 <label className="block text-sm text-gray-400 mb-2 uppercase tracking-wider">
-                  Trigger
+                  Wyzwalacz
                 </label>
                 <select
                   value={newRule.trigger || 'time'}
@@ -246,15 +272,15 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
                   }
                   className="input-premium"
                 >
-                  <option value="time">🕐 Time - daily at specific hour</option>
-                  <option value="data">📊 Data - when conditions met</option>
-                  <option value="manual">👆 Manual - triggered manually</option>
+                  <option value="time">🕐 Czas — codziennie o konkretnej godzinie</option>
+                  <option value="data">📊 Dane — gdy warunek jest spełniony</option>
+                  <option value="manual">👆 Ręcznie — uruchamiane ręcznie</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm text-gray-400 mb-2 uppercase tracking-wider">
-                  Condition
+                  Warunek
                 </label>
                 <input
                   type="text"
@@ -265,17 +291,19 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
                       setValidationErrors({ ...validationErrors, condition: '' });
                     }
                   }}
-                  placeholder="e.g. 07:00 or pillars[0].completion >= 90"
+                  placeholder="np. 07:00 lub pillars[0].completion >= 90"
                   className={`input-premium font-mono ${validationErrors.condition ? 'border-[var(--accent-danger)]' : ''}`}
                 />
                 {validationErrors.condition && (
-                  <p className="text-[var(--accent-danger)] text-xs mt-1">{validationErrors.condition}</p>
+                  <p className="text-[var(--accent-danger)] text-xs mt-1">
+                    {validationErrors.condition}
+                  </p>
                 )}
               </div>
 
               <div>
                 <label className="block text-sm text-gray-400 mb-2 uppercase tracking-wider">
-                  Action
+                  Akcja
                 </label>
                 <select
                   value={newRule.action || 'voice'}
@@ -284,16 +312,16 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
                   }
                   className="input-premium"
                 >
-                  <option value="voice">🔊 Voice - read message</option>
-                  <option value="ai_voice">🤖 AI + Voice - ask AI and read</option>
-                  <option value="notification">🔔 Notification - show alert</option>
-                  <option value="block_action">🚫 Block - block user action</option>
+                  <option value="voice">🔊 Głos — odczytaj wiadomość</option>
+                  <option value="ai_voice">🤖 AI + głos — zapytaj AI i odczytaj</option>
+                  <option value="notification">🔔 Powiadomienie — pokaż toast</option>
+                  <option value="block_action">🚫 Blokada — zablokuj akcję użytkownika</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm text-gray-400 mb-2 uppercase tracking-wider">
-                  Message
+                  Wiadomość
                 </label>
                 <textarea
                   value={newRule.message || ''}
@@ -303,17 +331,19 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
                       setValidationErrors({ ...validationErrors, message: '' });
                     }
                   }}
-                  placeholder="Message content or 'AI: [prompt]' for AI"
+                  placeholder="Treść wiadomości lub „AI: [prompt]” dla AI"
                   className={`input-premium min-h-[100px] ${validationErrors.message ? 'border-[var(--accent-danger)]' : ''}`}
                 />
                 {validationErrors.message && (
-                  <p className="text-[var(--accent-danger)] text-xs mt-1">{validationErrors.message}</p>
+                  <p className="text-[var(--accent-danger)] text-xs mt-1">
+                    {validationErrors.message}
+                  </p>
                 )}
               </div>
 
               <div className="flex gap-4 pt-4">
                 <button onClick={handleAddRule} className="btn-premium btn-magenta flex-1">
-                  💾 Save Rule
+                  💾 Zapisz regułę
                 </button>
                 <button
                   onClick={() => {
@@ -329,7 +359,7 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
                   }}
                   className="btn-premium btn-cyan flex-1"
                 >
-                  ❌ Cancel
+                  ❌ Anuluj
                 </button>
               </div>
             </div>
@@ -338,17 +368,17 @@ const RulesPremium: React.FC<RulesProps> = ({ data, onUpdateRules, onBack }) => 
           {/* Examples */}
           <div className="glass-card space-widget mt-6">
             <h4 className="text-sm font-bold text-glow-cyan mb-4 uppercase tracking-wider">
-              ℹ️ Condition Examples
+              ℹ️ Przykłady warunków
             </h4>
             <div className="space-y-2 text-xs font-mono">
               <div className="bg-obsidian-light px-3 py-2 rounded-widget-sm">
-                <span className="text-neon-cyan">Time:</span> "07:00", "20:30"
+                <span className="text-neon-cyan">Czas:</span> "07:00", "20:30"
               </div>
               <div className="bg-obsidian-light px-3 py-2 rounded-widget-sm">
-                <span className="text-neon-cyan">Data:</span> "pillars[0].completion &gt;= 90"
+                <span className="text-neon-cyan">Dane:</span> "pillars[0].completion &gt;= 90"
               </div>
               <div className="bg-obsidian-light px-3 py-2 rounded-widget-sm">
-                <span className="text-neon-cyan">Data:</span> "pillars.some(p =&gt; p.days_stuck
+                <span className="text-neon-cyan">Dane:</span> "pillars.some(p =&gt; p.days_stuck
                 &gt; 5)"
               </div>
             </div>

@@ -52,7 +52,10 @@ export async function providerGenerateText(
     if (!response.ok) return null;
 
     const data = await response.json();
-    const raw = typeof data?.choices?.[0]?.message?.content === 'string' ? data.choices[0].message.content : '';
+    const raw =
+      typeof data?.choices?.[0]?.message?.content === 'string'
+        ? data.choices[0].message.content
+        : '';
     const text = compactText(raw, params.maxLen ?? 700);
     return text || null;
   } catch {
@@ -61,4 +64,3 @@ export async function providerGenerateText(
     clearTimeout(timeoutId);
   }
 }
-

@@ -148,7 +148,7 @@ const TimerPremium: React.FC<TimerProps> = ({
             {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
           </motion.div>
           <div className="text-sm uppercase tracking-wider text-gray-500 mt-2">
-            {mode === 'focus' ? 'Focus Time' : 'Break Time'}
+            {mode === 'focus' ? 'Czas skupienia' : 'Czas przerwy'}
           </div>
         </div>
       </div>
@@ -161,7 +161,7 @@ const TimerPremium: React.FC<TimerProps> = ({
           </button>
         ) : (
           <button onClick={handlePause} className="btn-premium btn-cyan flex-1 text-lg">
-            ⏸️ Pause
+            ⏸️ Pauza
           </button>
         )}
         <button onClick={handleReset} className="btn-premium btn-gold px-8">
@@ -176,11 +176,11 @@ const TimerPremium: React.FC<TimerProps> = ({
             <div className="text-2xl font-bold text-gradient-neon mb-1">
               {Math.round(progress)}%
             </div>
-            <div className="text-xs uppercase tracking-wider text-gray-500">Progress</div>
+            <div className="text-xs uppercase tracking-wider text-gray-500">Postęp</div>
           </div>
           <div>
             <div className="text-2xl font-bold text-glow-gold mb-1">{initialSeconds / 60}:00</div>
-            <div className="text-xs uppercase tracking-wider text-gray-500">Duration</div>
+            <div className="text-xs uppercase tracking-wider text-gray-500">Czas</div>
           </div>
         </div>
       </div>

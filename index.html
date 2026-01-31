@@ -97,12 +97,24 @@
         location.hostname === '127.0.0.1' ||
         location.hostname === '::1';
 
-      if ('serviceWorker' in navigator && !isDevHost) {
+      // Vite dev server injects /@vite/client. If present, treat as DEV even on LAN IPs.
+      const isViteDev = Boolean(document.querySelector('script[src*="/@vite/client"]'));
+
+      // Minimal logging policy: log only in DEV hosts / Vite DEV.
+      const DEBUG = isDevHost || isViteDev;
+      const log = (...args) => {
+        if (DEBUG) console.log(...args);
+      };
+      const warn = (...args) => {
+        if (DEBUG) console.warn(...args);
+      };
+
+      if ('serviceWorker' in navigator && !isDevHost && !isViteDev) {
         window.addEventListener('load', () => {
           navigator.serviceWorker
             .register('/sw.js')
             .then((registration) => {
-              console.log('✅ Service Worker registered:', registration.scope);
+              log('✅ Service Worker zarejestrowany:', registration.scope);
 
               // Check for updates every hour
               setInterval(
@@ -123,9 +135,9 @@
                 if (!registration.waiting) return;
 
                 updatePrompted = true;
-                console.log('✨ New Service Worker waiting - prompt to update');
+                log('✨ Nowy Service Worker czeka (waiting) — prośba o aktualizację');
 
-                if (confirm('New version available! Reload to update?')) {
+                if (confirm('Dostępna jest nowa wersja. Odświeżyć, aby zaktualizować?')) {
                   registration.waiting.postMessage({ type: 'SKIP_WAITING' });
                 } else {
                   // Allow future prompt (e.g. manual refresh later)
@@ -140,7 +152,7 @@
               registration.addEventListener('updatefound', () => {
                 const newWorker = registration.installing;
                 if (!newWorker) return;
-                console.log('🔄 Service Worker update found');
+                log('🔄 Wykryto aktualizację Service Workera');
 
                 newWorker.addEventListener('statechange', () => {
                   if (newWorker.state === 'installed') {
@@ -159,15 +171,24 @@
           navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (refreshing) return;
             refreshing = true;
-            console.log('🔄 New Service Worker activated');
+            log('🔄 Nowy Service Worker aktywny — odświeżam');
             window.location.reload();
           });
         });
       } else {
         if (!('serviceWorker' in navigator)) {
-          console.warn('⚠️ Service Workers not supported in this browser');
-        } else if (isDevHost) {
-          console.log('🧪 Dev mode: Service Worker registration skipped (localhost)');
+          warn('⚠️ Service Worker nie jest wspierany w tej przeglądarce');
+        } else if (isDevHost || isViteDev) {
+          log('🧪 Tryb DEV: rejestracja Service Workera pominięta');
+          // Extra safety: remove any old registrations/caches to prevent stale UI.
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.getRegistrations().then((regs) => {
+              regs.forEach((r) => r.unregister());
+            });
+            if ('caches' in window) {
+              caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
+            }
+          });
         }
       }
 
@@ -177,7 +198,7 @@
       let deferredPrompt;
 
       window.addEventListener('beforeinstallprompt', (e) => {
-        console.log('💾 Install prompt available');
+        log('💾 Dostępny prompt instalacji (A2HS)');
         e.preventDefault();
         deferredPrompt = e;
 
@@ -186,20 +207,18 @@
       });
 
       window.addEventListener('appinstalled', () => {
-        console.log('✅ PWA installed successfully');
+        log('✅ PWA zainstalowana');
         deferredPrompt = null;
       });
 
       // Function to trigger install prompt (call from UI button)
       window.triggerInstallPrompt = async () => {
         if (!deferredPrompt) {
-          console.log('Install prompt not available');
           return;
         }
 
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
-        console.log(`Install prompt outcome: ${outcome}`);
         deferredPrompt = null;
       };
 
@@ -207,12 +226,12 @@
       // OFFLINE/ONLINE DETECTION
       // ============================================================
       window.addEventListener('online', () => {
-        console.log('🌐 Connection restored');
+        log('🌐 Połączenie przywrócone');
         // Optional: Show notification or sync data
       });
 
       window.addEventListener('offline', () => {
-        console.log('📡 Connection lost - running offline');
+        log('📡 Brak połączenia — tryb offline');
         // Optional: Show offline indicator
       });
     </script>

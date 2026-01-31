@@ -7,13 +7,15 @@ alwaysApply: true
 
 ## Zasady ogólne
 
+- UI: **tylko polski**. Kod (zmienne/funkcje/typy): **tylko angielski**.
 - ZAWSZE zaplanuj zmiany przed implementacją (2–3 zdania).
 - Pracuj małymi iteracjami: **maks 1–3 pliki na raz**.
 - Po każdej zmianie: **podsumuj diff** i sprawdź, czy nie łamie funkcjonalności.
 - Uruchom:
   - `npm test` po zmianach w logice (utils/AppContext/Finish Mode),
   - `npm run build` po większych refaktorach, zmianach w `types.ts`, PWA/SW, dependencies.
-- Trzymaj się `PLAN.md` i `DECISIONS.md`.
+- Testuj przed zgłoszeniem DONE (minimalnie: manual + odpowiednie skrypty).
+- Trzymaj się `PLAN_v2.md` (wizja produktu), `CURSOR_TASKS.md` (zadania), `ARCHITECTURE.md` (kontekst) oraz `DECISIONS.md`.
 - Priorytet: **stabilność > nowość**, **finish > start**, **local-first > backend**.
 
 ## Kontekst projektu (twarde fakty)
@@ -22,11 +24,13 @@ alwaysApply: true
 - PWA: service worker (prosty cache), `manifest.json`, `offline.html`.
 - Źródło prawdy: `contexts/AppContext.tsx` (`AppData`), persistence via IndexedDB + localStorage fallback (`utils/storageManager.ts`).
 - Backend `/api/*` jest opcjonalny: aplikacja musi działać w pełni lokalnie/offline.
+- UI: Tailwind CSS, dark mode, mobile-first (bazowy viewport 375px).
 
 ## Zakres zmian
 
 - Domyślnie: 1–3 pliki, bez masowych refaktorów bez planu.
 - Zmiany w `types.ts` ⇒ zawsze sprawdź i aktualizuj migracje (`utils/dataMigration.ts`, `utils/migrateData.ts`, `utils/storageUtils.ts`) + testy.
+- `types.ts`: **dodawaj pola, nie usuwaj** (kompatybilność wsteczna danych).
 - Zmiany w `AppContext.tsx` ⇒ testuj na różnych stanach danych + `npm test`.
 - Nie łam kompatybilności danych w IndexedDB bez strategii migracji i backupu.
 - Zmiany struktury katalogów tylko małymi krokami (DECISIONS.md D-051).
@@ -46,8 +50,11 @@ alwaysApply: true
 
 ### React komponenty
 - Rozdzielaj UI od logiki biznesowej.
+- Używaj `components/` (**nie** `src/components/` — deprecated).
 - Finish Mode jest centralny dla anti‑porzuceniowej logiki.
 - Dashboard ma fokus na metrykach pomocnych przy syndromie 90%.
+- Nie dodawaj `react-router` (nawigacja bez routera).
+- Nie używaj `alert()` — tylko toast (`components/ToastProvider.tsx` / `utils/toastService.ts`).
 
 ## Bezpieczeństwo i AI
 

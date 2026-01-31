@@ -10,7 +10,8 @@
      ========================================================================== */
   --bg-base: #050508;
   --bg-surface: rgba(255, 255, 255, 0.06);
-  --bg-elevated: rgba(255, 255, 255, 0.1);
+  /* Solid elevated surface (dropdowns/modals) */
+  --bg-elevated: #0b0b12;
 
   --text-primary: #f5f7ff;
   --text-muted: #a6a2c8;

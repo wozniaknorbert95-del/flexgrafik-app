@@ -1,10 +1,20 @@
 import React, { useMemo, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
-import type { GoalAiTone, GoalType, Pillar } from '../types';
+import type { GoalAiTone, GoalAIContext, GoalStrategy, GoalType, Pillar } from '../types';
 import { useAppContext } from '../contexts/AppContext';
 import { generateTaskId, calculateTaskStatus } from '../utils/taskHelpers';
 import { buildIdeaSuggestionPrompt } from '../utils/aiPrompts';
 import { providerGenerateText } from '../utils/aiProvider';
+import { showError, showSuccess } from '../utils/toastService';
+import { GoalStrategyEditor } from './GoalStrategyEditor';
+import { AIToneSelector } from './AIToneSelector';
+import { ConfirmDialog } from './common/ConfirmDialog';
+import {
+  buildGoalStrategyFromImport,
+  getStrategyImportTemplateText,
+  parseStrategyImportText,
+  STRATEGY_IMPORT_DRAFT_STORAGE_KEY,
+} from '../utils/strategyImport';
 // import { NormalizedSelectors } from '../types/normalized'; // TEMPORARILY DISABLED
 // import { OptimisticState } from '../utils/optimisticUpdates'; // TEMPORARILY DISABLED
 
@@ -27,8 +37,16 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
   onToggleTask,
   onEnterFinishMode,
 }) => {
-  const { data, setData, updatePillar, addReward, removeReward, getRewardsWithStatus, ideas } =
-    useAppContext();
+  const {
+    data,
+    setData,
+    recomputePillarDerivedFields,
+    updatePillar,
+    addReward,
+    removeReward,
+    getRewardsWithStatus,
+    ideas,
+  } = useAppContext();
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newTaskName, setNewTaskName] = useState('');
@@ -42,9 +60,46 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
   const [isGoalEditOpen, setIsGoalEditOpen] = useState(false);
   const [goalTypeDraft, setGoalTypeDraft] = useState<GoalType>('secondary');
   const [goalToneDraft, setGoalToneDraft] = useState<GoalAiTone>('psychoeducation');
-  const [goalStrategyDraft, setGoalStrategyDraft] = useState('');
+  const [goalStrategyDraft, setGoalStrategyDraft] = useState<GoalStrategy>({
+    vision: '',
+    successCriteria: [],
+    milestones: [],
+    ifThenPlans: [],
+    obstacles: [],
+    structure: undefined,
+    tactics: [],
+    aiContext: { tone: 'psychoeducation' },
+  });
+  const [goalStrategyTextDraft, setGoalStrategyTextDraft] = useState('');
+  const [goalAiCustomInstructionsDraft, setGoalAiCustomInstructionsDraft] = useState('');
   const [isGeneratingStrategyAI, setIsGeneratingStrategyAI] = useState(false);
   const [strategyAISuggestion, setStrategyAISuggestion] = useState('');
+
+  // Strategy import (paste from external tool)
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importError, setImportError] = useState<string>('');
+  const [importPreview, setImportPreview] = useState<{
+    visionOk: boolean;
+    successCriteria: number;
+    milestones: number;
+    ifThen: number;
+    ifThenActive: number;
+    obstacles: number;
+    tasks: number;
+    tasksWithDoD: number;
+    tasksToAdd: number;
+    tasksToUpdate: number;
+    taskNamesToAdd: string[];
+    taskNamesToUpdate: string[];
+    taskNamesToRemoveIfReplace: string[];
+  } | null>(null);
+  const [isImportPreviewDetailsOpen, setIsImportPreviewDetailsOpen] = useState(false);
+  const [tasksImportMode, setTasksImportMode] = useState<'merge' | 'replace' | 'strategy_only'>(
+    'merge'
+  );
+  const [isReplaceConfirmOpen, setIsReplaceConfirmOpen] = useState(false);
+  const [allowPartialStrategyImport, setAllowPartialStrategyImport] = useState(false);
 
   // Rewards UI (D-040)
   const [isRewardsOpen, setIsRewardsOpen] = useState(false);
@@ -60,7 +115,10 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
   // Phase 2: Use normalized data if available, fallback to legacy
   const useNormalized = normalizedData !== null;
 
-  console.log('🏗️ PillarDetail using data format:', useNormalized ? 'NORMALIZED' : 'LEGACY');
+  if (process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.log('🏗️ PillarDetail using data format:', useNormalized ? 'NORMALIZED' : 'LEGACY');
+  }
 
   // TEMPORARILY DISABLED: Phase 3 optimistic UI - causing runtime errors
   // TODO: Re-enable after fixing NormalizedSelectors import issues
@@ -80,27 +138,501 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
     return pillar.tasks || [];
   }, [pillar]);
 
+  const timelineItems = useMemo(() => {
+    const normalizeDateKey = (raw: unknown): string | null => {
+      const s = typeof raw === 'string' ? raw.trim() : '';
+      if (!s) return null;
+      // Accept YYYY-MM-DD or full ISO datetime; keep local date key only.
+      const key = s.slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return null;
+      return key;
+    };
+
+    const today = new Date();
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
+      today.getDate()
+    ).padStart(2, '0')}`;
+    const startOfWeekMonday = (d: Date) => {
+      const date = new Date(d);
+      const day = (date.getDay() + 6) % 7; // Monday=0
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - day);
+      return date;
+    };
+    const weekStart = startOfWeekMonday(today);
+    const weekStartIso = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(
+      weekStart.getDate()
+    ).padStart(2, '0')}`;
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const weekEndIso = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(
+      weekEnd.getDate()
+    ).padStart(2, '0')}`;
+
+    const items: Array<{
+      kind: 'milestone' | 'task_due';
+      dateIso: string;
+      title: string;
+      meta?: string;
+      badge?: string;
+      badgeClass: string;
+    }> = [];
+
+    const strategy = (pillarData as any)?.strategy;
+    const milestones =
+      strategy && typeof strategy === 'object' && Array.isArray((strategy as any).milestones)
+        ? (strategy as any).milestones
+        : [];
+    for (const m of milestones) {
+      const dateIso = normalizeDateKey((m as any)?.deadline);
+      if (!dateIso) continue;
+      const title = String((m as any)?.title ?? '').trim() || 'Milestone';
+      const status = String((m as any)?.status ?? '').trim();
+      const isOverdue = dateIso < todayIso && status !== 'done';
+      const isThisWeek = dateIso >= weekStartIso && dateIso <= weekEndIso;
+      items.push({
+        kind: 'milestone',
+        dateIso,
+        title,
+        meta: String((m as any)?.description ?? '').trim() || undefined,
+        badge:
+          status === 'done'
+            ? 'zrobione'
+            : isOverdue
+              ? 'po terminie'
+              : isThisWeek
+                ? 'ten tydzień'
+                : 'wkrótce',
+        badgeClass:
+          status === 'done'
+            ? 'bg-green-500/15 border border-green-500/40 text-green-300'
+            : isOverdue
+              ? 'bg-red-500/15 border border-red-500/40 text-red-200'
+              : isThisWeek
+                ? 'bg-gold/10 border border-gold/30 text-gold'
+                : 'bg-white/5 border border-white/10 text-gray-300',
+      });
+    }
+
+    for (const t of pillarTasks || []) {
+      const dateIso = normalizeDateKey((t as any)?.dueDate);
+      if (!dateIso) continue;
+      const title = String((t as any)?.name ?? '').trim() || 'Zadanie';
+      const isDone =
+        Number((t as any)?.progress ?? 0) >= 100 || String((t as any)?.status ?? '') === 'done';
+      const isOverdue = dateIso < todayIso && !isDone;
+      const isThisWeek = dateIso >= weekStartIso && dateIso <= weekEndIso;
+      items.push({
+        kind: 'task_due',
+        dateIso,
+        title,
+        meta: isDone ? 'DONE' : undefined,
+        badge: isDone ? 'done' : isOverdue ? 'po terminie' : isThisWeek ? 'ten tydzień' : 'termin',
+        badgeClass: isDone
+          ? 'bg-green-500/15 border border-green-500/40 text-green-300'
+          : isOverdue
+            ? 'bg-red-500/15 border border-red-500/40 text-red-200'
+            : isThisWeek
+              ? 'bg-gold/10 border border-gold/30 text-gold'
+              : 'bg-white/5 border border-white/10 text-gray-300',
+      });
+    }
+
+    items.sort((a, b) => a.dateIso.localeCompare(b.dateIso));
+    return items;
+  }, [pillarData, pillarTasks]);
+
+  const taskTree = useMemo(() => {
+    const strategy = (pillarData as any)?.strategy;
+    const phases =
+      strategy &&
+      typeof strategy === 'object' &&
+      (strategy as any)?.structure &&
+      typeof (strategy as any).structure === 'object'
+        ? ((strategy as any).structure.phases as any[])
+        : [];
+
+    if (!Array.isArray(phases) || phases.length === 0) return [];
+
+    const byId = new Map<number, any>();
+    for (const t of pillarTasks || []) {
+      const id = Number((t as any)?.id);
+      if (Number.isFinite(id)) byId.set(id, t);
+    }
+
+    const sorted = [...phases].filter(Boolean);
+    sorted.sort((a, b) => {
+      const oa = typeof a?.order === 'number' ? a.order : 9999;
+      const ob = typeof b?.order === 'number' ? b.order : 9999;
+      if (oa !== ob) return oa - ob;
+      return String(a?.title ?? '').localeCompare(String(b?.title ?? ''));
+    });
+
+    return sorted.map((ph) => {
+      const ids = Array.isArray(ph?.taskIds) ? ph.taskIds : [];
+      const tasks = ids.map((id: any) => byId.get(Number(id))).filter(Boolean);
+      return { phase: ph, tasks };
+    });
+  }, [pillarData, pillarTasks]);
+
   const otherMainPillar = useMemo(() => {
     return data.pillars.find((p) => p.id !== pillar.id && p.type === 'main') || null;
   }, [data.pillars, pillar.id]);
 
   const openGoalEdit = useCallback(() => {
     setGoalTypeDraft((pillarData.type ?? 'secondary') as GoalType);
-    setGoalToneDraft((pillarData.aiTone ?? 'psychoeducation') as GoalAiTone);
-    setGoalStrategyDraft((pillarData.strategy ?? '').toString());
+    const baseTone =
+      ((pillarData as any)?.strategy?.aiContext?.tone as GoalAiTone) ??
+      ((pillarData as any)?.aiContext?.tone as GoalAiTone) ??
+      ((pillarData as any)?.aiTone as GoalAiTone) ??
+      'psychoeducation';
+    setGoalToneDraft(baseTone);
+
+    const baseCustom =
+      (typeof (pillarData as any)?.aiContext?.customInstructions === 'string'
+        ? (pillarData as any).aiContext.customInstructions
+        : '') || '';
+    setGoalAiCustomInstructionsDraft(baseCustom);
+
+    const legacyText =
+      (typeof (pillarData as any)?.strategyText === 'string'
+        ? (pillarData as any).strategyText
+        : '') ||
+      (typeof (pillarData as any)?.strategy === 'string' ? (pillarData as any).strategy : '');
+    setGoalStrategyTextDraft(String(legacyText || ''));
+
+    const rawStrategy = (pillarData as any)?.strategy;
+    const structured: GoalStrategy =
+      rawStrategy && typeof rawStrategy === 'object'
+        ? rawStrategy
+        : {
+            vision: '',
+            successCriteria: [],
+            milestones: [],
+            ifThenPlans: [],
+            obstacles: [],
+            structure: undefined,
+            tactics: [],
+            // NOTE: strategy.aiContext is legacy/mirror. We do not edit it in UI.
+            aiContext: { tone: baseTone },
+          };
+
+    setGoalStrategyDraft({
+      ...(structured as any),
+      vision: typeof structured.vision === 'string' ? structured.vision : '',
+      successCriteria: Array.isArray(structured.successCriteria) ? structured.successCriteria : [],
+      milestones: Array.isArray(structured.milestones) ? structured.milestones : [],
+      ifThenPlans: Array.isArray(structured.ifThenPlans) ? structured.ifThenPlans : [],
+      obstacles: Array.isArray(structured.obstacles) ? structured.obstacles : [],
+      structure:
+        (structured as any).structure && typeof (structured as any).structure === 'object'
+          ? (structured as any).structure
+          : undefined,
+      tactics: Array.isArray((structured as any).tactics) ? (structured as any).tactics : [],
+      aiContext: structured.aiContext,
+    });
+
     setIsGoalEditOpen(true);
     setStrategyAISuggestion('');
   }, [pillarData.aiTone, pillarData.strategy, pillarData.type]);
 
   const saveGoalEdit = useCallback(() => {
+    const trimmedCustom = goalAiCustomInstructionsDraft.trim();
+    const nextAiContext: Partial<GoalAIContext> = {
+      ...(trimmedCustom ? { customInstructions: trimmedCustom } : {}),
+    };
+
+    const nextStrategy: GoalStrategy = {
+      ...goalStrategyDraft,
+      // strategy.aiContext is deprecated/mirror: do not write customInstructions here to avoid 2 sources of truth.
+      aiContext:
+        goalStrategyDraft.aiContext && typeof (goalStrategyDraft.aiContext as any) === 'object'
+          ? { tone: goalToneDraft }
+          : { tone: goalToneDraft },
+    };
+
+    // PLAN_v2: minimalna walidacja strategii (żeby nie utrwalać pustych strategii).
+    const hasVision = Boolean(String(nextStrategy.vision || '').trim());
+    const criteria = Array.isArray(nextStrategy.successCriteria)
+      ? nextStrategy.successCriteria
+      : [];
+    const hasAtLeastOneCriterion = criteria.some(
+      (c) => String((c as any)?.description || '').trim().length > 0
+    );
+    if (!hasVision || !hasAtLeastOneCriterion) {
+      showError('Strategia musi mieć wizję i co najmniej 1 kryterium sukcesu.', 6000);
+      return;
+    }
+
     updatePillar(pillar.id, {
       type: goalTypeDraft,
       aiTone: goalToneDraft,
-      strategy: goalStrategyDraft.trim(),
+      aiContext: nextAiContext,
+      strategy: nextStrategy,
+      strategyText: goalStrategyTextDraft.trim(),
     });
     setIsGoalEditOpen(false);
     setStrategyAISuggestion('');
-  }, [goalStrategyDraft, goalToneDraft, goalTypeDraft, pillar.id, updatePillar]);
+  }, [
+    goalAiCustomInstructionsDraft,
+    goalStrategyDraft,
+    goalStrategyTextDraft,
+    goalToneDraft,
+    goalTypeDraft,
+    pillar.id,
+    updatePillar,
+  ]);
+
+  const computeImportPreviewFromText = useCallback(
+    (text: string) => {
+      const parsed = parseStrategyImportText(text);
+      if (!parsed.ok) {
+        setImportError(parsed.error);
+        setImportPreview(null);
+        return null;
+      }
+
+      const payload = parsed.payload;
+      const tasks = payload.tasks || [];
+      const tasksWithDoD = tasks.filter(
+        (t) => typeof t.definitionOfDone === 'string' && t.definitionOfDone.trim()
+      ).length;
+
+      const existingTasks = Array.isArray(pillar.tasks) ? pillar.tasks : [];
+      const byKey = new Map<string, any>();
+      for (const t of existingTasks) {
+        const key = String(t?.name ?? '')
+          .trim()
+          .toLowerCase();
+        if (!key) continue;
+        if (!byKey.has(key)) byKey.set(key, t);
+      }
+
+      let toAdd = 0;
+      let toUpdate = 0;
+      const namesToAdd: string[] = [];
+      const namesToUpdate: string[] = [];
+      for (const t of tasks) {
+        const key = String(t?.name ?? '')
+          .trim()
+          .toLowerCase();
+        const rawName = String(t?.name ?? '').trim();
+        if (!key || !rawName) continue;
+        if (byKey.has(key)) {
+          toUpdate++;
+          namesToUpdate.push(rawName);
+        } else {
+          toAdd++;
+          namesToAdd.push(rawName);
+        }
+      }
+
+      const namesToRemoveIfReplace = existingTasks
+        .map((t) => String((t as any)?.name ?? '').trim())
+        .filter(Boolean);
+
+      const preview = {
+        visionOk: Boolean(String(payload.vision || '').trim()),
+        successCriteria: (payload.successCriteria || []).length,
+        milestones: (payload.milestones || []).length,
+        ifThen: (payload.ifThenPlans || []).length,
+        ifThenActive: (payload.ifThenPlans || []).filter((p) => p && p.isActive !== false).length,
+        obstacles: (payload.obstacles || []).length,
+        tasks: tasks.length,
+        tasksWithDoD,
+        tasksToAdd: toAdd,
+        tasksToUpdate: toUpdate,
+        taskNamesToAdd: namesToAdd.slice(0, 20),
+        taskNamesToUpdate: namesToUpdate.slice(0, 20),
+        taskNamesToRemoveIfReplace: namesToRemoveIfReplace.slice(0, 20),
+      };
+
+      setImportError('');
+      setImportPreview(preview);
+      setIsImportPreviewDetailsOpen(false);
+      return { parsed, preview };
+    },
+    [pillar.tasks]
+  );
+
+  const computeImportPreview = useCallback(() => {
+    return computeImportPreviewFromText(importText);
+  }, [computeImportPreviewFromText, importText]);
+
+  const applyImportToGoal = useCallback(
+    (mode: 'merge' | 'replace' | 'strategy_only') => {
+      const res = computeImportPreview();
+      if (!res) return;
+
+      const payload = res.parsed.payload;
+      const nextStrategy = buildGoalStrategyFromImport(payload);
+
+      // Minimal validation (same as saveGoalEdit intention)
+      const hasVision = Boolean(String(nextStrategy.vision || '').trim());
+      const hasAtLeastOneCriterion = (nextStrategy.successCriteria || []).some((c: any) =>
+        String(c?.description || '').trim()
+      );
+      if (!allowPartialStrategyImport && (!hasVision || !hasAtLeastOneCriterion)) {
+        showError('Import wymaga: wizja + co najmniej 1 kryterium sukcesu.', 6000);
+        return;
+      }
+
+      const now = new Date().toISOString();
+      const importedTasks = payload.tasks || [];
+
+      setData((prev) => {
+        return {
+          ...prev,
+          pillars: prev.pillars.map((p) => {
+            if (p.id !== pillar.id) return p;
+
+            // Strategy-only: do not touch tasks at all.
+            if (mode === 'strategy_only') {
+              const nextPillar: any = { ...p, strategy: nextStrategy };
+              return recomputePillarDerivedFields(nextPillar as any);
+            }
+
+            const existingTasks = Array.isArray(p.tasks) ? p.tasks : [];
+            const existingByKey = new Map<string, any>();
+            for (const t of existingTasks) {
+              const key = String(t?.name ?? '')
+                .trim()
+                .toLowerCase();
+              if (!key) continue;
+              if (!existingByKey.has(key)) existingByKey.set(key, t);
+            }
+
+            const buildNewTask = (it: any) => {
+              const name = String(it?.name ?? '')
+                .trim()
+                .slice(0, 200);
+              const type = it?.type === 'close' ? 'close' : 'build';
+              const definitionOfDone =
+                typeof it?.definitionOfDone === 'string' ? it.definitionOfDone.trim() : '';
+              const ii = it?.implementationIntention;
+              const implementationIntention =
+                ii &&
+                typeof ii === 'object' &&
+                typeof ii.trigger === 'string' &&
+                typeof ii.action === 'string'
+                  ? {
+                      trigger: String(ii.trigger).trim(),
+                      action: String(ii.action).trim(),
+                      active: ii.active === false ? false : true,
+                      lastTriggered: null,
+                    }
+                  : undefined;
+
+              return {
+                id: generateTaskId(),
+                name,
+                type,
+                definitionOfDone: definitionOfDone || undefined,
+                progress: 0,
+                priority: 'medium',
+                status: calculateTaskStatus(0),
+                stuckAtNinety: false,
+                lastProgressUpdate: now,
+                createdAt: now,
+                ...(implementationIntention ? { implementationIntention } : {}),
+              };
+            };
+
+            const nextTasks =
+              mode === 'replace'
+                ? importedTasks
+                    .map((it) => buildNewTask(it))
+                    .filter((t) => String(t.name || '').trim().length > 0)
+                : (() => {
+                    const updated = existingTasks.map((t) => t);
+                    const updatedByKey = new Map<string, number>();
+                    for (let i = 0; i < updated.length; i++) {
+                      const key = String(updated[i]?.name ?? '')
+                        .trim()
+                        .toLowerCase();
+                      if (!key) continue;
+                      if (!updatedByKey.has(key)) updatedByKey.set(key, i);
+                    }
+
+                    for (const it of importedTasks) {
+                      const key = String(it?.name ?? '')
+                        .trim()
+                        .toLowerCase();
+                      if (!key) continue;
+                      const idx = updatedByKey.get(key);
+                      if (idx == null) {
+                        updated.push(buildNewTask(it));
+                        continue;
+                      }
+
+                      // Update only imported fields; keep progress/status/history intact.
+                      const current = updated[idx];
+                      const nextType = it?.type === 'close' ? 'close' : 'build';
+                      const nextDoD =
+                        typeof it?.definitionOfDone === 'string'
+                          ? it.definitionOfDone.trim()
+                          : undefined;
+                      const ii = it?.implementationIntention;
+                      const nextII =
+                        ii &&
+                        typeof ii === 'object' &&
+                        typeof ii.trigger === 'string' &&
+                        typeof ii.action === 'string'
+                          ? {
+                              trigger: String(ii.trigger).trim(),
+                              action: String(ii.action).trim(),
+                              active: ii.active === false ? false : true,
+                              lastTriggered:
+                                current?.implementationIntention?.lastTriggered ?? null,
+                            }
+                          : current?.implementationIntention;
+
+                      updated[idx] = {
+                        ...current,
+                        type: nextType,
+                        ...(nextDoD !== undefined
+                          ? { definitionOfDone: nextDoD || undefined }
+                          : {}),
+                        ...(nextII ? { implementationIntention: nextII } : {}),
+                      };
+                    }
+                    return updated;
+                  })();
+
+            const nextPillar: any = {
+              ...p,
+              // Apply structured strategy
+              strategy: nextStrategy,
+              // Keep legacy text as-is (user may store external narrative there)
+            };
+
+            // Recompute derived fields, as tasks may change.
+            return recomputePillarDerivedFields({ ...nextPillar, tasks: nextTasks } as any);
+          }),
+        };
+      });
+
+      showSuccess(
+        mode === 'replace'
+          ? 'Zastosowano import: strategia + zadania zostały nadpisane.'
+          : mode === 'strategy_only'
+            ? 'Zastosowano import: zaktualizowano tylko strategię (bez zmian w zadaniach).'
+            : 'Zastosowano import: strategia + zadania (merge) zostały zaktualizowane.',
+        3500
+      );
+      setImportError('');
+      setIsImportOpen(false);
+      setIsReplaceConfirmOpen(false);
+    },
+    [
+      allowPartialStrategyImport,
+      calculateTaskStatus,
+      computeImportPreview,
+      pillar.id,
+      recomputePillarDerivedFields,
+      setData,
+    ]
+  );
 
   const relevantIdeasForPillar = useMemo(() => {
     const list = Array.isArray(ideas) ? ideas : [];
@@ -189,16 +721,25 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
 
     setData((prev) => ({
       ...prev,
-      pillars: prev.pillars.map((p) =>
-        p.id === pillar.id ? { ...p, tasks: [...(p.tasks || []), newTask] } : p
-      ),
+      pillars: prev.pillars.map((p) => {
+        if (p.id !== pillar.id) return p;
+        const next = { ...p, tasks: [...(p.tasks || []), newTask] };
+        return recomputePillarDerivedFields(next as any);
+      }),
     }));
 
     setNewTaskName('');
     setNewTaskType('build');
     setNewTaskDefinitionOfDone('');
     setIsAddOpen(false);
-  }, [newTaskName, newTaskType, newTaskDefinitionOfDone, setData, pillar.id]);
+  }, [
+    newTaskName,
+    newTaskType,
+    newTaskDefinitionOfDone,
+    setData,
+    pillar.id,
+    recomputePillarDerivedFields,
+  ]);
 
   const startEditingDefinition = useCallback((task: any) => {
     setEditingTaskId(task.id);
@@ -219,17 +760,22 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
       ...prev,
       pillars: prev.pillars.map((p) => {
         if (p.id !== pillar.id) return p;
-        return {
-          ...p,
-          tasks: (p.tasks || []).map((t) =>
-            t.id === editingTaskId ? { ...t, definitionOfDone: value } : t
-          ),
-        };
+        const updatedTasks = (p.tasks || []).map((t) =>
+          t.id === editingTaskId ? { ...t, definitionOfDone: value } : t
+        );
+        return recomputePillarDerivedFields({ ...(p as any), tasks: updatedTasks } as any);
       }),
     }));
 
     cancelEditingDefinition();
-  }, [editingTaskId, editingDefinition, setData, pillar.id, cancelEditingDefinition]);
+  }, [
+    editingTaskId,
+    editingDefinition,
+    setData,
+    pillar.id,
+    cancelEditingDefinition,
+    recomputePillarDerivedFields,
+  ]);
 
   return (
     <div data-component="PillarDetail" className="min-h-screen pb-32 pt-8 px-6">
@@ -239,7 +785,7 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
         animate={{ opacity: 1, y: 0 }}
       >
         <button onClick={onBack} className="btn-premium btn-cyan mb-8">
-          ← Back
+          ← Wróć
         </button>
 
         <div className="flex items-start justify-between mb-6">
@@ -266,7 +812,7 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
             </div>
             {pillarData.ninety_percent_alert && (
               <span className="px-3 py-1 rounded-widget-sm bg-red-500/20 border border-red-500/50 text-red-400 text-xs font-bold uppercase">
-                ⚠️ Stuck
+                ⚠️ Utknęło
               </span>
             )}
           </div>
@@ -282,45 +828,406 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
       >
         <h2 className="text-2xl font-bold text-white uppercase tracking-wider mb-6 flex items-center gap-3">
           <span className="text-3xl">⚙️</span>
-          <span>Goal settings</span>
+          <span>Ustawienia celu</span>
         </h2>
 
         <div className="glass-card space-widget">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-bold text-white uppercase tracking-wider">
-                Type / strategy / AI tone
+                Typ / strategia / ton AI
               </p>
               <p className="text-xs text-gray-400">
-                These fields shape focus + how AI talks about this goal.
+                Te pola ustawiają fokus oraz sposób, w jaki AI mówi o tym celu.
               </p>
             </div>
 
             {!isGoalEditOpen ? (
               <button onClick={openGoalEdit} className="btn-premium btn-cyan">
-                Edit
+                Edytuj
               </button>
             ) : (
               <button onClick={() => setIsGoalEditOpen(false)} className="btn-premium btn-cyan">
-                Close
+                Zamknij
               </button>
             )}
           </div>
 
           {isGoalEditOpen && (
             <div className="mt-4 space-y-3">
+              {/* Strategy Import */}
+              <div className="rounded-lg border border-white/10 bg-white/5 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <div className="text-sm font-bold text-white uppercase tracking-wider">
+                      Import strategii (wklej)
+                    </div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      Wklej strategię wygenerowaną w innym narzędziu. Aplikacja rozłoży ją na pola
+                      celu.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsImportOpen((v) => !v)}
+                    className="btn-premium btn-cyan"
+                  >
+                    {isImportOpen ? 'Zamknij import' : 'Otwórz import'}
+                  </button>
+                </div>
+
+                {isImportOpen && (
+                  <div className="mt-4 space-y-3">
+                    <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
+                      Wklej tekst z blokiem JSON
+                    </label>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
+                        Albo wczytaj plik (.json / .txt)
+                      </label>
+                      <input
+                        type="file"
+                        accept=".json,.txt,application/json,text/plain"
+                        className="w-full text-sm text-gray-300"
+                        onChange={(e) => {
+                          const file =
+                            e.target.files && e.target.files[0] ? e.target.files[0] : null;
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const text = typeof reader.result === 'string' ? reader.result : '';
+                            if (!text.trim()) {
+                              showError('Plik jest pusty.', 3000);
+                              return;
+                            }
+                            setImportText(text);
+                            setImportError('');
+                            setImportPreview(null);
+                            // Compute preview immediately for convenience.
+                            computeImportPreviewFromText(text);
+                            showSuccess(`Wczytano plik: ${file.name}`, 2500);
+                          };
+                          reader.onerror = () => {
+                            showError('Nie udało się wczytać pliku.', 3000);
+                          };
+                          reader.readAsText(file);
+                        }}
+                      />
+                      <div className="text-[11px] text-gray-500">
+                        Format: czysty JSON lub tekst zawierający blok{' '}
+                        <span className="text-gray-200">---JSON_START---</span>…
+                        <span className="text-gray-200">---JSON_END---</span>.
+                      </div>
+                    </div>
+                    <textarea
+                      value={importText}
+                      onChange={(e) => {
+                        setImportText(e.target.value);
+                        setImportError('');
+                        setImportPreview(null);
+                      }}
+                      className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:border-neon-cyan"
+                      placeholder={`Wklej tekst z:\n---JSON_START---\n{ "vision": "...", "successCriteria": [...], "tasks": [...] }\n---JSON_END---`}
+                      rows={8}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const tpl = getStrategyImportTemplateText();
+                          setImportText(tpl);
+                          setImportError('');
+                          setImportPreview(null);
+                          showSuccess('Wstawiono szablon importu (możesz go edytować).', 2500);
+                        }}
+                        className="btn-premium btn-cyan text-sm"
+                      >
+                        🧩 Wstaw szablon
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          try {
+                            const draft =
+                              localStorage.getItem(STRATEGY_IMPORT_DRAFT_STORAGE_KEY) || '';
+                            if (!draft.trim()) {
+                              showError(
+                                'Brak zapisanego importu z czatu. Wróć do Asystenta AI i kliknij „Zapisz do importu”.',
+                                4500
+                              );
+                              return;
+                            }
+                            setImportText(draft);
+                            setImportError('');
+                            setImportPreview(null);
+                            showSuccess('Wczytano import zapisany z czatu.', 2500);
+                          } catch {
+                            showError('Nie udało się wczytać (localStorage).', 3000);
+                          }
+                        }}
+                        className="btn-premium btn-cyan text-sm"
+                      >
+                        🤖 Wczytaj z czatu (AI)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(getStrategyImportTemplateText());
+                            showSuccess('Skopiowano szablon importu do schowka.', 2500);
+                          } catch {
+                            showError(
+                              'Nie udało się skopiować do schowka (uprawnienia przeglądarki).',
+                              3500
+                            );
+                          }
+                        }}
+                        className="btn-premium btn-cyan text-sm"
+                      >
+                        📋 Kopiuj szablon
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          try {
+                            localStorage.removeItem(STRATEGY_IMPORT_DRAFT_STORAGE_KEY);
+                            showSuccess('Wyczyszczono bufor importu z czatu.', 2500);
+                          } catch {
+                            showError('Nie udało się wyczyścić bufora (localStorage).', 3000);
+                          }
+                        }}
+                        className="btn-premium btn-cyan text-sm"
+                      >
+                        🧹 Wyczyść bufor
+                      </button>
+                    </div>
+
+                    <label className="flex items-center gap-2 text-xs text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={allowPartialStrategyImport}
+                        onChange={(e) => setAllowPartialStrategyImport(e.target.checked)}
+                      />
+                      Pozwól zapisać częściową strategię (bez wymagania: wizja + 1 kryterium)
+                    </label>
+
+                    <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <span className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
+                          Zadania:
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setTasksImportMode('strategy_only')}
+                          className={`px-3 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider transition ${
+                            tasksImportMode === 'strategy_only'
+                              ? 'bg-white/10 border-white/20 text-white'
+                              : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                          }`}
+                        >
+                          nie zmieniaj
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTasksImportMode('merge')}
+                          className={`px-3 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider transition ${
+                            tasksImportMode === 'merge'
+                              ? 'bg-green-500/15 border-green-500/50 text-green-300'
+                              : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                          }`}
+                        >
+                          merge (bez utraty progresu)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTasksImportMode('replace')}
+                          className={`px-3 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider transition ${
+                            tasksImportMode === 'replace'
+                              ? 'bg-red-500/15 border-red-500/50 text-red-300'
+                              : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+                          }`}
+                        >
+                          nadpisz
+                        </button>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => computeImportPreview()}
+                          className="btn-premium btn-cyan"
+                        >
+                          Podgląd zmian
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (tasksImportMode === 'replace') {
+                              setIsReplaceConfirmOpen(true);
+                              return;
+                            }
+                            applyImportToGoal(
+                              tasksImportMode === 'strategy_only' ? 'strategy_only' : 'merge'
+                            );
+                          }}
+                          className="btn-premium btn-magenta"
+                          disabled={!importText.trim()}
+                        >
+                          Zastosuj do celu
+                        </button>
+                      </div>
+                    </div>
+
+                    {importError && (
+                      <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+                        {importError}
+                      </div>
+                    )}
+
+                    {importPreview && (
+                      <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-gray-200">
+                        <div className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-2">
+                          Podgląd (skrót)
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          <div>Wizja: {importPreview.visionOk ? 'OK' : 'Brak'}</div>
+                          <div>Kryteria sukcesu: {importPreview.successCriteria}</div>
+                          <div>Milestones: {importPreview.milestones}</div>
+                          <div>
+                            If‑Then: {importPreview.ifThen} (aktywne: {importPreview.ifThenActive})
+                          </div>
+                          <div>Przeszkody: {importPreview.obstacles}</div>
+                          <div>
+                            Zadania: {importPreview.tasks} (z DoD: {importPreview.tasksWithDoD})
+                            {tasksImportMode === 'strategy_only'
+                              ? ' — tryb: bez zmian w zadaniach'
+                              : ` — dodaj: ${importPreview.tasksToAdd}, zaktualizuj: ${importPreview.tasksToUpdate}`}
+                          </div>
+                        </div>
+                        {tasksImportMode !== 'strategy_only' && (
+                          <div className="mt-3">
+                            <button
+                              type="button"
+                              onClick={() => setIsImportPreviewDetailsOpen((v) => !v)}
+                              className="btn-premium btn-cyan text-sm"
+                            >
+                              {isImportPreviewDetailsOpen
+                                ? 'Ukryj listy zadań'
+                                : 'Pokaż listy zadań'}
+                            </button>
+                          </div>
+                        )}
+
+                        {isImportPreviewDetailsOpen && tasksImportMode !== 'strategy_only' && (
+                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                            {tasksImportMode === 'replace' ? (
+                              <div className="md:col-span-2 rounded-lg bg-red-500/10 border border-red-500/30 p-3">
+                                <div className="text-red-200 font-bold uppercase tracking-wider mb-2">
+                                  Znikną (nadpisz)
+                                </div>
+                                <div className="text-red-100">
+                                  {(importPreview.taskNamesToRemoveIfReplace.length
+                                    ? importPreview.taskNamesToRemoveIfReplace
+                                    : ['(brak)']
+                                  ).map((n, i) => (
+                                    <div key={`${n}_${i}`}>- {n}</div>
+                                  ))}
+                                  {Array.isArray(pillar.tasks) &&
+                                    pillar.tasks.length >
+                                      importPreview.taskNamesToRemoveIfReplace.length && (
+                                      <div className="mt-1 text-red-200/80">
+                                        …i{' '}
+                                        {pillar.tasks.length -
+                                          importPreview.taskNamesToRemoveIfReplace.length}{' '}
+                                        więcej
+                                      </div>
+                                    )}
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
+                                  <div className="text-gray-300 font-bold uppercase tracking-wider mb-2">
+                                    Do dodania
+                                  </div>
+                                  <div className="text-gray-200">
+                                    {(importPreview.taskNamesToAdd.length
+                                      ? importPreview.taskNamesToAdd
+                                      : ['(brak)']
+                                    ).map((n, i) => (
+                                      <div key={`${n}_${i}`}>- {n}</div>
+                                    ))}
+                                    {importPreview.tasksToAdd >
+                                      importPreview.taskNamesToAdd.length && (
+                                      <div className="mt-1 text-gray-400">
+                                        …i{' '}
+                                        {importPreview.tasksToAdd -
+                                          importPreview.taskNamesToAdd.length}{' '}
+                                        więcej
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="rounded-lg bg-white/5 border border-white/10 p-3">
+                                  <div className="text-gray-300 font-bold uppercase tracking-wider mb-2">
+                                    Do aktualizacji
+                                  </div>
+                                  <div className="text-gray-200">
+                                    {(importPreview.taskNamesToUpdate.length
+                                      ? importPreview.taskNamesToUpdate
+                                      : ['(brak)']
+                                    ).map((n, i) => (
+                                      <div key={`${n}_${i}`}>- {n}</div>
+                                    ))}
+                                    {importPreview.tasksToUpdate >
+                                      importPreview.taskNamesToUpdate.length && (
+                                      <div className="mt-1 text-gray-400">
+                                        …i{' '}
+                                        {importPreview.tasksToUpdate -
+                                          importPreview.taskNamesToUpdate.length}{' '}
+                                        więcej
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                        <div className="text-[11px] text-gray-500 mt-2">
+                          {tasksImportMode === 'strategy_only'
+                            ? 'Tryb „nie zmieniaj” aktualizuje tylko strategię. Zadania pozostają bez zmian.'
+                            : 'Merge aktualizuje tylko: typ/DoD/If‑Then taska. Progres i status zostają bez zmian.'}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <ConfirmDialog
+                  isOpen={isReplaceConfirmOpen}
+                  title="Nadpisać zadania tego celu?"
+                  description="Tryb „nadpisz” usunie obecne zadania w tym celu i zastąpi je zadaniami z importu. To może oznaczać utratę progresu. Jeśli nie jesteś pewny — wybierz „merge”."
+                  confirmLabel="Nadpisz"
+                  cancelLabel="Anuluj"
+                  tone="danger"
+                  onCancel={() => setIsReplaceConfirmOpen(false)}
+                  onConfirm={() => applyImportToGoal('replace')}
+                />
+              </div>
+
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
-                  Goal type
+                  Typ celu
                 </label>
                 <select
                   value={goalTypeDraft}
                   onChange={(e) => setGoalTypeDraft(e.target.value as GoalType)}
                   className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white focus:border-cyan-400 focus:outline-none"
                 >
-                  <option value="main">main</option>
-                  <option value="secondary">secondary</option>
-                  <option value="lab">lab</option>
+                  <option value="main">główny</option>
+                  <option value="secondary">poboczny</option>
+                  <option value="lab">laboratorium</option>
                 </select>
 
                 {goalTypeDraft === 'main' && otherMainPillar && (
@@ -332,105 +1239,74 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
 
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
-                  Strategy
+                  Ton AI
                 </label>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-[11px] text-gray-400">
-                    AI can use your Ideas Vault to propose a concrete strategy.
-                  </div>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setIsGeneratingStrategyAI(true);
-                      try {
-                        const aiEnabled = Boolean((data as any)?.settings?.ai?.enabled);
-                        const apiKey = aiEnabled
-                          ? String((data as any)?.settings?.ai?.apiKey ?? '').trim()
-                          : '';
-                        if (!apiKey) {
-                          setStrategyAISuggestion(
-                            aiEnabled
-                              ? 'AI jest włączone, ale brakuje API key (Config → AI).'
-                              : 'AI jest wyłączone (Config → AI).'
-                          );
-                          return;
-                        }
-                        const prompt = buildIdeaSuggestionPrompt({
-                          pillar: pillarData as any,
-                          task: null,
-                          ideas: relevantIdeasForPillar,
-                          useCase: 'goal_planning',
-                        });
-                        const text = await providerGenerateText(
-                          { apiKey, prompt, temperature: 0.6, maxTokens: 420, maxLen: 420 },
-                          { timeoutMs: 12_000 }
-                        );
-                        setStrategyAISuggestion(text || '');
-                      } finally {
-                        setIsGeneratingStrategyAI(false);
-                      }
-                    }}
-                    disabled={isGeneratingStrategyAI}
-                    className="px-3 py-2 rounded-lg bg-cyan-500/15 border border-cyan-400/40 text-cyan-200 text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isGeneratingStrategyAI ? 'Generuję…' : '🤖 Suggest'}
-                  </button>
-                </div>
-                <textarea
-                  value={goalStrategyDraft}
-                  onChange={(e) => setGoalStrategyDraft(e.target.value.slice(0, 800))}
-                  className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400"
-                  placeholder="Krótko: jak dojść do tego celu (konkret, bez waty)."
-                  rows={3}
+                <AIToneSelector
+                  value={goalToneDraft}
+                  onChange={(tone) => {
+                    setGoalToneDraft(tone);
+                  }}
                 />
-                {strategyAISuggestion && (
-                  <div className="p-3 rounded-lg bg-white/5 border border-white/10">
-                    <div className="text-[11px] text-gray-300 uppercase tracking-wider font-semibold mb-1">
-                      AI suggestion
-                    </div>
-                    <div className="text-sm text-gray-200 whitespace-pre-wrap break-words">
-                      {strategyAISuggestion}
-                    </div>
-                    <div className="flex justify-end gap-2 mt-2">
-                      <button
-                        type="button"
-                        onClick={() => setStrategyAISuggestion('')}
-                        className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 text-xs font-bold uppercase tracking-wider"
-                      >
-                        Clear
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setGoalStrategyDraft(strategyAISuggestion.slice(0, 800));
-                        }}
-                        className="px-3 py-2 rounded-lg bg-green-500/15 border border-green-500/40 text-green-200 text-xs font-bold uppercase tracking-wider"
-                      >
-                        Copy → strategy
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
-                  AI tone
+                  Instrukcje agenta (opcjonalnie)
                 </label>
-                <select
-                  value={goalToneDraft}
-                  onChange={(e) => setGoalToneDraft(e.target.value as GoalAiTone)}
-                  className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white focus:border-cyan-400 focus:outline-none"
-                >
-                  <option value="military">military</option>
-                  <option value="psychoeducation">psychoeducation</option>
-                  <option value="raw_facts">raw_facts</option>
-                </select>
+                <textarea
+                  value={goalAiCustomInstructionsDraft}
+                  onChange={(e) => {
+                    const next = e.target.value.slice(0, 800);
+                    setGoalAiCustomInstructionsDraft(next);
+                  }}
+                  className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:border-neon-cyan"
+                  placeholder="Np. „Nie używaj słowa ‘musisz’. Daj 1–2 kroki na 10 min.”"
+                  rows={3}
+                />
+                <div className="text-[11px] text-gray-400">
+                  Zapisywane w{' '}
+                  <span className="text-gray-200 font-semibold">
+                    Pillar.aiContext.customInstructions
+                  </span>
+                  . Nie edytujemy{' '}
+                  <span className="text-gray-200 font-semibold">strategy.aiContext</span>{' '}
+                  (legacy/mirror).
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
+                  Strategia (legacy – tekst)
+                </label>
+                <textarea
+                  value={goalStrategyTextDraft}
+                  onChange={(e) => setGoalStrategyTextDraft(e.target.value.slice(0, 1200))}
+                  className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:border-neon-magenta"
+                  placeholder="Jeśli masz starą strategię jako tekst, trzymaj ją tutaj (nie zginie)."
+                  rows={3}
+                />
+                <div className="text-[11px] text-gray-400">
+                  To pole jest kompatybilne ze starym modelem. Docelowo przenieś treść do wizji /
+                  kryteriów / planów.
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
+                  Strategia (PLAN_v2 – struktura)
+                </label>
+                <GoalStrategyEditor
+                  strategy={goalStrategyDraft}
+                  availableTasks={(pillarTasks || []).map((t) => ({ id: t.id, name: t.name }))}
+                  onChange={(next) => {
+                    setGoalStrategyDraft(next);
+                  }}
+                />
               </div>
 
               <div className="flex gap-3">
                 <button onClick={saveGoalEdit} className="btn-premium btn-magenta">
-                  Save
+                  Zapisz
                 </button>
                 <button
                   onClick={() => {
@@ -438,7 +1314,7 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
                   }}
                   className="btn-premium btn-cyan"
                 >
-                  Cancel
+                  Anuluj
                 </button>
               </div>
             </div>
@@ -455,29 +1331,29 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
       >
         <h2 className="text-2xl font-bold text-white uppercase tracking-wider mb-6 flex items-center gap-3">
           <span className="text-3xl">🎁</span>
-          <span>Rewards</span>
+          <span>Nagrody</span>
         </h2>
 
         <div className="glass-card space-widget">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-bold text-white uppercase tracking-wider">
-                Process & milestone rewards (anti‑90%)
+                Nagrody procesowe i kamieni milowych (anti‑90%)
               </p>
               <p className="text-xs text-gray-400">
-                Rewards should follow facts (DONE + sessions), not hype.
+                Nagrody mają wynikać z faktów (DONE + sesje), nie z hype’u.
               </p>
             </div>
 
             <button onClick={() => setIsRewardsOpen((v) => !v)} className="btn-premium btn-cyan">
-              {isRewardsOpen ? 'Close' : '➕ Add reward'}
+              {isRewardsOpen ? 'Zamknij' : '➕ Dodaj nagrodę'}
             </button>
           </div>
 
           {/* List */}
           <div className="mt-4 space-y-3">
             {rewardsWithStatus.length === 0 ? (
-              <div className="text-sm text-gray-400">No rewards yet for this goal.</div>
+              <div className="text-sm text-gray-400">Brak nagród dla tego celu.</div>
             ) : (
               rewardsWithStatus.map(({ reward, status, reason }) => (
                 <div
@@ -496,7 +1372,7 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
                             : 'bg-white/5 border-white/10 text-gray-300'
                         }`}
                       >
-                        {status === 'earned' ? 'earned' : 'not yet'}
+                        {status === 'earned' ? 'zdobyte' : 'jeszcze nie'}
                       </span>
                     </div>
 
@@ -508,7 +1384,7 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
                     onClick={() => removeReward(pillar.id, reward.id)}
                     className="text-xs px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-200 hover:bg-red-500/15"
                   >
-                    Remove
+                    Usuń
                   </button>
                 </div>
               ))
@@ -520,20 +1396,20 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
             <div className="mt-4 space-y-3 border-t border-white/10 pt-4">
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
-                  Description
+                  Opis
                 </label>
                 <input
                   value={rewardDescription}
                   onChange={(e) => setRewardDescription(e.target.value.slice(0, 200))}
                   className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400"
-                  placeholder="e.g. Coffee + 30 min guilt-free break"
+                  placeholder="np. kawa + 30 min przerwy bez poczucia winy"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
-                    Type
+                    Typ
                   </label>
                   <select
                     value={rewardType}
@@ -548,14 +1424,14 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
                     }}
                     className="w-full mt-2 p-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:border-cyan-400"
                   >
-                    <option value="process">process</option>
-                    <option value="milestone">milestone</option>
+                    <option value="process">procesowa</option>
+                    <option value="milestone">kamień milowy</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
-                    Condition
+                    Warunek
                   </label>
                   <select
                     value={rewardKind}
@@ -563,14 +1439,16 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
                     className="w-full mt-2 p-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:border-cyan-400"
                   >
                     {rewardType === 'milestone' ? (
-                      <option value="milestone_completion_percent_at_least">completion % ≥</option>
+                      <option value="milestone_completion_percent_at_least">
+                        ukończenie celu (%) ≥
+                      </option>
                     ) : (
                       <>
                         <option value="process_finish_sessions_completed_last_7_days_at_least">
-                          finish sessions (7d) ≥
+                          sesje Trybu Domykania (7 dni) ≥
                         </option>
                         <option value="process_stuck_to_done_last_7_days_at_least">
-                          stuck→done (7d) ≥
+                          utknęło→DONE (7 dni) ≥
                         </option>
                       </>
                     )}
@@ -579,7 +1457,7 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
 
                 <div>
                   <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
-                    Target
+                    Cel
                   </label>
                   <input
                     type="number"
@@ -601,14 +1479,14 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
                   }}
                   className="btn-premium btn-cyan"
                 >
-                  Cancel
+                  Anuluj
                 </button>
                 <button
                   onClick={handleAddReward}
                   disabled={!canAddReward}
                   className="btn-premium btn-magenta disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Add
+                  Dodaj
                 </button>
               </div>
             </div>
@@ -625,7 +1503,7 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
       >
         <h2 className="text-2xl font-bold text-gradient-neon uppercase tracking-wider mb-6 flex items-center gap-3">
           <span className="text-3xl">🎯</span>
-          <span>Definition of Done</span>
+          <span>Definicja DONE</span>
         </h2>
 
         <div className="space-y-4">
@@ -633,7 +1511,7 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
             className={`glass-card space-widget ${pillar.completion >= 33 ? 'glass-card-cyan' : ''}`}
           >
             <h3 className="text-sm font-bold text-glow-cyan uppercase tracking-wider mb-2">
-              1. Tech Done
+              1. DONE techniczne
             </h3>
             <p className={`text-sm ${pillar.completion >= 33 ? 'text-white' : 'text-gray-400'}`}>
               "{pillar.done_definition.tech}"
@@ -644,7 +1522,7 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
             className={`glass-card space-widget ${pillar.completion >= 66 ? 'glass-card-magenta' : ''}`}
           >
             <h3 className="text-sm font-bold text-glow-magenta uppercase tracking-wider mb-2">
-              2. Live Done
+              2. DONE „na żywo”
             </h3>
             <p className={`text-sm ${pillar.completion >= 66 ? 'text-white' : 'text-gray-400'}`}>
               "{pillar.done_definition.live}"
@@ -655,12 +1533,151 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
             className={`glass-card space-widget ${pillar.completion >= 90 ? 'glass-card-gold' : ''}`}
           >
             <h3 className="text-sm font-bold text-glow-gold uppercase tracking-wider mb-2">
-              3. Battle Done
+              3. DONE bitewne
             </h3>
             <p className={`text-sm ${pillar.completion >= 90 ? 'text-white' : 'text-gray-400'}`}>
               "{pillar.done_definition.battle}"
             </p>
           </div>
+        </div>
+      </motion.div>
+
+      {/* Timeline */}
+      <motion.div
+        className="widget-container-narrow mb-12"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.16 }}
+      >
+        <h2 className="text-2xl font-bold text-white uppercase tracking-wider mb-6 flex items-center gap-3">
+          <span className="text-3xl">⏳</span>
+          <span>Oś czasu</span>
+        </h2>
+
+        <div className="glass-card space-widget border border-white/10">
+          {timelineItems.length === 0 ? (
+            <div className="text-sm text-gray-400">
+              Brak terminów. Dodaj deadline w milestone (strategia) albo ustaw `dueDate` w zadaniu.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {timelineItems.slice(0, 14).map((it, idx) => (
+                <div
+                  key={`${it.kind}_${it.dateIso}_${idx}`}
+                  className="flex items-start justify-between gap-3 p-3 rounded-lg bg-white/5 border border-white/10"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-gray-400 font-semibold">{it.dateIso}</span>
+                      <span
+                        className={`text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wider ${it.badgeClass}`}
+                      >
+                        {it.kind === 'milestone' ? 'kamień' : 'zadanie'}
+                        {it.badge ? ` • ${it.badge}` : ''}
+                      </span>
+                    </div>
+                    <div className="text-white font-semibold mt-1 break-words">{it.title}</div>
+                    {it.meta ? <div className="text-xs text-gray-400 mt-1">{it.meta}</div> : null}
+                  </div>
+                </div>
+              ))}
+              {timelineItems.length > 14 && (
+                <div className="text-xs text-gray-500">
+                  …i {timelineItems.length - 14} kolejnych terminów.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Task Tree (Strategy phases) */}
+      <motion.div
+        className="widget-container-narrow mb-12"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.18 }}
+      >
+        <h2 className="text-2xl font-bold text-white uppercase tracking-wider mb-6 flex items-center gap-3">
+          <span className="text-3xl">🧭</span>
+          <span>Drzewo zadań</span>
+        </h2>
+
+        <div className="glass-card space-widget border border-white/10">
+          {taskTree.length === 0 ? (
+            <div className="text-sm text-gray-400">
+              Brak etapów w strategii. Wejdź w „Ustawienia celu” → „Strategia (PLAN_v2 – struktura)”
+              i dodaj etapy, a potem przypnij zadania do etapów.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {taskTree.map((node, idx) => (
+                <div
+                  key={`${String(node.phase?.id ?? idx)}`}
+                  className="p-3 rounded-lg bg-white/5 border border-white/10"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-white font-bold break-words">
+                        {String(node.phase?.title ?? '').trim() || `Etap ${idx + 1}`}
+                      </div>
+                      {node.phase?.description ? (
+                        <div className="text-xs text-gray-400 mt-1">
+                          {String(node.phase.description).slice(0, 240)}
+                        </div>
+                      ) : null}
+                    </div>
+                    <span className="text-[10px] px-2 py-1 rounded border border-white/10 bg-white/5 text-gray-300 font-bold uppercase tracking-wider">
+                      {node.tasks.length} zadań
+                    </span>
+                  </div>
+
+                  {node.tasks.length === 0 ? (
+                    <div className="mt-2 text-sm text-gray-400">Brak przypiętych zadań.</div>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {node.tasks.slice(0, 10).map((t: any) => {
+                        const progress = Number(t?.progress ?? 0);
+                        const isDone = progress >= 100 || String(t?.status ?? '') === 'done';
+                        return (
+                          <div
+                            key={String(t?.id)}
+                            className="flex items-center justify-between gap-3 p-2 rounded-lg bg-white/5 border border-white/10"
+                          >
+                            <div className="min-w-0">
+                              <div
+                                className={`text-sm ${isDone ? 'text-gray-500 line-through' : 'text-white'} break-words`}
+                              >
+                                {String(t?.name ?? '').trim() || 'Zadanie'}
+                              </div>
+                            </div>
+                            <span
+                              className={`text-[10px] px-2 py-1 rounded border font-bold uppercase tracking-wider ${
+                                isDone
+                                  ? 'bg-green-500/15 border-green-500/40 text-green-300'
+                                  : progress >= 90
+                                    ? 'bg-gold/10 border-gold/30 text-gold'
+                                    : 'bg-white/5 border-white/10 text-gray-300'
+                              }`}
+                            >
+                              {isDone
+                                ? 'done'
+                                : `${Math.max(0, Math.min(100, Math.round(progress)))}%`}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      {node.tasks.length > 10 && (
+                        <div className="text-xs text-gray-500">
+                          …i {node.tasks.length - 10} więcej.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </motion.div>
 
@@ -673,20 +1690,20 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
       >
         <h2 className="text-2xl font-bold text-white uppercase tracking-wider mb-6 flex items-center gap-3">
           <span className="text-3xl">📋</span>
-          <span>Tasks</span>
+          <span>Zadania</span>
         </h2>
 
         {/* Minimal Add Task (with Definition of DONE) */}
         <div className="glass-card space-widget mb-6">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-sm font-bold text-white uppercase tracking-wider">Add task</p>
+              <p className="text-sm font-bold text-white uppercase tracking-wider">Dodaj zadanie</p>
               <p className="text-xs text-gray-400">
-                Optional but recommended: define when this task is objectively DONE.
+                Opcjonalne, ale zalecane: określ, kiedy to zadanie jest obiektywnie DONE.
               </p>
             </div>
             <button onClick={() => setIsAddOpen((v) => !v)} className="btn-premium btn-cyan">
-              {isAddOpen ? 'Close' : '➕ New task'}
+              {isAddOpen ? 'Zamknij' : '➕ Nowe zadanie'}
             </button>
           </div>
 
@@ -694,19 +1711,19 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
             <div className="mt-4 space-y-3">
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
-                  Task name
+                  Nazwa zadania
                 </label>
                 <input
                   value={newTaskName}
                   onChange={(e) => setNewTaskName(e.target.value.slice(0, 200))}
                   className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400"
-                  placeholder="e.g. Deploy na hosting"
+                  placeholder="np. Deploy na hosting"
                 />
               </div>
 
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
-                  Type
+                  Typ
                 </label>
                 <div className="flex gap-2">
                   <button
@@ -717,7 +1734,7 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
                         : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
                     }`}
                   >
-                    build
+                    budowanie
                   </button>
                   <button
                     onClick={() => setNewTaskType('close')}
@@ -727,24 +1744,24 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
                         : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
                     }`}
                   >
-                    close
+                    domykanie
                   </button>
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
                 <label className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
-                  Definition of DONE
+                  Definicja DONE
                 </label>
                 <textarea
                   value={newTaskDefinitionOfDone}
                   onChange={(e) => setNewTaskDefinitionOfDone(e.target.value.slice(0, 500))}
                   className="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400"
-                  placeholder="When is this task objectively finished? (short, concrete)"
+                  placeholder="Kiedy to zadanie jest obiektywnie skończone? (krótko, konkretnie)"
                   rows={3}
                 />
                 <p className="text-[11px] text-gray-500">
-                  Tip: write a concrete checklist in one sentence (no vagueness).
+                  Tip: opisz konkretny warunek w jednym zdaniu (bez ogólników).
                 </p>
               </div>
 
@@ -754,7 +1771,7 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
                   disabled={!newTaskName.trim()}
                   className="btn-premium btn-magenta disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Add
+                  Dodaj
                 </button>
                 <button
                   onClick={() => {
@@ -765,7 +1782,7 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
                   }}
                   className="btn-premium btn-cyan"
                 >
-                  Cancel
+                  Anuluj
                 </button>
               </div>
             </div>
@@ -817,7 +1834,7 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
                           value={editingDefinition}
                           onChange={(e) => setEditingDefinition(e.target.value.slice(0, 500))}
                           className="w-full p-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400 text-xs"
-                          placeholder="Define DONE (short & concrete)"
+                          placeholder="Zdefiniuj DONE (krótko i konkretnie)"
                           rows={3}
                         />
                         <div className="flex gap-2">
@@ -825,13 +1842,13 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
                             onClick={saveEditingDefinition}
                             className="px-3 py-2 rounded-lg bg-green-500/20 border border-green-500/50 text-green-300 text-xs font-bold uppercase tracking-wider"
                           >
-                            Save DONE
+                            Zapisz DONE
                           </button>
                           <button
                             onClick={cancelEditingDefinition}
                             className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-300 text-xs font-bold uppercase tracking-wider"
                           >
-                            Cancel
+                            Anuluj
                           </button>
                         </div>
                       </div>
@@ -845,14 +1862,14 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
                           String(task.definitionOfDone).trim().length > 0 ? (
                             `"${String(task.definitionOfDone).trim()}"`
                           ) : (
-                            <span className="italic text-gray-500">not defined</span>
+                            <span className="italic text-gray-500">brak</span>
                           )}
                         </p>
                         <button
                           onClick={() => startEditingDefinition(task)}
                           className="text-[11px] px-2 py-1 rounded bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10"
                         >
-                          Edit DONE
+                          Edytuj DONE
                         </button>
                       </div>
                     )}
@@ -880,7 +1897,7 @@ const PillarDetailPremium: React.FC<PillarDetailProps> = ({
           onClick={onEnterFinishMode}
           className="btn-premium btn-magenta w-full text-lg py-6 mb-4"
         >
-          🔥 ENTER FINISH MODE
+          🔥 WEJDŹ W FINISH MODE
         </button>
       </div>
     </div>

@@ -7,7 +7,9 @@ export function calculateTaskStatus(progress: number): TaskStatus {
 }
 
 export function isTaskStuck(task: Task): boolean {
-  return task.status === 'stuck' || task.stuckAtNinety || (task.progress >= 90 && task.progress < 100);
+  return (
+    task.status === 'stuck' || task.stuckAtNinety || (task.progress >= 90 && task.progress < 100)
+  );
 }
 
 /**

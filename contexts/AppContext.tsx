@@ -15,6 +15,11 @@ import {
   TimerState,
   TaskInsight,
   FinishSession,
+  type ImplementationIntention,
+  type GoalAIContext,
+  type GoalAiTone,
+  type GoalStrategy,
+  type Pillar,
   type FinishSessionClassification,
   type FinishTaskStatus,
   type TaskStatus,
@@ -42,8 +47,12 @@ import {
 import { PROGRESS_UPDATE_DEBOUNCE_MS, API_REQUEST_TIMEOUT_MS } from '../utils/config';
 import { computeBasicStats, type BasicStats } from '../utils/stats';
 import { validateChatMessage } from '../utils/inputValidation';
-import { buildAssistantChatPrompt } from '../utils/aiPrompts';
+import { buildAssistantChatPrompt, buildGoalStrategistChatPrompt } from '../utils/aiPrompts';
 import { providerGenerateText } from '../utils/aiProvider';
+import { secureStorage } from '../utils/secureStorage';
+import { triggerLevelUpFeedback, triggerTaskCompleteFeedback } from '../utils/feedbackService';
+import { evaluateNewAchievementUnlocks, getBadgeInfo } from '../utils/achievementEngine';
+import { showSuccess } from '../utils/toastService';
 
 // ============================================================================
 // APP CONTEXT - Centralized State Management
@@ -77,6 +86,9 @@ interface AppContextType {
   // Migration status
   migrationStatus: 'not_started' | 'in_progress' | 'completed' | 'error';
 
+  // Derived fields helper (critical for stable UX)
+  recomputePillarDerivedFields: (pillar: Pillar) => Pillar;
+
   // Actions - LEGACY (update legacy data)
   setData: (data: AppData | ((prev: AppData) => AppData)) => void;
 
@@ -106,14 +118,23 @@ interface AppContextType {
   handlePillarClick: (id: number) => void;
   handleAlertClick: (type: 'stuck' | 'checkin', projectId?: number) => void;
   handleToggleTask: (taskId: number, newProgress?: number) => Promise<void>; // Phase 3: Now async for optimistic updates
-  activateImplementationIntention: (taskId: number) => void;
+  activateImplementationIntention: (
+    taskId: number,
+    intentionData?: Pick<ImplementationIntention, 'trigger' | 'action' | 'active'>
+  ) => Promise<void>;
   handleUpdateSettings: (updates: Partial<AppData['settings']>) => void;
   handleUpdateChatHistory: (history: AppData['aiChatHistory']) => void;
   sendAICoachMessage: (message: string) => Promise<void>;
+  sendGoalChatMessage: (payload: {
+    goalId: number;
+    message: string;
+    responseMode: 'strict' | 'psycho' | 'facts';
+  }) => Promise<void>;
+  clearGoalAIHistory: (goalId: number) => void;
   aiStatus: { state: 'online' | 'offline' | 'disabled'; updatedAt: string | null };
 
   // Finish Mode session API (UI wiring happens in later iteration)
-  startFinishSession: (taskId: number, pillarId: number) => void;
+  startFinishSession: (taskId: number, pillarId: number, meta?: { microStep?: string }) => void;
   endFinishSession: (
     sessionId: string,
     payload: {
@@ -140,7 +161,13 @@ interface AppContextType {
     name: string;
     description?: string;
     type?: 'main' | 'secondary' | 'lab';
-    strategy?: string;
+    /**
+     * Strategy can be provided as legacy text (string) or as a structured object.
+     * AppContext will persist the structured object and keep legacy text in `strategyText`.
+     */
+    strategy?: string | GoalStrategy;
+    /** Optional legacy helper text (kept for backward compatibility). */
+    strategyText?: string;
     aiTone?: 'military' | 'psychoeducation' | 'raw_facts';
   }) => void;
   updatePillar: (
@@ -149,7 +176,10 @@ interface AppContextType {
       name: string;
       description: string;
       type: 'main' | 'secondary' | 'lab';
-      strategy: string;
+      /** Strategy updates can be legacy text or structured object. */
+      strategy: string | GoalStrategy;
+      /** Optional legacy helper text (kept for backward compatibility). */
+      strategyText: string;
       aiTone: 'military' | 'psychoeducation' | 'raw_facts';
     }>
   ) => void;
@@ -207,6 +237,13 @@ interface AppProviderProps {
 }
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
+  // Gamification foundation (Phase 2): deterministic constants (local-first).
+  const XP_PER_FOCUS_MINUTE = 1;
+  const XP_PER_TASK_COMPLETION = 50;
+  const XP_DAILY_BONUS = 100;
+  const MAX_XP_EVENTS = 1000;
+  const MAX_COMPLETED_TASK_IDS = 5000;
+
   const createRewardId = useCallback((): string => {
     try {
       if (typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function') {
@@ -241,47 +278,617 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     return nowMs - t >= 0 && nowMs - t <= windowMs;
   }, []);
 
-  const ensureFinishSessionDefaults = useCallback((d: AppData): AppData => {
-    const validGoalTypes = new Set(['main', 'secondary', 'lab']);
-    const validAiTones = new Set(['military', 'psychoeducation', 'raw_facts']);
+  const ensureUserStatsDefaults = useCallback(
+    (d: AppData): AppData => {
+      const hasStats = (d as any)?.userStats != null;
+      const raw = (d as any)?.userStats ?? {};
 
-    const pillars = Array.isArray((d as any).pillars) ? (d as any).pillars : [];
-    const isLegacyGoalTyping =
-      pillars.length > 0 && pillars.every((p: any) => !validGoalTypes.has(p?.type));
+      const asNonNegInt = (value: unknown, fallback: number): number => {
+        const n = typeof value === 'number' ? value : Number(value);
+        if (!Number.isFinite(n)) return fallback;
+        return Math.max(0, Math.floor(n));
+      };
 
-    const nextPillars = pillars.map((p: any, idx: number) => {
-      const rawType = p?.type;
-      const type = validGoalTypes.has(rawType)
-        ? rawType
-        : isLegacyGoalTyping
-          ? idx === 0
-            ? 'main'
-            : 'secondary'
-          : 'secondary';
+      const asLevel = (value: unknown, fallback: number): number => {
+        const n = typeof value === 'number' ? value : Number(value);
+        if (!Number.isFinite(n)) return fallback;
+        return Math.max(1, Math.floor(n));
+      };
 
-      const rawTone = p?.aiTone;
-      const aiTone = validAiTones.has(rawTone) ? rawTone : 'psychoeducation';
+      const lastActivityDate =
+        typeof raw.lastActivityDate === 'string' && raw.lastActivityDate.trim()
+          ? raw.lastActivityDate.trim()
+          : null;
 
-      const strategy = typeof p?.strategy === 'string' ? p.strategy : '';
+      const achievementsUnlocked = Array.isArray(raw.achievementsUnlocked)
+        ? raw.achievementsUnlocked
+        : undefined;
+
+      const lastXpGrant =
+        raw.lastXpGrant && typeof raw.lastXpGrant === 'object'
+          ? {
+              amount: asNonNegInt((raw.lastXpGrant as any).amount, 0),
+              source: (raw.lastXpGrant as any).source,
+              at:
+                typeof (raw.lastXpGrant as any).at === 'string' ? (raw.lastXpGrant as any).at : '',
+            }
+          : undefined;
+
+      const xpEvents =
+        Array.isArray(raw.xpEvents) && raw.xpEvents.length > 0
+          ? raw.xpEvents.slice(Math.max(0, raw.xpEvents.length - MAX_XP_EVENTS))
+          : undefined;
+
+      const completedTaskIds =
+        Array.isArray(raw.completedTaskIds) && raw.completedTaskIds.length > 0
+          ? raw.completedTaskIds
+              .map((v: any) => Number(v))
+              .filter((n: any) => Number.isFinite(n))
+              .slice(Math.max(0, raw.completedTaskIds.length - MAX_COMPLETED_TASK_IDS))
+          : undefined;
+
+      const lastDailyXpDate =
+        typeof raw.lastDailyXpDate === 'string' && raw.lastDailyXpDate.trim()
+          ? raw.lastDailyXpDate.trim()
+          : null;
+
+      const lastLevelUpAt =
+        typeof raw.lastLevelUpAt === 'string' && raw.lastLevelUpAt.trim()
+          ? raw.lastLevelUpAt.trim()
+          : null;
+      const lastLevelUpFrom =
+        raw.lastLevelUpFrom !== undefined && Number.isFinite(Number(raw.lastLevelUpFrom))
+          ? Math.max(1, Math.floor(Number(raw.lastLevelUpFrom)))
+          : undefined;
+      const lastLevelUpTo =
+        raw.lastLevelUpTo !== undefined && Number.isFinite(Number(raw.lastLevelUpTo))
+          ? Math.max(1, Math.floor(Number(raw.lastLevelUpTo)))
+          : undefined;
+
+      // Backfill computed stats ONLY when userStats is missing (for existing users with history).
+      const computed = (() => {
+        if (hasStats) return null;
+
+        const sessions: FinishSession[] = Array.isArray((d as any).finishSessionsHistory)
+          ? ((d as any).finishSessionsHistory as FinishSession[])
+          : [];
+
+        const completedSessions = sessions.filter((s: any) => s && s.status === 'completed');
+        let totalMinutes = 0;
+        for (const s of completedSessions) {
+          const st = new Date(String((s as any).startTime || '')).getTime();
+          const en = new Date(String((s as any).endTime || '')).getTime();
+          if (!Number.isFinite(st) || !Number.isFinite(en) || en < st) continue;
+          totalMinutes += Math.max(0, Math.floor((en - st) / 60000));
+        }
+
+        const pillars = Array.isArray((d as any).pillars) ? ((d as any).pillars as any[]) : [];
+        const allTasks = pillars.flatMap((p: any) => (Array.isArray(p?.tasks) ? p.tasks : []));
+        const doneTaskIds = new Set<number>();
+        for (const t of allTasks) {
+          const id = Number(t?.id);
+          if (!Number.isFinite(id)) continue;
+          const progress = Number(t?.progress ?? 0);
+          const status = String(t?.status ?? '');
+          if (status === 'done' || progress >= 100) {
+            doneTaskIds.add(id);
+          }
+        }
+
+        const xp = totalMinutes * XP_PER_FOCUS_MINUTE;
+        const level = Math.max(1, Math.floor(Math.sqrt(Math.max(0, xp))));
+        const nextLevelXp = Math.max(0, (level + 1) * (level + 1) - xp);
+
+        // Streaks: align with BasicStats MVP definition (main goal sessions).
+        const now = new Date();
+        const mainPillarIds = new Set<number>(
+          pillars.filter((p: any) => p?.type === 'main').map((p: any) => Number(p.id))
+        );
+        const dayKeys: string[] = [];
+        const daySet = new Set<string>();
+        let lastEndMs = -1;
+        for (const s of completedSessions) {
+          const pid = Number((s as any).pillarId);
+          if (!Number.isFinite(pid) || !mainPillarIds.has(pid)) continue;
+          const endIso = (s as any).endTime;
+          if (typeof endIso !== 'string' || !endIso) continue;
+          const endedAt = new Date(endIso);
+          const endMs = endedAt.getTime();
+          if (!Number.isFinite(endMs)) continue;
+          if (endMs > lastEndMs) lastEndMs = endMs;
+          const key = `${endedAt.getFullYear()}-${String(endedAt.getMonth() + 1).padStart(2, '0')}-${String(
+            endedAt.getDate()
+          ).padStart(2, '0')}`;
+          if (!daySet.has(key)) {
+            daySet.add(key);
+            dayKeys.push(key);
+          }
+        }
+
+        // current streak: consecutive days up to today
+        const toKey = (dt: Date) =>
+          `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+        let currentStreakDays = 0;
+        const cursor = new Date(now);
+        while (daySet.has(toKey(cursor))) {
+          currentStreakDays += 1;
+          cursor.setDate(cursor.getDate() - 1);
+        }
+
+        // longest streak: scan sorted unique days
+        const sorted = [...daySet].sort();
+        let longestStreakDays = 0;
+        let run = 0;
+        let prevDate: Date | null = null;
+        for (const k of sorted) {
+          const dt = new Date(`${k}T00:00:00`);
+          if (!Number.isFinite(dt.getTime())) continue;
+          if (!prevDate) {
+            run = 1;
+          } else {
+            const diffDays = Math.round(
+              (dt.getTime() - prevDate.getTime()) / (24 * 60 * 60 * 1000)
+            );
+            run = diffDays === 1 ? run + 1 : 1;
+          }
+          prevDate = dt;
+          if (run > longestStreakDays) longestStreakDays = run;
+        }
+
+        const lastActivityDate = lastEndMs > 0 ? toKey(new Date(lastEndMs)) : null;
+
+        return {
+          totalFocusMinutes: totalMinutes,
+          finishSessionsCompleted: completedSessions.length,
+          tasksCompleted: doneTaskIds.size,
+          xp,
+          level,
+          nextLevelXp,
+          currentStreakDays,
+          longestStreakDays,
+          lastActivityDate,
+          completedTaskIds: Array.from(doneTaskIds).slice(0, MAX_COMPLETED_TASK_IDS),
+          xpEvents: [],
+        };
+      })();
+
+      const resolvedXp = asNonNegInt(raw.xp, computed?.xp ?? 0);
+      const resolvedLevel = asLevel(
+        raw.level,
+        computed?.level ?? Math.max(1, Math.floor(Math.sqrt(Math.max(0, resolvedXp))))
+      );
+      const resolvedNextLevelXp = asNonNegInt(
+        (raw as any).nextLevelXp,
+        computed?.nextLevelXp ?? Math.max(0, (resolvedLevel + 1) * (resolvedLevel + 1) - resolvedXp)
+      );
 
       return {
-        ...p,
-        type,
-        strategy,
-        aiTone,
+        ...d,
+        userStats: {
+          totalFocusMinutes: asNonNegInt(raw.totalFocusMinutes, computed?.totalFocusMinutes ?? 0),
+          finishSessionsCompleted: asNonNegInt(
+            raw.finishSessionsCompleted,
+            computed?.finishSessionsCompleted ?? 0
+          ),
+          tasksCompleted: asNonNegInt(raw.tasksCompleted, computed?.tasksCompleted ?? 0),
+          xp: resolvedXp,
+          level: resolvedLevel,
+          nextLevelXp: resolvedNextLevelXp,
+          currentStreakDays: asNonNegInt(raw.currentStreakDays, computed?.currentStreakDays ?? 0),
+          longestStreakDays: asNonNegInt(raw.longestStreakDays, computed?.longestStreakDays ?? 0),
+          lastActivityDate: lastActivityDate ?? computed?.lastActivityDate ?? null,
+          ...(achievementsUnlocked ? { achievementsUnlocked } : {}),
+          ...(xpEvents ? { xpEvents } : computed?.xpEvents ? { xpEvents: computed.xpEvents } : {}),
+          ...(completedTaskIds
+            ? { completedTaskIds }
+            : computed?.completedTaskIds
+              ? { completedTaskIds: computed.completedTaskIds }
+              : {}),
+          ...(lastDailyXpDate ? { lastDailyXpDate } : {}),
+          ...(lastLevelUpAt ? { lastLevelUpAt } : {}),
+          ...(lastLevelUpFrom !== undefined ? { lastLevelUpFrom } : {}),
+          ...(lastLevelUpTo !== undefined ? { lastLevelUpTo } : {}),
+          ...(lastXpGrant ? { lastXpGrant } : {}),
+        },
+      } as AppData;
+    },
+    [MAX_COMPLETED_TASK_IDS, MAX_XP_EVENTS, XP_PER_FOCUS_MINUTE]
+  );
+
+  const ensureFinishSessionDefaults = useCallback(
+    (d: AppData): AppData => {
+      const validGoalTypes = new Set(['main', 'secondary', 'lab']);
+      const validAiTones = new Set(['military', 'psychoeducation', 'raw_facts']);
+
+      const pillars = Array.isArray((d as any).pillars) ? (d as any).pillars : [];
+      const isLegacyGoalTyping =
+        pillars.length > 0 && pillars.every((p: any) => !validGoalTypes.has(p?.type));
+
+      const nextPillars = pillars.map((p: any, idx: number) => {
+        const rawType = p?.type;
+        const type = validGoalTypes.has(rawType)
+          ? rawType
+          : isLegacyGoalTyping
+            ? idx === 0
+              ? 'main'
+              : 'secondary'
+            : 'secondary';
+
+        const rawTone = (p?.aiContext?.tone ?? p?.aiTone) as any;
+        const aiTone: GoalAiTone = validAiTones.has(rawTone) ? rawTone : 'psychoeducation';
+
+        const customInstructions =
+          typeof p?.aiContext?.customInstructions === 'string'
+            ? p.aiContext.customInstructions
+            : undefined;
+
+        const conversationHistory = Array.isArray(p?.aiContext?.conversationHistory)
+          ? p.aiContext.conversationHistory
+          : [];
+
+        const aiContext: GoalAIContext = {
+          tone: aiTone,
+          ...(customInstructions ? { customInstructions } : {}),
+          conversationHistory,
+        };
+
+        const legacyStrategyText =
+          typeof p?.strategyText === 'string'
+            ? String(p.strategyText)
+            : (() => {
+                // If `strategy` is a JSON string (legacy experimental storage), avoid polluting user-facing text.
+                if (typeof p?.strategy !== 'string') return '';
+                const s = String(p.strategy).trim();
+                if (s.startsWith('{') && s.endsWith('}')) return '';
+                return s;
+              })();
+
+        const rawStrategy = p?.strategy;
+        const strategyObj: GoalStrategy = (() => {
+          const build = (raw: any): GoalStrategy => {
+            const baseObj = raw && typeof raw === 'object' ? raw : {};
+            const vision = typeof baseObj.vision === 'string' ? baseObj.vision : '';
+            const successCriteria = Array.isArray(baseObj.successCriteria)
+              ? baseObj.successCriteria
+              : [];
+            const milestones = Array.isArray(baseObj.milestones) ? baseObj.milestones : [];
+            const ifThenPlans = Array.isArray(baseObj.ifThenPlans) ? baseObj.ifThenPlans : [];
+            const obstacles = Array.isArray(baseObj.obstacles) ? baseObj.obstacles : [];
+            const structure =
+              baseObj.structure && typeof baseObj.structure === 'object'
+                ? baseObj.structure
+                : undefined;
+            const tactics = Array.isArray(baseObj.tactics) ? baseObj.tactics : [];
+
+            const strategyAiContext =
+              baseObj.aiContext && typeof baseObj.aiContext === 'object'
+                ? {
+                    tone: validAiTones.has(baseObj.aiContext.tone)
+                      ? baseObj.aiContext.tone
+                      : aiTone,
+                    ...(typeof baseObj.aiContext.customInstructions === 'string'
+                      ? { customInstructions: baseObj.aiContext.customInstructions }
+                      : customInstructions
+                        ? { customInstructions }
+                        : {}),
+                  }
+                : { tone: aiTone, ...(customInstructions ? { customInstructions } : {}) };
+
+            // IMPORTANT: spread baseObj FIRST to preserve extra fields, then override normalized keys.
+            return {
+              ...(baseObj as any),
+              vision,
+              successCriteria,
+              milestones,
+              ifThenPlans,
+              obstacles,
+              ...(structure ? { structure } : {}),
+              tactics,
+              aiContext: strategyAiContext,
+            } as GoalStrategy;
+          };
+
+          // Structured strategy object – keep it and normalize minimal shape (without dropping extra keys).
+          if (rawStrategy && typeof rawStrategy === 'object') {
+            return build(rawStrategy);
+          }
+
+          // Legacy string: try to parse JSON (some older builds stored structured strategy as string).
+          if (typeof rawStrategy === 'string') {
+            const s = rawStrategy.trim();
+            if (s.startsWith('{') && s.endsWith('}')) {
+              try {
+                const parsed = JSON.parse(s);
+                if (parsed && typeof parsed === 'object') {
+                  return build(parsed);
+                }
+              } catch {
+                // ignore parse errors, fallback below
+              }
+            }
+          }
+
+          // Missing/legacy: create an empty structured strategy (local-first, safe defaults).
+          return build({
+            vision: '',
+            successCriteria: [],
+            milestones: [],
+            ifThenPlans: [],
+            obstacles: [],
+            structure: undefined,
+            tactics: [],
+            aiContext: { tone: aiTone, ...(customInstructions ? { customInstructions } : {}) },
+          });
+        })();
+
+        return {
+          ...p,
+          type,
+          aiTone,
+          aiContext,
+          strategy: strategyObj,
+          ...(legacyStrategyText ? { strategyText: legacyStrategyText } : {}),
+        };
+      });
+
+      const base = {
+        ...d,
+        pillars: nextPillars,
+        currentFinishSession: (d as any).currentFinishSession ?? null,
+        finishSessionsHistory: Array.isArray((d as any).finishSessionsHistory)
+          ? (d as any).finishSessionsHistory
+          : [],
+        ideas: Array.isArray((d as any).ideas) ? (d as any).ideas : [],
+        settings: {
+          ...(d as any).settings,
+          gamification: (d as any)?.settings?.gamification ?? {
+            soundEnabled: true,
+            hapticsEnabled: true,
+          },
+        },
+      } as AppData;
+
+      return ensureUserStatsDefaults(base);
+    },
+    [ensureUserStatsDefaults]
+  );
+
+  const getSafeUserStats = useCallback(
+    (d: AppData) => {
+      return ensureUserStatsDefaults(d).userStats as any;
+    },
+    [ensureUserStatsDefaults]
+  );
+
+  const toLocalDateKey = useCallback((date: Date): string => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }, []);
+
+  const isTaskDone = useCallback((task: any): boolean => {
+    if (!task) return false;
+    const status = String(task.status ?? '');
+    const progress = Number(task.progress ?? 0);
+    return status === 'done' || progress >= 100;
+  }, []);
+
+  const computeLevelFromXp = useCallback((xp: number): number => {
+    const safeXp = Number.isFinite(xp) ? xp : 0;
+    return Math.max(1, Math.floor(Math.sqrt(Math.max(0, safeXp))));
+  }, []);
+
+  const computeNextLevelXp = useCallback((xp: number, level: number): number => {
+    const safeXp = Number.isFinite(xp) ? xp : 0;
+    const safeLevel = Number.isFinite(level) ? Math.max(1, Math.floor(level)) : 1;
+    const nextThreshold = (safeLevel + 1) * (safeLevel + 1);
+    return Math.max(0, nextThreshold - Math.max(0, safeXp));
+  }, []);
+
+  const computeMainGoalStreakDaysFromHistory = useCallback(
+    (pillars: Pillar[], history: FinishSession[], now: Date): number => {
+      const mainIds = new Set<number>(
+        (pillars || []).filter((p: any) => p?.type === 'main').map((p: any) => Number(p.id))
+      );
+      if (mainIds.size === 0) return 0;
+
+      const daySet = new Set<string>();
+      for (const s of history || []) {
+        if (!s || (s as any).status !== 'completed') continue;
+        if (!mainIds.has(Number((s as any).pillarId))) continue;
+        const endTime = (s as any).endTime;
+        if (typeof endTime !== 'string' || !endTime) continue;
+        const endedAt = new Date(endTime);
+        if (Number.isNaN(endedAt.getTime())) continue;
+        daySet.add(toLocalDateKey(endedAt));
+      }
+
+      let streak = 0;
+      const cursor = new Date(now);
+      while (daySet.has(toLocalDateKey(cursor))) {
+        streak += 1;
+        cursor.setDate(cursor.getDate() - 1);
+      }
+      return streak;
+    },
+    [toLocalDateKey]
+  );
+
+  const appendXpEvent = useCallback(
+    (
+      stats: any,
+      payload: {
+        amount: number;
+        source: 'finish_session_minutes' | 'task_completed' | 'manual_adjustment';
+        at: string;
+        meta?: any;
+        xpTotalAfter?: number;
+      }
+    ) => {
+      const prev = Array.isArray(stats?.xpEvents) ? stats.xpEvents : [];
+      const id = `xp_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      const next = [
+        ...prev,
+        {
+          id,
+          amount: Math.max(0, Math.floor(Number(payload.amount) || 0)),
+          source: payload.source,
+          at: payload.at,
+          ...(payload.xpTotalAfter !== undefined ? { xpTotalAfter: payload.xpTotalAfter } : {}),
+          ...(payload.meta ? { meta: payload.meta } : {}),
+        },
+      ];
+      return { ...stats, xpEvents: next.slice(Math.max(0, next.length - MAX_XP_EVENTS)) };
+    },
+    [MAX_XP_EVENTS]
+  );
+
+  const grantDailyBonusIfNeeded = useCallback(
+    (stats: any, atIso: string) => {
+      const dateKey = toLocalDateKey(new Date(atIso));
+      const last = typeof stats?.lastDailyXpDate === 'string' ? stats.lastDailyXpDate : null;
+      if (last === dateKey) return stats;
+
+      const oldLevel = Number(stats?.level ?? 1) || 1;
+      const nextXp = Number(stats?.xp ?? 0) + XP_DAILY_BONUS;
+      const nextLevel = computeLevelFromXp(nextXp);
+      const nextLevelXp = computeNextLevelXp(nextXp, nextLevel);
+
+      let nextStats = {
+        ...stats,
+        xp: nextXp,
+        level: nextLevel,
+        nextLevelXp,
+        lastDailyXpDate: dateKey,
+        lastXpGrant: { amount: XP_DAILY_BONUS, source: 'daily_bonus', at: atIso },
       };
-    });
+
+      if (nextLevel > oldLevel) {
+        nextStats = {
+          ...nextStats,
+          lastLevelUpAt: atIso,
+          lastLevelUpFrom: oldLevel,
+          lastLevelUpTo: nextLevel,
+        };
+      }
+
+      nextStats = appendXpEvent(nextStats, {
+        amount: XP_DAILY_BONUS,
+        source: 'daily_bonus',
+        at: atIso,
+        xpTotalAfter: nextXp,
+        meta: { dateKey },
+      });
+
+      return nextStats;
+    },
+    [XP_DAILY_BONUS, appendXpEvent, computeLevelFromXp, computeNextLevelXp, toLocalDateKey]
+  );
+
+  const grantXp = useCallback(
+    (
+      stats: any,
+      payload: {
+        amount: number;
+        source: 'finish_session_minutes' | 'task_completed' | 'manual_adjustment';
+        at: string;
+        meta?: any;
+      }
+    ) => {
+      const amount = Math.max(0, Math.floor(Number(payload.amount) || 0));
+      if (amount <= 0) return stats;
+
+      const atIso = payload.at;
+      const oldLevel = Number(stats?.level ?? 1) || 1;
+      const nextXp = Number(stats?.xp ?? 0) + amount;
+      const nextLevel = computeLevelFromXp(nextXp);
+      const nextLevelXp = computeNextLevelXp(nextXp, nextLevel);
+
+      let nextStats = {
+        ...stats,
+        xp: nextXp,
+        level: nextLevel,
+        nextLevelXp,
+        lastXpGrant: { amount, source: payload.source, at: atIso },
+      };
+
+      if (nextLevel > oldLevel) {
+        nextStats = {
+          ...nextStats,
+          lastLevelUpAt: atIso,
+          lastLevelUpFrom: oldLevel,
+          lastLevelUpTo: nextLevel,
+        };
+      }
+
+      nextStats = appendXpEvent(nextStats, {
+        amount,
+        source: payload.source,
+        at: atIso,
+        xpTotalAfter: nextXp,
+        meta: payload.meta,
+      });
+
+      return nextStats;
+    },
+    [appendXpEvent, computeLevelFromXp, computeNextLevelXp]
+  );
+
+  const applyAchievementUnlocks = useCallback((prevStats: any, nextStats: any) => {
+    const prev = prevStats || ({} as any);
+    const next = nextStats || ({} as any);
+    const lastEvent =
+      Array.isArray(next?.xpEvents) && next.xpEvents.length > 0
+        ? next.xpEvents[next.xpEvents.length - 1]
+        : null;
+    const unlocks = evaluateNewAchievementUnlocks({ prevStats: prev, nextStats: next, lastEvent });
+    if (unlocks.length === 0) return { nextStats: next, newlyUnlocked: [] as any[] };
+
+    const existing = Array.isArray(next.achievementsUnlocked) ? next.achievementsUnlocked : [];
+    const nowIso = new Date().toISOString();
+    const appended = unlocks.map((u) => ({
+      achievementId: u.achievementId,
+      unlockedAt: nowIso,
+      reason: u.reason,
+    }));
 
     return {
-      ...d,
-      pillars: nextPillars,
-      currentFinishSession: (d as any).currentFinishSession ?? null,
-      finishSessionsHistory: Array.isArray((d as any).finishSessionsHistory)
-        ? (d as any).finishSessionsHistory
-        : [],
-      ideas: Array.isArray((d as any).ideas) ? (d as any).ideas : [],
+      nextStats: { ...next, achievementsUnlocked: [...existing, ...appended] },
+      newlyUnlocked: appended,
     };
   }, []);
+
+  const registerTaskCompletionOnce = useCallback(
+    (stats: any, taskId: number, atIso: string, meta?: any) => {
+      const id = Number(taskId);
+      if (!Number.isFinite(id)) return stats;
+      const prevIds: number[] = Array.isArray(stats?.completedTaskIds)
+        ? (stats.completedTaskIds as any[]).map((v) => Number(v)).filter((n) => Number.isFinite(n))
+        : [];
+      if (prevIds.some((x) => Number(x) === id)) return stats;
+
+      const nextIds = [...prevIds, id].slice(
+        Math.max(0, prevIds.length + 1 - MAX_COMPLETED_TASK_IDS)
+      );
+      let nextStats = {
+        ...stats,
+        tasksCompleted: Number(stats?.tasksCompleted ?? 0) + 1,
+        completedTaskIds: nextIds,
+      };
+
+      // Task completion grants XP (Phase 2 spec)
+      nextStats = grantXp(nextStats, {
+        amount: XP_PER_TASK_COMPLETION,
+        source: 'task_completed',
+        at: atIso,
+        meta: { taskId: id, ...(meta || {}) },
+      });
+
+      return nextStats;
+    },
+    [MAX_COMPLETED_TASK_IDS, XP_PER_TASK_COMPLETION, grantXp]
+  );
 
   const createPillarId = useCallback((pillars: { id: number }[]): number => {
     const max = pillars.reduce((acc, p) => Math.max(acc, Number(p.id) || 0), 0);
@@ -325,8 +932,59 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
   // TODO: OPTIMISTIC UI STATE - Phase 3 (temporarily disabled)
 
-  // Computed
-  const stuckCount = data.pillars.filter((p) => p.ninety_percent_alert).length;
+  const recomputePillarDerivedFields = useCallback((pillar: Pillar): Pillar => {
+    const now = new Date().toISOString();
+    const tasks = Array.isArray((pillar as any).tasks) ? ((pillar as any).tasks as any[]) : [];
+    const totalTasks = tasks.length;
+
+    if (totalTasks === 0) {
+      return {
+        ...pillar,
+        completion: 0,
+        // With no tasks, this goal is not "in progress" yet.
+        status: (pillar as any).status === 'done' ? 'done' : 'not_started',
+        ninety_percent_alert: false,
+        last_activity_date: now,
+      } as Pillar;
+    }
+
+    const doneTasks = tasks.filter(
+      (t) => t && (t.status === 'done' || Number(t.progress) === 100)
+    ).length;
+    const completion = Math.round((doneTasks / totalTasks) * 100);
+
+    // Anti‑90%: treat 70–99% unfinished as needing attention (stuck alert)
+    const stuckTasks = tasks.filter(
+      (t) => t && Number(t.progress) >= 70 && Number(t.progress) < 100 && t.status !== 'done'
+    ).length;
+    const ninety_percent_alert = stuckTasks > 0;
+
+    const status: Pillar['status'] =
+      completion === 100 ? 'done' : totalTasks > 0 ? 'in_progress' : 'not_started';
+
+    return {
+      ...pillar,
+      completion,
+      status,
+      ninety_percent_alert,
+      last_activity_date: now,
+    } as Pillar;
+  }, []);
+
+  // Computed (CRITICAL): count stuck TASKS (not pillars), only in active goals
+  const stuckCount = useMemo(() => {
+    const pillars = Array.isArray(data?.pillars) ? (data.pillars as any[]) : [];
+    return pillars.reduce((count, p) => {
+      const activation = (p?.activation ?? 'active') as string;
+      if (activation !== 'active') return count;
+      if (p?.status === 'done') return count;
+      const tasks = Array.isArray(p?.tasks) ? (p.tasks as any[]) : [];
+      const stuckTasks = tasks.filter(
+        (t) => t && Number(t.progress) >= 70 && Number(t.progress) < 100 && t.status !== 'done'
+      ).length;
+      return count + stuckTasks;
+    }, 0);
+  }, [data?.pillars]);
 
   // PROGRESSION INSIGHTS - ANTI-DIP SYSTEM
   const insights = useMemo(() => {
@@ -455,29 +1113,42 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           newProgress !== undefined ? newProgress : currentTask.progress >= 100 ? 0 : 100;
 
         // Update UI state immediately (optimistic update)
+        let didCompleteTask = false;
+        let didLevelUp = false;
+        let unlockedBadges: Array<{ achievementId: string; unlockedAt: string; reason?: string }> =
+          [];
+
         setData((prev) => {
-          const newPillars = prev.pillars.map((pillar) => ({
-            ...pillar,
-            tasks: pillar.tasks.map((task) => {
+          const statsBefore = getSafeUserStats(prev);
+          const levelBefore = Number(statsBefore?.level ?? 1) || 1;
+
+          const newPillars = prev.pillars.map((pillar) => {
+            const tasks = Array.isArray((pillar as any).tasks)
+              ? ((pillar as any).tasks as any[])
+              : [];
+            const contains = tasks.some(
+              (t) => t && (t.id === taskId || String(t.id) === String(taskId))
+            );
+            if (!contains) return pillar;
+
+            const updatedTasks = tasks.map((task) => {
               const taskIdMatches = task.id === taskId || String(task.id) === String(taskId);
+              if (!taskIdMatches) return task;
 
-              if (taskIdMatches) {
-                // Use enhanced update function with progress history
-                const updatedTask = updateTaskProgressWithHistory(task, targetProgress);
-
-                // Update stuck flag based on detectStuckAt90 result
-                if (targetProgress >= 90 && targetProgress < 100) {
-                  updatedTask.stuckAtNinety = detectStuckAt90(updatedTask);
-                } else if (targetProgress === 100) {
-                  // Edge case: task completed - immediately clear stuck flag
-                  updatedTask.stuckAtNinety = false;
-                }
-
-                return updatedTask;
+              const wasDone = isTaskDone(task);
+              const updatedTask = updateTaskProgressWithHistory(task, targetProgress);
+              const willBeDone = isTaskDone(updatedTask);
+              if (!wasDone && willBeDone) didCompleteTask = true;
+              if (targetProgress >= 90 && targetProgress < 100) {
+                updatedTask.stuckAtNinety = detectStuckAt90(updatedTask);
+              } else if (targetProgress === 100) {
+                updatedTask.stuckAtNinety = false;
               }
-              return task;
-            }),
-          }));
+              return updatedTask;
+            });
+
+            return recomputePillarDerivedFields({ ...(pillar as any), tasks: updatedTasks } as any);
+          });
 
           // Update insights immediately after task change
           const newInsights = {
@@ -501,12 +1172,51 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             weeklyReport: generateWeeklyProgressReport(newPillars),
           };
 
+          const nowIso = new Date().toISOString();
+          const prevStats = getSafeUserStats(prev);
+          let nextStats = prevStats;
+          if (didCompleteTask) {
+            nextStats = grantDailyBonusIfNeeded(nextStats, nowIso);
+            nextStats = registerTaskCompletionOnce(nextStats, Number(taskId), nowIso);
+          }
+          const levelAfter = Number(nextStats?.level ?? 1) || 1;
+          didLevelUp = levelAfter > levelBefore;
+
+          const achievementResult = applyAchievementUnlocks(prevStats, nextStats);
+          nextStats = achievementResult.nextStats;
+          unlockedBadges = achievementResult.newlyUnlocked;
+
           return {
             ...prev,
             pillars: newPillars,
             insights: newInsights,
+            userStats: nextStats,
           };
         });
+
+        // Feedback (only on explicit user action).
+        const g = (data as any)?.settings?.gamification ?? {
+          soundEnabled: true,
+          hapticsEnabled: true,
+        };
+        if (didCompleteTask) {
+          triggerTaskCompleteFeedback({
+            soundEnabled: Boolean(g.soundEnabled),
+            hapticsEnabled: Boolean(g.hapticsEnabled),
+          });
+        }
+        if (didLevelUp) {
+          triggerLevelUpFeedback({
+            soundEnabled: Boolean(g.soundEnabled),
+            hapticsEnabled: Boolean(g.hapticsEnabled),
+          });
+        }
+        if (unlockedBadges.length > 0) {
+          // Show only the first one to avoid spam.
+          const info = getBadgeInfo(String(unlockedBadges[0].achievementId || ''));
+          const desc = info.desc ? ` — ${info.desc}` : '';
+          showSuccess(`🏅 ${info.icon} ${info.title}${desc}`, 4000);
+        }
 
         // Store pending update for debounced execution
         const taskKey = String(taskId);
@@ -550,7 +1260,15 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         throw error;
       }
     },
-    [data.pillars]
+    [
+      data.pillars,
+      getSafeUserStats,
+      grantDailyBonusIfNeeded,
+      applyAchievementUnlocks,
+      isTaskDone,
+      recomputePillarDerivedFields,
+      registerTaskCompletionOnce,
+    ]
   );
 
   // Helper function to execute progress update with timeout
@@ -564,36 +1282,42 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const activateImplementationIntention = useCallback(
     async (
       taskId: number,
-      intentionData?: { trigger: string; action: string; active: boolean }
-    ) => {
+      intentionData?: Pick<ImplementationIntention, 'trigger' | 'action' | 'active'>
+    ): Promise<void> => {
       try {
         // Update local state
-        setData((prev) => ({
-          ...prev,
-          pillars: prev.pillars.map((pillar) => ({
-            ...pillar,
-            tasks: pillar.tasks.map((task) => {
-              if (task.id === taskId) {
-                return {
-                  ...task,
-                  implementationIntention: {
-                    trigger: intentionData?.trigger || task.implementationIntention?.trigger || '',
-                    action: intentionData?.action || task.implementationIntention?.action || '',
-                    active: intentionData?.active ?? true,
-                    lastTriggered: new Date().toISOString(),
-                  },
-                };
-              }
-              return task;
-            }),
-          })),
-        }));
+        setData((prev) => {
+          const nextPillars = prev.pillars.map((pillar) => {
+            const tasks = Array.isArray((pillar as any).tasks)
+              ? ((pillar as any).tasks as any[])
+              : [];
+            const contains = tasks.some((t) => t && Number(t.id) === Number(taskId));
+            if (!contains) return pillar;
+
+            const updatedTasks = tasks.map((task) => {
+              if (Number(task.id) !== Number(taskId)) return task;
+              return {
+                ...task,
+                implementationIntention: {
+                  trigger: intentionData?.trigger || task.implementationIntention?.trigger || '',
+                  action: intentionData?.action || task.implementationIntention?.action || '',
+                  active: intentionData?.active ?? true,
+                  lastTriggered: new Date().toISOString(),
+                },
+              };
+            });
+
+            return recomputePillarDerivedFields({ ...(pillar as any), tasks: updatedTasks } as any);
+          });
+
+          return { ...prev, pillars: nextPillars };
+        });
       } catch (error) {
         console.error('Failed to activate implementation intention:', error);
         throw error; // Re-throw to handle in component
       }
     },
-    []
+    [recomputePillarDerivedFields]
   );
 
   // ============================================================================
@@ -610,14 +1334,21 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         stuckAtNinety: boolean;
       }>
     ) => {
-      setData((prev) => ({
-        ...prev,
-        pillars: prev.pillars.map((pillar) => ({
-          ...pillar,
-          tasks: pillar.tasks.map((task) => {
-            if (task.id !== taskId) return task;
+      setData((prev) => {
+        let didCompleteTask = false;
+
+        const nextPillars = prev.pillars.map((pillar) => {
+          const tasks = Array.isArray((pillar as any).tasks)
+            ? ((pillar as any).tasks as any[])
+            : [];
+          const contains = tasks.some((t) => t && Number(t.id) === Number(taskId));
+          if (!contains) return pillar;
+
+          const updatedTasks = tasks.map((task) => {
+            if (Number(task.id) !== Number(taskId)) return task;
 
             let nextTask = task;
+            const wasDone = isTaskDone(task);
 
             if (updates.progress !== undefined) {
               nextTask = updateTaskProgressWithHistory(nextTask, updates.progress);
@@ -625,7 +1356,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
             if (updates.status !== undefined) {
               nextTask = { ...nextTask, status: updates.status };
-              // Keep status ↔ progress consistent for "done"
               if (updates.status === 'done') {
                 nextTask = updateTaskProgressWithHistory(nextTask, 100);
               }
@@ -648,17 +1378,41 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
               };
             }
 
+            const willBeDone = isTaskDone(nextTask);
+            if (!wasDone && willBeDone) didCompleteTask = true;
             return nextTask;
-          }),
-        })),
-      }));
+          });
+
+          return recomputePillarDerivedFields({ ...(pillar as any), tasks: updatedTasks } as any);
+        });
+
+        const nowIso = new Date().toISOString();
+        const prevStats = getSafeUserStats(prev);
+        let nextStats = prevStats;
+        if (didCompleteTask) {
+          nextStats = grantDailyBonusIfNeeded(nextStats, nowIso);
+          nextStats = registerTaskCompletionOnce(nextStats, Number(taskId), nowIso);
+        }
+
+        return { ...prev, pillars: nextPillars, userStats: nextStats };
+      });
     },
-    []
+    [
+      getSafeUserStats,
+      grantDailyBonusIfNeeded,
+      isTaskDone,
+      recomputePillarDerivedFields,
+      registerTaskCompletionOnce,
+    ]
   );
 
   const startFinishSession = useCallback(
-    (taskId: number, pillarId: number) => {
+    (taskId: number, pillarId: number, meta?: { microStep?: string }) => {
       const now = new Date().toISOString();
+      const microStep = (() => {
+        const s = typeof meta?.microStep === 'string' ? meta.microStep.trim() : '';
+        return s ? s.slice(0, 200) : undefined;
+      })();
       const newSession: FinishSession = {
         id: createFinishSessionId(),
         taskId,
@@ -666,6 +1420,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         startTime: now,
         endTime: null,
         status: 'in_progress',
+        ...(microStep ? { microStep } : {}),
       };
 
       setData((prev) => {
@@ -692,11 +1447,31 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           nextHistory = nextHistory.slice(nextHistory.length - MAX_HISTORY);
         }
 
+        // Update declaration status to 'in_progress' if exists
+        const declarations = Array.isArray((prev as any).declarations)
+          ? (prev as any).declarations
+          : [];
+        const updatedDeclarations = declarations.map((d: any) => {
+          if (
+            d.taskId === taskId &&
+            d.goalId === pillarId &&
+            (d.status === 'pending' || d.status === 'active')
+          ) {
+            return {
+              ...d,
+              status: 'in_progress',
+              startedAt: d.startedAt || now,
+            };
+          }
+          return d;
+        });
+
         return {
           ...prev,
           currentFinishSession: newSession,
           finishSessionsHistory: nextHistory,
-        };
+          declarations: updatedDeclarations,
+        } as AppData;
       });
     },
     [createFinishSessionId]
@@ -722,11 +1497,23 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           }
         : undefined;
 
+      let didLevelUp = false;
+      let unlockedBadges: Array<{ achievementId: string; unlockedAt: string; reason?: string }> =
+        [];
       setData((prev) => {
         const current = (prev as any).currentFinishSession as FinishSession | null | undefined;
         if (!current || current.id !== sessionId) {
           return prev;
         }
+
+        const didCompleteSession = payload.status === 'completed';
+        const focusMinutes = (() => {
+          if (!didCompleteSession) return 0;
+          const startMs = new Date(current.startTime).getTime();
+          const endMs = new Date(now).getTime();
+          if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs < startMs) return 0;
+          return Math.max(0, Math.floor((endMs - startMs) / 60000));
+        })();
 
         const ended: FinishSession = {
           ...current,
@@ -746,10 +1533,17 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           nextHistory = nextHistory.slice(nextHistory.length - MAX_HISTORY);
         }
 
+        const prevTask =
+          prev.pillars
+            .find((p: any) => Number(p.id) === Number(current.pillarId))
+            ?.tasks?.find((t: any) => Number(t.id) === Number(current.taskId)) ?? null;
+        const wasTaskDone = isTaskDone(prevTask);
+
         const nextPillars = classification
-          ? prev.pillars.map((pillar) => ({
-              ...pillar,
-              tasks: pillar.tasks.map((task) => {
+          ? prev.pillars.map((pillar) => {
+              if (pillar.id !== current.pillarId) return pillar;
+
+              const updatedTasks = pillar.tasks.map((task) => {
                 if (task.id !== current.taskId) return task;
 
                 const cls = classification.status;
@@ -760,9 +1554,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
                   return {
                     ...progressed,
                     status: 'done',
-                    // Preserve existing completedAt if already set
                     completedAt: task.completedAt ?? now,
-                    // Redundant safety: ensure stuck flag is cleared when done
                     stuckAtNinety: false,
                   };
                 }
@@ -779,26 +1571,201 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
                   ...task,
                   status: 'active',
                 };
-              }),
-            }))
+              });
+
+              return recomputePillarDerivedFields({
+                ...(pillar as any),
+                tasks: updatedTasks,
+              } as any);
+            })
           : prev.pillars;
+
+        const nextTask =
+          nextPillars
+            .find((p: any) => Number(p.id) === Number(current.pillarId))
+            ?.tasks?.find((t: any) => Number(t.id) === Number(current.taskId)) ?? null;
+        const willBeTaskDone = isTaskDone(nextTask);
+        const didCompleteTask = !wasTaskDone && willBeTaskDone;
+
+        // Update declaration status if task is completed
+        const declarations = Array.isArray((prev as any).declarations)
+          ? (prev as any).declarations
+          : [];
+        let updatedDeclarations = declarations;
+
+        if (payload.status === 'completed') {
+          // Find declaration for this task
+          const declaration = declarations.find(
+            (d: any) => d.taskId === current.taskId && d.goalId === current.pillarId
+          );
+
+          if (declaration && declaration.status !== 'completed') {
+            // Check if task is actually completed (progress >= 100 or status === 'done')
+            const pillar = nextPillars.find((p: any) => p.id === current.pillarId);
+            const task = pillar?.tasks?.find((t: any) => t.id === current.taskId);
+
+            const isTaskCompleted =
+              task &&
+              (task.progress >= 100 || task.status === 'done' || task.status === 'completed');
+
+            if (isTaskCompleted) {
+              // Check Done Criteria if defined
+              const doneCriteria = declaration.doneCriteria || [];
+              const allCriteriaMet =
+                doneCriteria.length === 0 || doneCriteria.every((c: any) => c.completed === true);
+
+              if (allCriteriaMet) {
+                updatedDeclarations = declarations.map((d: any) => {
+                  if (d.id === declaration.id) {
+                    return {
+                      ...d,
+                      status: 'completed',
+                      completedAt: d.completedAt || now,
+                    };
+                  }
+                  return d;
+                });
+              }
+            }
+          }
+        }
+
+        const prevStats = getSafeUserStats(prev);
+        const levelBefore = Number(prevStats?.level ?? 1) || 1;
+        let nextStats = prevStats;
+
+        // If something meaningful happened today, grant daily bonus once.
+        if (didCompleteSession || didCompleteTask) {
+          nextStats = grantDailyBonusIfNeeded(nextStats, now);
+        }
+
+        // Task completion (only once lifetime) + task XP
+        if (didCompleteTask) {
+          nextStats = registerTaskCompletionOnce(nextStats, Number(current.taskId), now, {
+            pillarId: Number(current.pillarId),
+          });
+        }
+
+        if (didCompleteSession) {
+          // Focus XP
+          if (focusMinutes > 0) {
+            nextStats = grantXp(nextStats, {
+              amount: focusMinutes * XP_PER_FOCUS_MINUTE,
+              source: 'finish_session_minutes',
+              at: now,
+              meta: {
+                sessionId: String(sessionId),
+                taskId: Number(current.taskId),
+                pillarId: Number(current.pillarId),
+                minutes: focusMinutes,
+              },
+            });
+          }
+
+          // Session counters + streaks
+          const streakDays = computeMainGoalStreakDaysFromHistory(
+            nextPillars,
+            nextHistory,
+            new Date(now)
+          );
+          const longest = Math.max(Number(nextStats.longestStreakDays ?? 0), streakDays);
+          const lastActivityDate = toLocalDateKey(new Date(now));
+
+          nextStats = {
+            ...nextStats,
+            totalFocusMinutes: Number(nextStats.totalFocusMinutes ?? 0) + focusMinutes,
+            finishSessionsCompleted: Number(nextStats.finishSessionsCompleted ?? 0) + 1,
+            currentStreakDays: streakDays,
+            longestStreakDays: longest,
+            lastActivityDate,
+          };
+        }
+
+        // Safety: keep nextLevelXp coherent even if older data had it missing.
+        const coercedLevel = computeLevelFromXp(Number(nextStats.xp ?? 0));
+        const coercedNextLevelXp = computeNextLevelXp(Number(nextStats.xp ?? 0), coercedLevel);
+        nextStats = { ...nextStats, level: coercedLevel, nextLevelXp: coercedNextLevelXp };
+
+        const levelAfter = Number(nextStats?.level ?? 1) || 1;
+        didLevelUp = levelAfter > levelBefore;
+
+        const achievementResult = applyAchievementUnlocks(prevStats, nextStats);
+        nextStats = achievementResult.nextStats;
+        unlockedBadges = achievementResult.newlyUnlocked;
+
+        const nextStatsWithLedger = nextStats;
+
+        const nextLegacyUser = didCompleteSession
+          ? {
+              ...prev.user,
+              streak: Number(
+                (nextStatsWithLedger as any).currentStreakDays ?? prev.user.streak ?? 0
+              ),
+            }
+          : prev.user;
 
         return {
           ...prev,
           currentFinishSession: null,
           finishSessionsHistory: nextHistory,
           pillars: nextPillars,
-        };
+          declarations: updatedDeclarations,
+          user: nextLegacyUser,
+          userStats: nextStatsWithLedger,
+        } as AppData;
       });
+
+      // Feedback: level-up fanfare (user pressed a button).
+      if (didLevelUp) {
+        const g = (data as any)?.settings?.gamification ?? {
+          soundEnabled: true,
+          hapticsEnabled: true,
+        };
+        triggerLevelUpFeedback({
+          soundEnabled: Boolean(g.soundEnabled),
+          hapticsEnabled: Boolean(g.hapticsEnabled),
+        });
+      }
+      if (unlockedBadges.length > 0) {
+        const info = getBadgeInfo(String(unlockedBadges[0].achievementId || ''));
+        const desc = info.desc ? ` — ${info.desc}` : '';
+        showSuccess(`🏅 ${info.icon} ${info.title}${desc}`, 4000);
+      }
     },
-    []
+    [
+      XP_PER_FOCUS_MINUTE,
+      computeLevelFromXp,
+      computeMainGoalStreakDaysFromHistory,
+      computeNextLevelXp,
+      getSafeUserStats,
+      grantDailyBonusIfNeeded,
+      grantXp,
+      applyAchievementUnlocks,
+      isTaskDone,
+      recomputePillarDerivedFields,
+      registerTaskCompletionOnce,
+      setData,
+      toLocalDateKey,
+    ]
   );
 
   const handleUpdateSettings = useCallback((updates: Partial<AppData['settings']>) => {
-    setData((prev) => ({
-      ...prev,
-      settings: { ...prev.settings, ...updates },
-    }));
+    setData((prev) => {
+      const nextAi = {
+        ...((prev.settings as any)?.ai ?? {}),
+        ...((updates as any)?.ai ?? {}),
+      };
+
+      // SECURITY: API key lives in secureStorage, not in AppData exports.
+      if (typeof nextAi?.apiKey === 'string') {
+        nextAi.apiKey = '';
+      }
+
+      return {
+        ...prev,
+        settings: { ...prev.settings, ...updates, ai: nextAi },
+      };
+    });
   }, []);
 
   const handleUpdateChatHistory = useCallback((history: AppData['aiChatHistory']) => {
@@ -808,12 +1775,13 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }));
   }, []);
 
-  const [aiStatus, setAiStatus] = useState<{ state: 'online' | 'offline' | 'disabled'; updatedAt: string | null }>(
-    () => ({
-      state: data?.settings?.ai?.enabled ? 'offline' : 'disabled',
-      updatedAt: null,
-    })
-  );
+  const [aiStatus, setAiStatus] = useState<{
+    state: 'online' | 'offline' | 'disabled';
+    updatedAt: string | null;
+  }>(() => ({
+    state: data?.settings?.ai?.enabled ? 'offline' : 'disabled',
+    updatedAt: null,
+  }));
 
   useEffect(() => {
     const enabled = Boolean((data as any)?.settings?.ai?.enabled);
@@ -835,7 +1803,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             : [];
           const now = new Date().toISOString();
           const makeId = () => `chat_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-          const next = [...prevHistory, { id: makeId(), role: 'assistant', content: err, timestamp: now }];
+          const next = [
+            ...prevHistory,
+            { id: makeId(), role: 'assistant', content: err, timestamp: now },
+          ];
           const MAX = 120;
           return { ...prev, aiChatHistory: next.slice(Math.max(0, next.length - MAX)) };
         });
@@ -847,25 +1818,86 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       const now = new Date().toISOString();
       const makeId = () => `chat_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      const MAX_GLOBAL = 120;
+      const MAX_PER_GOAL = 120;
 
-      // Optimistically append user message.
-      setData((prev) => {
-        const prevHistory = Array.isArray((prev as any).aiChatHistory) ? (prev as any).aiChatHistory : [];
-        const next = [
-          ...prevHistory,
-          { id: makeId(), role: 'user', content: message, timestamp: now },
-        ];
-        const MAX = 120;
-        return { ...prev, aiChatHistory: next.slice(Math.max(0, next.length - MAX)) };
-      });
-
-      // Build prompt based on the latest snapshot of context.
+      // Build prompt based on a local snapshot (includes the user's new message).
       const snapshot = (() => {
         const d = data;
         const activeId = activeProjectId;
-        const pillarId = activeId ?? (d.pillars.find((p: any) => p.type === 'main') as any)?.id ?? null;
-        return { d, pillarId };
+        const pillarId =
+          activeId ?? (d.pillars.find((p: any) => p.type === 'main') as any)?.id ?? null;
+
+        const userMsg = { id: makeId(), role: 'user', content: message, timestamp: now };
+
+        const prevGlobal = Array.isArray((d as any).aiChatHistory) ? (d as any).aiChatHistory : [];
+        const nextGlobal = [...prevGlobal, userMsg].slice(
+          Math.max(0, prevGlobal.length + 1 - MAX_GLOBAL)
+        );
+
+        const nextPillars = Array.isArray((d as any).pillars)
+          ? (d as any).pillars.map((p: any) => {
+              if (!pillarId || Number(p?.id) !== Number(pillarId)) return p;
+              const existing = p?.aiContext || {};
+              const history = Array.isArray(existing.conversationHistory)
+                ? existing.conversationHistory
+                : [];
+              const nextHistory = [...history, userMsg].slice(
+                Math.max(0, history.length + 1 - MAX_PER_GOAL)
+              );
+              return {
+                ...p,
+                aiContext: {
+                  ...(existing || {}),
+                  tone: (existing.tone ?? p.aiTone ?? 'psychoeducation') as any,
+                  conversationHistory: nextHistory,
+                },
+              };
+            })
+          : [];
+
+        const dForPrompt = {
+          ...(d as any),
+          aiChatHistory: nextGlobal,
+          pillars: nextPillars,
+        } as AppData;
+
+        return { d: dForPrompt, pillarId, userMsg };
       })();
+
+      // Optimistically persist the user's message both globally (legacy) and per-goal.
+      setData((prev) => {
+        const prevGlobal = Array.isArray((prev as any).aiChatHistory)
+          ? (prev as any).aiChatHistory
+          : [];
+        const nextGlobal = [...prevGlobal, snapshot.userMsg].slice(
+          Math.max(0, prevGlobal.length + 1 - MAX_GLOBAL)
+        );
+
+        const pillarId = snapshot.pillarId;
+        const nextPillars = Array.isArray((prev as any).pillars)
+          ? (prev as any).pillars.map((p: any) => {
+              if (!pillarId || Number(p?.id) !== Number(pillarId)) return p;
+              const existing = p?.aiContext || {};
+              const history = Array.isArray(existing.conversationHistory)
+                ? existing.conversationHistory
+                : [];
+              const nextHistory = [...history, snapshot.userMsg].slice(
+                Math.max(0, history.length + 1 - MAX_PER_GOAL)
+              );
+              return {
+                ...p,
+                aiContext: {
+                  ...(existing || {}),
+                  tone: (existing.tone ?? p.aiTone ?? 'psychoeducation') as any,
+                  conversationHistory: nextHistory,
+                },
+              };
+            })
+          : [];
+
+        return { ...(prev as any), aiChatHistory: nextGlobal, pillars: nextPillars } as AppData;
+      });
 
       // If AI is disabled in settings, return a deterministic response.
       const aiEnabled = Boolean((snapshot.d as any)?.settings?.ai?.enabled);
@@ -874,19 +1906,21 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       if (!aiEnabled) {
         setAiStatus({ state: 'disabled', updatedAt: new Date().toISOString() });
         assistantText =
-          'AI jest wyłączone. Otwórz Config (⚙) → AI Assistant → Enable AI Support i ustaw API key (Groq).';
+          'AI jest wyłączone. Otwórz Ustawienia (⚙) → Asystent AI → włącz wsparcie AI i ustaw klucz API.';
       } else {
-        const apiKey = String((snapshot.d as any)?.settings?.ai?.apiKey ?? '').trim();
+        const apiKey =
+          secureStorage.getApiKey() ||
+          String((snapshot.d as any)?.settings?.ai?.apiKey ?? '').trim();
         if (!apiKey) {
           setAiStatus({ state: 'offline', updatedAt: new Date().toISOString() });
           assistantText =
-            'AI jest włączone, ale brakuje API key. Otwórz Config (⚙) → AI Assistant → wklej API key (Groq).';
+            'AI jest włączone, ale brakuje klucza API. Otwórz Ustawienia (⚙) → Asystent AI → wklej klucz API.';
         } else {
-        const prompt = buildAssistantChatPrompt({
-          data: snapshot.d,
-          message,
-          primaryPillarId: snapshot.pillarId,
-        });
+          const prompt = buildAssistantChatPrompt({
+            data: snapshot.d,
+            message,
+            primaryPillarId: snapshot.pillarId,
+          });
 
           assistantText = await providerGenerateText(
             { apiKey, prompt, temperature: 0.6, maxTokens: 700, maxLen: 700 },
@@ -909,17 +1943,261 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       // Append assistant response.
       setData((prev) => {
-        const prevHistory = Array.isArray((prev as any).aiChatHistory) ? (prev as any).aiChatHistory : [];
-        const next = [
-          ...prevHistory,
-          { id: makeId(), role: 'assistant', content: assistantText as string, timestamp: new Date().toISOString() },
-        ];
-        const MAX = 120;
-        return { ...prev, aiChatHistory: next.slice(Math.max(0, next.length - MAX)) };
+        const assistantMsg = {
+          id: makeId(),
+          role: 'assistant',
+          content: assistantText as string,
+          timestamp: new Date().toISOString(),
+        };
+
+        const prevGlobal = Array.isArray((prev as any).aiChatHistory)
+          ? (prev as any).aiChatHistory
+          : [];
+        const nextGlobal = [...prevGlobal, assistantMsg].slice(
+          Math.max(0, prevGlobal.length + 1 - MAX_GLOBAL)
+        );
+
+        const pillarId = snapshot.pillarId;
+        const nextPillars = Array.isArray((prev as any).pillars)
+          ? (prev as any).pillars.map((p: any) => {
+              if (!pillarId || Number(p?.id) !== Number(pillarId)) return p;
+              const existing = p?.aiContext || {};
+              const history = Array.isArray(existing.conversationHistory)
+                ? existing.conversationHistory
+                : [];
+              const nextHistory = [...history, assistantMsg].slice(
+                Math.max(0, history.length + 1 - MAX_PER_GOAL)
+              );
+              return {
+                ...p,
+                aiContext: {
+                  ...(existing || {}),
+                  tone: (existing.tone ?? p.aiTone ?? 'psychoeducation') as any,
+                  conversationHistory: nextHistory,
+                },
+              };
+            })
+          : [];
+
+        return { ...(prev as any), aiChatHistory: nextGlobal, pillars: nextPillars } as AppData;
       });
     },
     [activeProjectId, data]
   );
+
+  /**
+   * Goal Strategist chat (new chat): per-goal history + per-goal context.
+   * ARCH: 1 agent = 1 source of truth config => Pillar.aiContext (customInstructions + conversationHistory).
+   * responseMode is UI-only; not persisted in types.ts (optional localStorage in UI).
+   */
+  const sendGoalChatMessage = useCallback(
+    async (payload: {
+      goalId: number;
+      message: string;
+      responseMode: 'strict' | 'psycho' | 'facts';
+    }) => {
+      const goalId = Number(payload.goalId);
+      if (!Number.isFinite(goalId)) return;
+
+      const validation = validateChatMessage(payload.message);
+      if (!validation.isValid) {
+        const err = validation.error || 'Invalid message';
+        // Best-effort: append assistant error only to this goal history (do not touch global legacy history).
+        setData((prev) => {
+          const now = new Date().toISOString();
+          const makeId = () => `chat_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+          const assistantMsg = { id: makeId(), role: 'assistant', content: err, timestamp: now };
+          const MAX_PER_GOAL = 120;
+
+          const nextPillars = Array.isArray((prev as any).pillars)
+            ? (prev as any).pillars.map((p: any) => {
+                if (Number(p?.id) !== goalId) return p;
+                const existing = p?.aiContext || {};
+                const history = Array.isArray(existing.conversationHistory)
+                  ? existing.conversationHistory
+                  : [];
+                const nextHistory = [...history, assistantMsg].slice(
+                  Math.max(0, history.length + 1 - MAX_PER_GOAL)
+                );
+                return {
+                  ...p,
+                  aiContext: {
+                    ...(existing || {}),
+                    tone: (existing.tone ?? p.aiTone ?? 'psychoeducation') as any,
+                    conversationHistory: nextHistory,
+                  },
+                };
+              })
+            : [];
+
+          return { ...(prev as any), pillars: nextPillars } as AppData;
+        });
+        return;
+      }
+
+      const message = (validation.sanitized || '').trim();
+      if (!message) return;
+
+      const now = new Date().toISOString();
+      const makeId = () => `chat_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      const MAX_PER_GOAL = 120;
+
+      // Build prompt based on a local snapshot (includes the user's new message).
+      const snapshot = (() => {
+        const d = data;
+        const userMsg = { id: makeId(), role: 'user', content: message, timestamp: now };
+
+        const nextPillars = Array.isArray((d as any).pillars)
+          ? (d as any).pillars.map((p: any) => {
+              if (Number(p?.id) !== goalId) return p;
+              const existing = p?.aiContext || {};
+              const history = Array.isArray(existing.conversationHistory)
+                ? existing.conversationHistory
+                : [];
+              const nextHistory = [...history, userMsg].slice(
+                Math.max(0, history.length + 1 - MAX_PER_GOAL)
+              );
+              return {
+                ...p,
+                aiContext: {
+                  ...(existing || {}),
+                  tone: (existing.tone ?? p.aiTone ?? 'psychoeducation') as any,
+                  conversationHistory: nextHistory,
+                },
+              };
+            })
+          : [];
+
+        const dForPrompt = {
+          ...(d as any),
+          pillars: nextPillars,
+        } as AppData;
+
+        return { d: dForPrompt, userMsg };
+      })();
+
+      // Optimistically persist the user's message for this goal.
+      setData((prev) => {
+        const nextPillars = Array.isArray((prev as any).pillars)
+          ? (prev as any).pillars.map((p: any) => {
+              if (Number(p?.id) !== goalId) return p;
+              const existing = p?.aiContext || {};
+              const history = Array.isArray(existing.conversationHistory)
+                ? existing.conversationHistory
+                : [];
+              const nextHistory = [...history, snapshot.userMsg].slice(
+                Math.max(0, history.length + 1 - MAX_PER_GOAL)
+              );
+              return {
+                ...p,
+                aiContext: {
+                  ...(existing || {}),
+                  tone: (existing.tone ?? p.aiTone ?? 'psychoeducation') as any,
+                  conversationHistory: nextHistory,
+                },
+              };
+            })
+          : [];
+
+        return { ...(prev as any), pillars: nextPillars } as AppData;
+      });
+
+      // Determine if AI is enabled.
+      const aiEnabled = Boolean((snapshot.d as any)?.settings?.ai?.enabled);
+      let assistantText: string | null = null;
+
+      if (!aiEnabled) {
+        setAiStatus({ state: 'disabled', updatedAt: new Date().toISOString() });
+        assistantText =
+          'AI jest wyłączone. Otwórz Ustawienia (⚙) → Asystent AI → włącz wsparcie AI i ustaw klucz API.';
+      } else {
+        const apiKey =
+          secureStorage.getApiKey() ||
+          String((snapshot.d as any)?.settings?.ai?.apiKey ?? '').trim();
+        if (!apiKey) {
+          setAiStatus({ state: 'offline', updatedAt: new Date().toISOString() });
+          assistantText =
+            'AI jest włączone, ale brakuje klucza API. Otwórz Ustawienia (⚙) → Asystent AI → wklej klucz API.';
+        } else {
+          const prompt = buildGoalStrategistChatPrompt({
+            data: snapshot.d,
+            goalId,
+            message,
+            responseMode: payload.responseMode,
+          });
+
+          assistantText = await providerGenerateText(
+            { apiKey, prompt, temperature: 0.55, maxTokens: 900, maxLen: 1200 },
+            { timeoutMs: API_REQUEST_TIMEOUT_MS }
+          );
+
+          if (!assistantText) {
+            setAiStatus({ state: 'offline', updatedAt: new Date().toISOString() });
+            assistantText =
+              'AI niedostępne (provider offline / timeout). Mikrokrok: wybierz 1 zadanie z tego celu i dopisz 3 punkty Definicji DONE.';
+          } else {
+            setAiStatus({ state: 'online', updatedAt: new Date().toISOString() });
+          }
+        }
+      }
+
+      // Append assistant response to this goal history.
+      setData((prev) => {
+        const assistantMsg = {
+          id: makeId(),
+          role: 'assistant',
+          content: (assistantText as string) || '',
+          timestamp: new Date().toISOString(),
+        };
+
+        const nextPillars = Array.isArray((prev as any).pillars)
+          ? (prev as any).pillars.map((p: any) => {
+              if (Number(p?.id) !== goalId) return p;
+              const existing = p?.aiContext || {};
+              const history = Array.isArray(existing.conversationHistory)
+                ? existing.conversationHistory
+                : [];
+              const nextHistory = [...history, assistantMsg].slice(
+                Math.max(0, history.length + 1 - MAX_PER_GOAL)
+              );
+              return {
+                ...p,
+                aiContext: {
+                  ...(existing || {}),
+                  tone: (existing.tone ?? p.aiTone ?? 'psychoeducation') as any,
+                  conversationHistory: nextHistory,
+                },
+              };
+            })
+          : [];
+
+        return { ...(prev as any), pillars: nextPillars } as AppData;
+      });
+    },
+    [data]
+  );
+
+  const clearGoalAIHistory = useCallback((goalId: number) => {
+    const id = Number(goalId);
+    if (!Number.isFinite(id)) return;
+
+    setData((prev) => {
+      const nextPillars = (prev.pillars || []).map((p: any) => {
+        if (Number(p?.id) !== id) return p;
+        const existing = p?.aiContext || {};
+        const tone = (existing.tone ?? p.aiTone ?? 'psychoeducation') as any;
+        return {
+          ...p,
+          aiContext: {
+            ...(existing || {}),
+            tone,
+            conversationHistory: [],
+          },
+        };
+      });
+      return { ...prev, pillars: nextPillars } as AppData;
+    });
+  }, []);
 
   // ============================================================================
   // GOALS / PILLARS (D-003, D-031) - minimal helpers
@@ -930,8 +2208,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       name: string;
       description?: string;
       type?: 'main' | 'secondary' | 'lab';
-      strategy?: string;
+      strategy?: string | GoalStrategy;
+      strategyText?: string;
       aiTone?: 'military' | 'psychoeducation' | 'raw_facts';
+      aiCustomInstructions?: string;
     }) => {
       const name = payload.name?.trim();
       if (!name) return;
@@ -939,8 +2219,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       setData((prev) => {
         // D-003: max 3 active goals (finish-first)
         // We treat "active" as: status !== 'done' AND activation === 'active'.
-        const maxActive =
-          Number((prev as any)?.settings?.goals?.maxActive ?? 3) || 3;
+        const maxActive = Number((prev as any)?.settings?.goals?.maxActive ?? 3) || 3;
         const activeCount = (prev.pillars || []).filter(
           (p: any) => p.status !== 'done' && (p.activation ?? 'active') === 'active'
         ).length;
@@ -957,6 +2236,31 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         }
 
         const nextId = createPillarId(prev.pillars);
+        const tone: GoalAiTone = (payload.aiTone ?? 'psychoeducation') as any;
+        const customInstructions =
+          typeof payload.aiCustomInstructions === 'string'
+            ? payload.aiCustomInstructions.trim()
+            : '';
+
+        const legacyStrategyText =
+          typeof payload.strategyText === 'string'
+            ? payload.strategyText.trim()
+            : typeof payload.strategy === 'string'
+              ? payload.strategy.trim()
+              : '';
+
+        const strategyObj: GoalStrategy =
+          payload.strategy && typeof payload.strategy === 'object'
+            ? payload.strategy
+            : {
+                vision: '',
+                successCriteria: [],
+                milestones: [],
+                ifThenPlans: [],
+                obstacles: [],
+                aiContext: { tone, ...(customInstructions ? { customInstructions } : {}) },
+              };
+
         const newPillar = {
           id: nextId,
           name,
@@ -970,8 +2274,14 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           tasks: [],
           activation: 'active' as const,
           type: payload.type ?? 'secondary',
-          strategy: payload.strategy?.trim() || '',
-          aiTone: payload.aiTone ?? 'psychoeducation',
+          strategy: strategyObj,
+          ...(legacyStrategyText ? { strategyText: legacyStrategyText } : {}),
+          aiTone: tone,
+          aiContext: {
+            tone,
+            ...(customInstructions ? { customInstructions } : {}),
+            conversationHistory: [],
+          },
           rewards: [],
         };
 
@@ -997,9 +2307,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         name: string;
         description: string;
         type: 'main' | 'secondary' | 'lab';
-        strategy: string;
+        strategy: string | GoalStrategy;
+        strategyText: string;
         aiTone: 'military' | 'psychoeducation' | 'raw_facts';
         activation: 'active' | 'backlog';
+        aiContext: Partial<GoalAIContext>;
       }>
     ) => {
       setData((prev) => {
@@ -1010,7 +2322,9 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
             (p: any) => p.status !== 'done' && (p.activation ?? 'active') === 'active'
           ).length;
           const target = prev.pillars.find((p: any) => p.id === pillarId) as any;
-          const targetAlreadyActive = Boolean(target && (target.activation ?? 'active') === 'active');
+          const targetAlreadyActive = Boolean(
+            target && (target.activation ?? 'active') === 'active'
+          );
 
           if (!targetAlreadyActive && currentActiveCount >= maxActive) {
             const msg =
@@ -1033,14 +2347,95 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
             if (p.id !== pillarId) return p;
 
+            const validAiTones = new Set(['military', 'psychoeducation', 'raw_facts']);
+
+            const nextAiTone: GoalAiTone =
+              updates.aiTone !== undefined
+                ? (updates.aiTone as any)
+                : (p.aiTone as any) || (p.aiContext as any)?.tone || 'psychoeducation';
+
+            const nextAiContext: GoalAIContext = (() => {
+              const existing: any = p.aiContext || {};
+              const existingHistory = Array.isArray(existing.conversationHistory)
+                ? existing.conversationHistory
+                : [];
+              const merged = { ...existing, ...(updates.aiContext ?? {}) };
+              const customInstructions =
+                typeof merged.customInstructions === 'string'
+                  ? merged.customInstructions
+                  : undefined;
+              return {
+                tone: validAiTones.has(merged.tone) ? merged.tone : nextAiTone,
+                ...(customInstructions ? { customInstructions } : {}),
+                conversationHistory: existingHistory,
+              };
+            })();
+
+            const nextStrategyText =
+              updates.strategyText !== undefined
+                ? String(updates.strategyText)
+                : typeof updates.strategy === 'string'
+                  ? String(updates.strategy)
+                  : (p as any).strategyText;
+
+            const nextStrategy: GoalStrategy = (() => {
+              const existing =
+                p.strategy && typeof p.strategy === 'object' ? (p.strategy as any) : null;
+
+              if (updates.strategy && typeof updates.strategy === 'object') {
+                return updates.strategy;
+              }
+
+              // If caller only provided legacy string, keep existing structured object (or create default)
+              if (existing) {
+                const sAi =
+                  existing.aiContext && typeof existing.aiContext === 'object'
+                    ? existing.aiContext
+                    : {};
+                return {
+                  vision: typeof existing.vision === 'string' ? existing.vision : '',
+                  successCriteria: Array.isArray(existing.successCriteria)
+                    ? existing.successCriteria
+                    : [],
+                  milestones: Array.isArray(existing.milestones) ? existing.milestones : [],
+                  ifThenPlans: Array.isArray(existing.ifThenPlans) ? existing.ifThenPlans : [],
+                  obstacles: Array.isArray(existing.obstacles) ? existing.obstacles : [],
+                  aiContext: {
+                    tone: validAiTones.has(sAi.tone) ? sAi.tone : nextAiTone,
+                    ...(typeof sAi.customInstructions === 'string'
+                      ? { customInstructions: sAi.customInstructions }
+                      : nextAiContext.customInstructions
+                        ? { customInstructions: nextAiContext.customInstructions }
+                        : {}),
+                  },
+                };
+              }
+
+              return {
+                vision: '',
+                successCriteria: [],
+                milestones: [],
+                ifThenPlans: [],
+                obstacles: [],
+                aiContext: {
+                  tone: nextAiTone,
+                  ...(nextAiContext.customInstructions
+                    ? { customInstructions: nextAiContext.customInstructions }
+                    : {}),
+                },
+              };
+            })();
+
             return {
               ...p,
               ...(updates.name !== undefined ? { name: updates.name } : {}),
               ...(updates.description !== undefined ? { description: updates.description } : {}),
               ...(updates.type !== undefined ? { type: updates.type } : {}),
-              ...(updates.strategy !== undefined ? { strategy: updates.strategy } : {}),
+              ...(updates.strategy !== undefined ? { strategy: nextStrategy } : {}),
+              ...(nextStrategyText !== undefined ? { strategyText: nextStrategyText } : {}),
               ...(updates.aiTone !== undefined ? { aiTone: updates.aiTone } : {}),
               ...(updates.activation !== undefined ? { activation: updates.activation } : {}),
+              ...(updates.aiContext !== undefined ? { aiContext: nextAiContext } : {}),
             };
           }),
         };
@@ -1341,12 +2736,18 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       const aiEnabled = Boolean((data as any)?.settings?.ai?.enabled);
       if (!aiEnabled) return;
 
-      const apiKey = String((data as any)?.settings?.ai?.apiKey ?? '').trim();
+      const apiKey =
+        secureStorage.getApiKey() || String((data as any)?.settings?.ai?.apiKey ?? '').trim();
 
       try {
-        const name = String(task?.name ?? '').trim().slice(0, 140) || 'zadaniu';
+        const name =
+          String(task?.name ?? '')
+            .trim()
+            .slice(0, 140) || 'zadaniu';
         const progress = Math.max(0, Math.min(100, Math.round(Number(task?.progress ?? 0) || 0)));
-        const done = String(task?.definitionOfDone ?? '').trim().slice(0, 140);
+        const done = String(task?.definitionOfDone ?? '')
+          .trim()
+          .slice(0, 140);
 
         const prompt = `Użytkownik utknął na ${progress}% w zadaniu "${name}".
 Daj mu jedną, brutalnie szczerą poradę w stylu Navy SEALs, jak dobić do 100%.
@@ -1367,21 +2768,27 @@ Max 20 słów. Bez waty.`;
         if (aiNudge && aiNudge.length <= 200) {
           // Local-first: persist nudge inside task for later display (no backend dependency).
           const now = new Date().toISOString();
-          setData((prev) => ({
-            ...prev,
-            pillars: prev.pillars.map((p) => ({
-              ...p,
-              tasks: (p.tasks || []).map((t) =>
+          setData((prev) => {
+            const nextPillars = prev.pillars.map((p) => {
+              const tasks = Array.isArray((p as any).tasks) ? ((p as any).tasks as any[]) : [];
+              const contains = tasks.some((t) => t && Number(t.id) === Number(task.id));
+              if (!contains) return p;
+
+              const updatedTasks = tasks.map((t) =>
                 t.id === task.id ? { ...(t as any), aiNudge, aiNudgeGeneratedAt: now } : t
-              ),
-            })),
-          }));
+              );
+
+              return recomputePillarDerivedFields({ ...(p as any), tasks: updatedTasks } as any);
+            });
+
+            return { ...prev, pillars: nextPillars };
+          });
         }
       } catch (error) {
         console.warn('AI nudge generation failed (provider), skipped:', error);
       }
     },
-    [data]
+    [data, recomputePillarDerivedFields]
   );
 
   // Context value
@@ -1404,6 +2811,7 @@ Max 20 słów. Bez waty.`;
     isTimerRunning,
     timerState,
     stuckCount,
+    recomputePillarDerivedFields,
 
     // PROGRESSION INSIGHTS
     insights,
@@ -1429,6 +2837,8 @@ Max 20 słów. Bez waty.`;
     handleUpdateSettings,
     handleUpdateChatHistory,
     sendAICoachMessage,
+    sendGoalChatMessage,
+    clearGoalAIHistory,
     aiStatus,
 
     // Finish Mode session API

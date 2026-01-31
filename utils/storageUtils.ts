@@ -1,5 +1,10 @@
 import { AppData, type GoalActivation, type GoalType, TaskStatus } from '../types';
-import { migrateOldPillarTasks, migrateOldPhaseTasks, needsMigration } from './migrateData';
+import {
+  migrateOldPillarTasks,
+  migrateOldPhaseTasks,
+  needsMigration,
+  migrateToV4,
+} from './migrateData';
 import { INITIAL_DATA } from '../constants';
 import { handleError } from './errorHandler';
 import { detectStuckAt90 } from './taskHelpers';
@@ -50,6 +55,12 @@ export const migrateData = (oldData: any): AppData => {
   if (!oldData || typeof oldData !== 'object') {
     return INITIAL_DATA;
   }
+
+  // First: Migrate schema to latest version (v1 → v2 → v3 → v4) if needed
+  const v4Data = migrateToV4(oldData);
+
+  // Continue with existing migration logic on up-to-date schema
+  const data = v4Data;
 
   const MAX_ACTIVE_GOALS_DEFAULT = 3;
   const validGoalTypes = new Set<GoalType>(['main', 'secondary', 'lab']);
@@ -220,7 +231,9 @@ export const migrateData = (oldData: any): AppData => {
                     : now;
 
               const legacyFinishStatus =
-                typeof (task as any)?.finishStatus === 'string' ? String((task as any).finishStatus) : '';
+                typeof (task as any)?.finishStatus === 'string'
+                  ? String((task as any).finishStatus)
+                  : '';
 
               let status: TaskStatus;
               if (isNewStatus(task?.status)) {
@@ -282,10 +295,16 @@ export const migrateData = (oldData: any): AppData => {
       finishSessionsHistory: Array.isArray(data?.finishSessionsHistory)
         ? data.finishSessionsHistory
         : [],
+      // Evening Protocol system (v2)
+      schemaVersion: data?.schemaVersion ?? 2,
+      eveningProtocols: Array.isArray(data?.eveningProtocols) ? data.eveningProtocols : [],
+      declarations: Array.isArray(data?.declarations) ? data.declarations : [],
+      goalAgents: data?.goalAgents && typeof data.goalAgents === 'object' ? data.goalAgents : {},
     } as AppData;
 
     // D-003: enforce max 3 active goals in DATA (auto-archive extras to backlog).
-    const maxActive = Number((withTaskDefaults.settings as any)?.goals?.maxActive) || MAX_ACTIVE_GOALS_DEFAULT;
+    const maxActive =
+      Number((withTaskDefaults.settings as any)?.goals?.maxActive) || MAX_ACTIVE_GOALS_DEFAULT;
     const nextPillars = enforceMaxActiveGoals(withTaskDefaults.pillars as any[], maxActive);
     return { ...withTaskDefaults, pillars: nextPillars };
   };

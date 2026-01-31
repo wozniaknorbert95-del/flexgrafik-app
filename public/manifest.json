@@ -1,7 +1,7 @@
 {
-  "name": "Mission Control - Special Operations Dashboard",
-  "short_name": "Mission Control",
-  "description": "AI-powered mission planning and accountability system for special operations",
+  "name": "ADHD Mission Control — Asystent domykania",
+  "short_name": "Domykanie",
+  "description": "Local-first asystent planowania i domykania zadań (ADHD) z opcjonalnym wsparciem AI.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -9,7 +9,7 @@
   "theme_color": "#ff00ff",
   "orientation": "portrait-primary",
   "categories": ["productivity", "business", "utilities"],
-  "lang": "en-US",
+  "lang": "pl-PL",
   "dir": "ltr",
   "prefer_related_applications": false,
   "icons": [
@@ -28,7 +28,7 @@
   ],
   "screenshots": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'><rect width='540' height='720' fill='%230a0a0a'/><text x='270' y='360' font-size='40' text-anchor='middle' fill='%23ff00ff'>Mission Control Dashboard</text></svg>",
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'><rect width='540' height='720' fill='%230a0a0a'/><text x='270' y='360' font-size='40' text-anchor='middle' fill='%23ff00ff'>Pulpit Mission Control</text></svg>",
       "sizes": "540x720",
       "type": "image/svg+xml",
       "form_factor": "narrow"
@@ -36,9 +36,9 @@
   ],
   "shortcuts": [
     {
-      "name": "Mission Control",
-      "short_name": "Home",
-      "description": "Main command center dashboard",
+      "name": "Pulpit",
+      "short_name": "Pulpit",
+      "description": "Główny pulpit aplikacji",
       "url": "/",
       "icons": [
         {
@@ -48,9 +48,9 @@
       ]
     },
     {
-      "name": "AI Assistant",
+      "name": "Asystent AI",
       "short_name": "AI",
-      "description": "Strategic AI analysis and recommendations",
+      "description": "Wsparcie strategii, mikrokroki i rekomendacje",
       "url": "/?view=ai_coach",
       "icons": [
         {
@@ -60,9 +60,9 @@
       ]
     },
     {
-      "name": "Focus Timer",
+      "name": "Timer",
       "short_name": "Timer",
-      "description": "Pomodoro focus session timer",
+      "description": "Timer sesji (Pomodoro)",
       "url": "/?view=timer",
       "icons": [
         {

@@ -46,7 +46,9 @@ export const InstallPrompt: React.FC<InstallPromptProps> = ({ onInstall }) => {
       // Show our custom install prompt after a delay
       setTimeout(() => {
         setShowPrompt(true);
-        announceToScreenReader('App installation available. Press Install to add to home screen.');
+        announceToScreenReader(
+          'Dostępna jest instalacja aplikacji. Naciśnij „Zainstaluj”, aby dodać ją do ekranu głównego.'
+        );
       }, 3000); // Show after 3 seconds
     };
 
@@ -55,7 +57,7 @@ export const InstallPrompt: React.FC<InstallPromptProps> = ({ onInstall }) => {
       setIsInstalled(true);
       setShowPrompt(false);
       setDeferredPrompt(null);
-      announceToScreenReader('App installed successfully!');
+      announceToScreenReader('Aplikacja została zainstalowana.');
       onInstall?.();
     };
 
@@ -87,16 +89,16 @@ export const InstallPrompt: React.FC<InstallPromptProps> = ({ onInstall }) => {
     setShowPrompt(false);
 
     if (choiceResult.outcome === 'accepted') {
-      announceToScreenReader('Installation accepted. App will be installed.');
+      announceToScreenReader('Instalacja zaakceptowana. Aplikacja zostanie zainstalowana.');
       onInstall?.();
     } else {
-      announceToScreenReader('Installation dismissed.');
+      announceToScreenReader('Instalacja odrzucona.');
     }
   };
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    announceToScreenReader('Installation prompt dismissed.');
+    announceToScreenReader('Komunikat instalacji zamknięty.');
   };
 
   // Don't show if already installed or no prompt available
@@ -116,33 +118,33 @@ export const InstallPrompt: React.FC<InstallPromptProps> = ({ onInstall }) => {
           <div className="flex items-start gap-3">
             <div className="text-3xl flex-shrink-0">📱</div>
             <div className="flex-1">
-              <h3 className="text-lg font-bold text-white mb-2">Install Mission Control</h3>
+              <h3 className="text-lg font-bold text-white mb-2">Zainstaluj aplikację</h3>
               <p className="text-sm text-gray-300 mb-4">
-                Add to your home screen for the full app experience with offline access and push
-                notifications.
+                Dodaj ją do ekranu głównego, żeby mieć pełne doświadczenie aplikacji: tryb offline i
+                powiadomienia push.
               </p>
 
               <div className="flex gap-3">
                 <button
                   onClick={handleInstall}
                   className="flex-1 bg-gradient-to-r from-neon-cyan to-cyan-500 text-black font-bold py-2 px-4 rounded-lg hover:shadow-lg transition-all"
-                  aria-label="Install app to home screen"
+                  aria-label="Zainstaluj aplikację na ekranie głównym"
                 >
-                  Install App
+                  Zainstaluj
                 </button>
                 <button
                   onClick={handleDismiss}
                   className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
-                  aria-label="Dismiss install prompt"
+                  aria-label="Zamknij komunikat instalacji"
                 >
-                  Not Now
+                  Nie teraz
                 </button>
               </div>
             </div>
             <button
               onClick={handleDismiss}
               className="text-gray-400 hover:text-white transition-colors flex-shrink-0"
-              aria-label="Close install prompt"
+              aria-label="Zamknij komunikat instalacji"
             >
               ✕
             </button>

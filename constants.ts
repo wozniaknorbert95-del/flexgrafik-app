@@ -1,4 +1,4 @@
-import { AppData, Pillar, Phase, IfThenRule, Sprint } from './types';
+import { AppData, Pillar, Phase, IfThenRule, Sprint, CustomRule } from './types';
 import { migrateOldTasks } from './utils/migrateData';
 
 // PLAN.md / D-003: max 3 aktywne cele (main/secondary/lab).
@@ -241,6 +241,21 @@ export const INITIAL_DATA: AppData = {
     last_checkin: '2025-01-20T09:30:00.000Z',
     streak: 12,
   },
+  userStats: {
+    totalFocusMinutes: 0,
+    finishSessionsCompleted: 0,
+    tasksCompleted: 0,
+    xp: 0,
+    level: 1,
+    nextLevelXp: 4,
+    currentStreakDays: 0,
+    longestStreakDays: 0,
+    lastActivityDate: null,
+    completedTaskIds: [],
+    xpEvents: [],
+    lastDailyXpDate: null,
+    lastLevelUpAt: null,
+  },
   pillars: INITIAL_PILLARS,
   phases: INITIAL_PHASES,
   rules: INITIAL_RULES,
@@ -248,6 +263,10 @@ export const INITIAL_DATA: AppData = {
   customRules: INITIAL_CUSTOM_RULES,
   notificationHistory: [],
   aiChatHistory: [],
+  schemaVersion: 2, // Current schema version
+  eveningProtocols: [], // Evening Protocol system
+  declarations: [], // Denormalized declarations for queries
+  goalAgents: {}, // Goal agents (will be populated by migration or on goal creation)
   settings: {
     voice: {
       enabled: true,
@@ -261,6 +280,14 @@ export const INITIAL_DATA: AppData = {
     },
     goals: {
       maxActive: 3,
+    },
+    timezone: {
+      timezone: undefined, // Will default to browser timezone
+      useDST: true, // Browser handles DST automatically
+    },
+    gamification: {
+      soundEnabled: true,
+      hapticsEnabled: true,
     },
   },
 };

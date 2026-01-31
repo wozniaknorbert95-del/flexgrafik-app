@@ -4,8 +4,10 @@
  */
 
 import { detectStuckAt90 } from './taskHelpers';
-import { Task } from '../types';
+import { Task, AppData, NotificationHistory } from '../types';
 import { loadAppData } from './storageManager';
+import { runAgentChecks, shouldRunAgentCheck } from './goalAgentService';
+import { secureStorage } from './secureStorage';
 
 // Minimal action shape for in-app notifications.
 // Note: Browser `Notification` constructor does NOT support actions; actions are SW-only.
@@ -245,7 +247,7 @@ export const showStuckTasksNotification = async (stuckTasks: Task[]) => {
     // Settings-driven AI: if disabled/no key → fallback text (no network calls).
     const appData = await loadAppData().catch(() => null);
     const aiEnabled = Boolean((appData as any)?.settings?.ai?.enabled);
-    const apiKey = aiEnabled ? String((appData as any)?.settings?.ai?.apiKey ?? '').trim() : '';
+    const apiKey = aiEnabled ? secureStorage.getApiKey() || '' : '';
 
     const { title, body } = await generateNotificationContent(stuckTasks, {
       enabled: aiEnabled,
@@ -604,6 +606,120 @@ if (typeof window !== 'undefined') {
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
+
+/**
+ * Schedule Goal Agent checks
+ * Runs periodic checks on declarations to detect failures and apply penalties
+ *
+ * @param updateData - Function to update AppData
+ */
+export const scheduleGoalAgentChecks = (
+  updateData: (updater: (prev: AppData) => AppData) => void
+) => {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const agentSchedulerKey = 'goalAgentScheduler';
+    const schedulerRunning = localStorage.getItem(agentSchedulerKey);
+    if (schedulerRunning === 'running') {
+      console.log('🤖 Goal Agent scheduler already running');
+      return;
+    }
+
+    localStorage.setItem(agentSchedulerKey, 'running');
+  } catch (error) {
+    console.error('Failed to initialize Goal Agent scheduler:', error);
+    return;
+  }
+
+  // Run checks every 15 minutes (minimum interval)
+  const runChecks = async () => {
+    try {
+      const appData = await loadAppData();
+      if (!appData) {
+        console.warn('No app data loaded, skipping agent check');
+        setTimeout(runChecks, 15 * 60 * 1000);
+        return;
+      }
+      const goalAgents = appData.goalAgents || {};
+
+      // Check if any agent needs to run
+      const agentsToCheck = Object.values(goalAgents).filter((agent) => shouldRunAgentCheck(agent));
+
+      if (agentsToCheck.length === 0) {
+        // Schedule next check in 15 minutes
+        setTimeout(runChecks, 15 * 60 * 1000);
+        return;
+      }
+
+      // Get current finish session state
+      const finishSessionActive = new Map<number, boolean>();
+      if (
+        appData.currentFinishSession?.status === 'in_progress' &&
+        appData.currentFinishSession.taskId
+      ) {
+        finishSessionActive.set(appData.currentFinishSession.taskId, true);
+      }
+
+      // Run agent checks
+      const { updatedData, penaltyActions } = runAgentChecks(
+        appData,
+        new Date(),
+        finishSessionActive
+      );
+
+      // Update data
+      updateData(() => updatedData);
+
+      // Show notifications for penalties
+      if (penaltyActions.length > 0) {
+        penaltyActions.forEach((action) => {
+          // Find goal for this penalty
+          const goal = appData.pillars.find((p) => {
+            const declaration = updatedData.declarations?.find(
+              (d) => d.id === action.declarationId
+            );
+            return declaration && declaration.goalId === p.id;
+          });
+
+          if (goal) {
+            const message = `⚠️ Kara za nieprzestrzeganie deklaracji: -${action.points} punktów z nagrody "${goal.name}"`;
+            console.log(`🔔 ${message}`);
+
+            // Add to notification history
+            updateData((prev) => ({
+              ...prev,
+              notificationHistory: [
+                ...(prev.notificationHistory || []),
+                {
+                  id: `penalty_${action.declarationId}_${Date.now()}`,
+                  timestamp: action.timestamp,
+                  type: 'custom',
+                  message,
+                  response: undefined,
+                },
+              ],
+            }));
+          }
+        });
+      }
+
+      console.log(
+        `🤖 Agent checks completed for ${agentsToCheck.length} goal(s)${penaltyActions.length > 0 ? ` - ${penaltyActions.length} penalty(ies) applied` : ''}`
+      );
+    } catch (error) {
+      console.error('❌ Goal Agent check failed:', error);
+    }
+
+    // Schedule next check in 15 minutes
+    setTimeout(runChecks, 15 * 60 * 1000);
+  };
+
+  // Start immediately, then every 15 minutes
+  runChecks();
+
+  console.log('🤖 Goal Agent scheduler started - checks every 15 minutes');
+};
 
 // Auto-start scheduler gdy moduł się załaduje (tylko w przeglądarce)
 if (typeof window !== 'undefined') {

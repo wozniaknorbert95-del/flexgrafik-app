@@ -8,6 +8,11 @@ import {
   requestNotificationPermission,
 } from '../utils/scheduler';
 import { validateApiKey, sanitizeInput } from '../utils/inputValidation';
+import { providerGenerateText } from '../utils/aiProvider';
+import { showError, showInfo, showSuccess, showWarning } from '../utils/toastService';
+import { secureStorage } from '../utils/secureStorage';
+import { triggerLevelUpFeedback, triggerTaskCompleteFeedback } from '../utils/feedbackService';
+import { ACHIEVEMENTS } from '../utils/achievementEngine';
 
 // Using any to avoid runtime type references
 
@@ -26,32 +31,126 @@ const SettingsPremium: React.FC<SettingsProps> = ({
 }) => {
   const { voice, ai } = data.settings;
   const goals = (data.settings as any)?.goals ?? { maxActive: 3 };
-  const [apiKey, setApiKey] = useState(ai?.apiKey || '');
+  const gamification = (data.settings as any)?.gamification ?? {
+    soundEnabled: true,
+    hapticsEnabled: true,
+  };
+  const unlocked = Array.isArray((data as any)?.userStats?.achievementsUnlocked)
+    ? (data as any).userStats.achievementsUnlocked
+    : [];
+  const unlockedIds = new Set<string>(unlocked.map((u: any) => String(u?.achievementId)));
+  const [savedApiKey, setSavedApiKey] = useState(
+    () => secureStorage.getApiKey() || ai?.apiKey || ''
+  );
+  const [apiKey, setApiKey] = useState(() => secureStorage.getApiKey() || ai?.apiKey || '');
   const [apiKeyError, setApiKeyError] = useState<string>('');
+  const [apiConnectionStatus, setApiConnectionStatus] = useState<
+    'unknown' | 'testing' | 'connected' | 'disconnected'
+  >('unknown');
   const [customPrompt, setCustomPrompt] = useState(ai?.customSystemPrompt || '');
+  const [apiKeyDirty, setApiKeyDirty] = useState(false);
+
+  const [exportIncludeApiKey, setExportIncludeApiKey] = useState(false);
+
+  // Legacy compatibility: if key exists in AppData, move it to secureStorage and clear AppData.
+  React.useEffect(() => {
+    const legacyKey = String(ai?.apiKey ?? '').trim();
+    const secureKey = secureStorage.getApiKey() || '';
+    if (legacyKey && !secureKey) {
+      secureStorage.setApiKey(legacyKey);
+      setSavedApiKey(legacyKey);
+      setApiKey(legacyKey);
+      onUpdateSettings({
+        ...data.settings,
+        ai: { ...ai, apiKey: '' },
+      } as any);
+      return;
+    }
+    if (secureKey && secureKey !== savedApiKey) {
+      setSavedApiKey(secureKey);
+    }
+    // Jeśli użytkownik nie edytuje (brak "dirty"), synchronizuj draft z zapisanym kluczem.
+    if (secureKey && !apiKeyDirty && secureKey !== apiKey) {
+      setApiKey(secureKey);
+    }
+  }, [ai?.apiKey, apiKey, apiKeyDirty, savedApiKey]);
   const [storageType, setStorageType] = useState<string>('loading...');
   const [schedulerStatus, setSchedulerStatus] = useState<any>(null);
   const [notificationPermission, setNotificationPermission] = useState<string>('unknown');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAiEnabled = Boolean(ai?.enabled);
-  const hasApiKey = Boolean(apiKey.trim());
+  const hasSavedApiKey = Boolean(savedApiKey.trim());
+  const isApiKeyDirty = apiKey.trim() !== savedApiKey.trim();
+  const canSaveApiKey = (() => {
+    const trimmed = apiKey.trim();
+    if (!trimmed) return false;
+    const validation = validateApiKey(trimmed);
+    if (!validation.isValid) return false;
+    return isApiKeyDirty;
+  })();
   const aiUiState: 'disabled' | 'enabled_no_key' | 'enabled_ready' = !isAiEnabled
     ? 'disabled'
-    : hasApiKey
+    : hasSavedApiKey
       ? 'enabled_ready'
       : 'enabled_no_key';
+
+  // Test API connection
+  const testApiConnection = async (keyToTest: string, autoEnable: boolean = false) => {
+    if (!keyToTest.trim()) {
+      setApiConnectionStatus('disconnected');
+      return;
+    }
+
+    setApiConnectionStatus('testing');
+    try {
+      const result = await providerGenerateText(
+        {
+          apiKey: keyToTest.trim(),
+          prompt: 'Test connection. Reply with "OK" only.',
+          maxTokens: 10,
+          maxLen: 10,
+        },
+        { timeoutMs: 5000 }
+      );
+
+      if (result && result.trim().toLowerCase().includes('ok')) {
+        setApiConnectionStatus('connected');
+        setApiKeyError('');
+
+        // Automatically enable AI if test succeeds and autoEnable is true
+        if (autoEnable && !isAiEnabled) {
+          secureStorage.setApiKey(keyToTest.trim());
+          onUpdateSettings({
+            ...data.settings,
+            ai: { ...ai, enabled: true, apiKey: '' },
+          });
+        }
+      } else {
+        setApiConnectionStatus('disconnected');
+        setApiKeyError('Test połączenia nie powiódł się. Sprawdź klucz API.');
+      }
+    } catch (error) {
+      setApiConnectionStatus('disconnected');
+      setApiKeyError('Błąd połączenia. Sprawdź internet i klucz API.');
+      console.error('API connection test error:', error);
+    }
+  };
 
   // Phase 2: Use normalized data if available, fallback to legacy
   const useNormalized = normalizedData !== null;
 
-  console.log('⚙️ Settings using data format:', useNormalized ? 'NORMALIZED' : 'LEGACY');
+  if (process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.log('⚙️ Settings using data format:', useNormalized ? 'NORMALIZED' : 'LEGACY');
+  }
 
   // Get storage info on mount
   React.useEffect(() => {
     getStorageInfo().then((info) => {
       const type = info.type === 'indexeddb' ? '🚀 IndexedDB' : '💾 localStorage';
-      const size = typeof (info as any)?.size === 'number' ? `${(info as any).size} bytes` : 'size n/a';
+      const size =
+        typeof (info as any)?.size === 'number' ? `${(info as any).size} bytes` : 'size n/a';
       setStorageType(`${type} (${size})`);
     });
 
@@ -62,6 +161,11 @@ const SettingsPremium: React.FC<SettingsProps> = ({
     // Check notification permission
     if ('Notification' in window) {
       setNotificationPermission(Notification.permission);
+    }
+
+    // Test API connection on mount if key exists
+    if (savedApiKey.trim() && isAiEnabled) {
+      testApiConnection(savedApiKey.trim());
     }
 
     // Listen for service worker messages
@@ -99,11 +203,26 @@ const SettingsPremium: React.FC<SettingsProps> = ({
   // Export handler
   const handleExport = () => {
     try {
-      exportDataToFile(data);
-      console.log('✅ Data exported');
+      if (!exportIncludeApiKey) {
+        exportDataToFile(data, { includeApiKey: false });
+      } else {
+        const key = secureStorage.getApiKey() || '';
+        const withKey = {
+          ...(data as any),
+          settings: {
+            ...(data as any).settings,
+            ai: {
+              ...((data as any)?.settings?.ai ?? {}),
+              apiKey: key,
+            },
+          },
+        } as AppData;
+        exportDataToFile(withKey, { includeApiKey: true });
+      }
+      showSuccess('Dane wyeksportowane do pliku.', 4000);
     } catch (error) {
       console.error('❌ Export failed:', error);
-      alert('Failed to export data');
+      showError('Nie udało się wyeksportować danych.', 7000);
     }
   };
 
@@ -115,12 +234,12 @@ const SettingsPremium: React.FC<SettingsProps> = ({
   const handleRunAudit = async () => {
     try {
       const stuckTasks = await runStuckTasksAuditNow();
-      alert(`Audit completed! Found ${stuckTasks.length} stuck tasks.`);
+      showSuccess(`Audyt ukończony. Wykryto ${stuckTasks.length} zadań „stuck”.`, 6000);
       // Refresh scheduler status
       const status = getSchedulerStatus();
       setSchedulerStatus(status);
     } catch (error) {
-      alert('Audit failed. Check console for details.');
+      showError('Nie udało się uruchomić audytu. Sprawdź konsolę (dev).', 7000);
     }
   };
 
@@ -129,14 +248,17 @@ const SettingsPremium: React.FC<SettingsProps> = ({
       if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
         const registration = await navigator.serviceWorker.ready;
         await registration.sync.register('sync-data');
-        console.log('🔄 Manual data sync triggered');
-        alert('Data sync initiated. Check results in a moment.');
+        if (process.env.NODE_ENV === 'development') {
+          // eslint-disable-next-line no-console
+          console.log('🔄 Manual data sync triggered');
+        }
+        showInfo('Synchronizacja danych uruchomiona. Wynik pojawi się za chwilę.', 6000);
       } else {
-        alert('Background sync not supported in this browser.');
+        showWarning('Ten browser nie wspiera Background Sync.', 7000);
       }
     } catch (error) {
       console.error('Failed to trigger sync:', error);
-      alert('Failed to start data sync.');
+      showError('Nie udało się uruchomić synchronizacji danych.', 7000);
     }
   };
 
@@ -155,10 +277,10 @@ const SettingsPremium: React.FC<SettingsProps> = ({
       // Update all data (settings + pillars + everything)
       window.location.reload(); // Reload to apply imported data
 
-      console.log('✅ Data imported');
+      showSuccess('Dane zaimportowane. Odświeżam aplikację…', 4000);
     } catch (error) {
       console.error('❌ Import failed:', error);
-      alert('Failed to import data. Please check the file format.');
+      showError('Nie udało się zaimportować danych. Sprawdź format pliku.', 7000);
     }
 
     // Reset file input
@@ -167,15 +289,23 @@ const SettingsPremium: React.FC<SettingsProps> = ({
     }
   };
 
-  console.log('🎛️ SettingsPremium LOADED');
-  console.log('  - voice enabled:', voice?.enabled);
-  console.log('  - ai enabled:', ai?.enabled);
-  console.log('  - data:', data);
+  if (process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.log('🎛️ SettingsPremium LOADED');
+    // eslint-disable-next-line no-console
+    console.log('  - voice enabled:', voice?.enabled);
+    // eslint-disable-next-line no-console
+    console.log('  - ai enabled:', ai?.enabled);
+    // eslint-disable-next-line no-console
+    console.log('  - data:', data);
+  }
 
   if (!data || !data.settings) {
     console.error('❌ SettingsPremium: data or data.settings is undefined!');
     return (
-      <div className="min-h-screen flex items-center justify-center text-white">ERROR: No data</div>
+      <div className="min-h-screen flex items-center justify-center text-white">
+        Błąd: brak danych
+      </div>
     );
   }
 
@@ -188,14 +318,14 @@ const SettingsPremium: React.FC<SettingsProps> = ({
         animate={{ opacity: 1, y: 0 }}
       >
         <button onClick={onBack} className="btn-premium btn-cyan mb-8">
-          ← Back to Mission Control
+          ← Wróć
         </button>
 
         <h1 className="text-5xl md:text-6xl font-extrabold uppercase tracking-wider mb-3 text-gradient-gold">
-          System Settings
+          Ustawienia systemu
         </h1>
         <p className="text-base text-gray-300 leading-relaxed">
-          Configure voice alerts, AI assistance, and mission data management
+          Konfiguruj alerty głosowe, wsparcie AI oraz zarządzanie danymi aplikacji
         </p>
       </motion.div>
 
@@ -211,11 +341,11 @@ const SettingsPremium: React.FC<SettingsProps> = ({
           <div className="flex items-center gap-3 mb-2">
             <span className="text-3xl">🔊</span>
             <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wider text-gradient-neon">
-              Voice Notifications
+              Powiadomienia głosowe
             </h2>
           </div>
           <p className="text-xs md:text-sm text-gray-400 pl-0 md:pl-12 leading-relaxed">
-            Configure audio alerts for mission-critical events
+            Skonfiguruj alerty audio dla zdarzeń krytycznych
           </p>
         </div>
 
@@ -224,8 +354,8 @@ const SettingsPremium: React.FC<SettingsProps> = ({
           <div className="glass-card glass-card-magenta space-widget">
             <div className="flex items-start justify-between mb-5">
               <div className="flex-1 pr-3">
-                <h3 className="text-base font-bold text-white mb-1">Enable Voice Alerts</h3>
-                <p className="text-xs text-gray-400">Spoken notifications</p>
+                <h3 className="text-base font-bold text-white mb-1">Włącz alerty głosowe</h3>
+                <p className="text-xs text-gray-400">Komunikaty głosowe</p>
               </div>
 
               <div
@@ -252,7 +382,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                   voice.enabled ? 'text-glow-cyan' : 'text-[var(--text-muted)]'
                 }`}
               >
-                {voice.enabled ? 'Active' : 'Disabled'}
+                {voice.enabled ? 'Aktywne' : 'Wyłączone'}
               </span>
             </div>
           </div>
@@ -261,8 +391,8 @@ const SettingsPremium: React.FC<SettingsProps> = ({
           <div className="glass-card glass-card-cyan space-widget">
             <div className="flex justify-between items-center mb-4">
               <div className="flex-1">
-                <h3 className="text-base font-bold text-white">Output Volume</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Audio level</p>
+                <h3 className="text-base font-bold text-white">Głośność</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Poziom dźwięku</p>
               </div>
               <span className="text-xl font-bold text-glow-cyan flex-shrink-0 ml-2">
                 {voice.volume}%
@@ -295,9 +425,9 @@ const SettingsPremium: React.FC<SettingsProps> = ({
             />
 
             <div className="flex justify-between mt-3 text-xs text-gray-500 uppercase tracking-wider">
-              <span>Off</span>
-              <span className="text-neon-cyan">Recommended</span>
-              <span>Maximum</span>
+              <span>Wył.</span>
+              <span className="text-neon-cyan">Rekomendowane</span>
+              <span>Maks.</span>
             </div>
 
             {/* Test Audio Button */}
@@ -306,7 +436,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                 onClick={() => {
                   // Test voice synthesis
                   const utterance = new SpeechSynthesisUtterance(
-                    `Voice test: Volume ${voice.volume}%. AI assistant is ready to help with your missions.`
+                    `Test głosu: głośność ${voice.volume}%. Asystent AI jest gotowy do wsparcia.`
                   );
                   utterance.volume = voice.volume / 100;
                   utterance.rate = voice.speed || 1.0;
@@ -318,7 +448,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                     (v) =>
                       v.name.includes('Female') ||
                       v.name.includes('Google') ||
-                      v.lang.startsWith('en')
+                      v.lang.toLowerCase().startsWith('pl')
                   );
                   if (preferredVoice) {
                     utterance.voice = preferredVoice;
@@ -329,10 +459,12 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                 className="btn-premium btn-cyan w-full"
                 disabled={!voice.enabled}
               >
-                🔊 Test Audio
+                🔊 Test dźwięku
               </button>
               <p className="text-xs text-gray-400 mt-2 text-center">
-                {voice.enabled ? 'Click to test voice settings' : 'Enable voice alerts first'}
+                {voice.enabled
+                  ? 'Kliknij, aby przetestować ustawienia głosu'
+                  : 'Najpierw włącz alerty głosowe'}
               </p>
             </div>
           </div>
@@ -341,8 +473,8 @@ const SettingsPremium: React.FC<SettingsProps> = ({
           <div className="glass-card glass-card-magenta space-widget">
             <div className="flex justify-between items-center mb-4">
               <div className="flex-1">
-                <h3 className="text-base font-bold text-white">Speech Speed</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Playback rate</p>
+                <h3 className="text-base font-bold text-white">Szybkość mowy</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Tempo odtwarzania</p>
               </div>
               <span className="text-xl font-bold text-glow-magenta flex-shrink-0 ml-2">
                 {voice.speed.toFixed(1)}x
@@ -376,18 +508,128 @@ const SettingsPremium: React.FC<SettingsProps> = ({
             />
 
             <div className="flex justify-between mt-3 text-xs text-gray-500 uppercase tracking-wider">
-              <span>Slower</span>
+              <span>Wolniej</span>
               <span className="text-neon-magenta">Standard</span>
-              <span>Faster</span>
+              <span>Szybciej</span>
             </div>
           </div>
 
           {/* Test Button */}
           <div className="glass-card space-widget flex flex-col justify-center">
-            <button className="btn-premium btn-magenta w-full mb-3">🔊 Test Audio System</button>
+            <button className="btn-premium btn-magenta w-full mb-3">🔊 Test systemu audio</button>
             <p className="text-xs text-gray-400 text-center">
-              Play sample notification to verify settings
+              Odtwórz przykładowe powiadomienie, żeby zweryfikować ustawienia
             </p>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* SECTION 1.5: Gamification Feedback */}
+      <motion.div
+        className="widget-container-narrow mb-16"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.16 }}
+      >
+        <div className="mb-6 pb-5 border-b border-gray-800">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-3xl">🎮</span>
+            <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wider text-gradient-magenta">
+              Grywalizacja
+            </h2>
+          </div>
+          <p className="text-xs md:text-sm text-gray-400 pl-0 md:pl-12 leading-relaxed">
+            Natychmiastowy feedback (dźwięk + wibracje) przy sukcesach.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="glass-card glass-card-cyan space-widget">
+            <div className="flex items-start justify-between mb-5">
+              <div className="flex-1 pr-3">
+                <h3 className="text-base font-bold text-white mb-1">Dźwięki sukcesu</h3>
+                <p className="text-xs text-gray-400">„Ding” task • „Fanfary” level</p>
+              </div>
+              <div
+                className={`toggle-premium flex-shrink-0 ${gamification.soundEnabled ? 'active' : ''}`}
+                onClick={() =>
+                  onUpdateSettings({
+                    ...data.settings,
+                    gamification: {
+                      ...gamification,
+                      soundEnabled: !Boolean(gamification.soundEnabled),
+                    },
+                  } as any)
+                }
+              >
+                <div className="toggle-thumb" />
+              </div>
+            </div>
+            <div className="text-xs text-gray-400">
+              Uwaga: przeglądarki mogą blokować audio bez interakcji. Test zadziała po kliknięciu.
+            </div>
+          </div>
+
+          <div className="glass-card glass-card-magenta space-widget">
+            <div className="flex items-start justify-between mb-5">
+              <div className="flex-1 pr-3">
+                <h3 className="text-base font-bold text-white mb-1">Wibracje (mobile)</h3>
+                <p className="text-xs text-gray-400">Haptic feedback, jeśli urządzenie wspiera</p>
+              </div>
+              <div
+                className={`toggle-premium flex-shrink-0 ${gamification.hapticsEnabled ? 'active' : ''}`}
+                onClick={() =>
+                  onUpdateSettings({
+                    ...data.settings,
+                    gamification: {
+                      ...gamification,
+                      hapticsEnabled: !Boolean(gamification.hapticsEnabled),
+                    },
+                  } as any)
+                }
+              >
+                <div className="toggle-thumb" />
+              </div>
+            </div>
+            <div className="text-xs text-gray-400">
+              Jeśli nie działa: iOS Safari często nie wspiera wibracji w PWA.
+            </div>
+          </div>
+
+          <div className="glass-card space-widget flex flex-col justify-center">
+            <button
+              type="button"
+              className="btn-premium btn-cyan w-full mb-3"
+              onClick={() => {
+                triggerTaskCompleteFeedback({
+                  soundEnabled: Boolean(gamification.soundEnabled),
+                  hapticsEnabled: Boolean(gamification.hapticsEnabled),
+                });
+                showInfo('Test: ukończenie zadania (ding + wibracje).', 2500);
+              }}
+            >
+              ✅ Test: zadanie
+            </button>
+            <p className="text-xs text-gray-400 text-center">
+              Symuluje ukończenie zadania (+50 XP).
+            </p>
+          </div>
+
+          <div className="glass-card space-widget flex flex-col justify-center">
+            <button
+              type="button"
+              className="btn-premium btn-magenta w-full mb-3"
+              onClick={() => {
+                triggerLevelUpFeedback({
+                  soundEnabled: Boolean(gamification.soundEnabled),
+                  hapticsEnabled: Boolean(gamification.hapticsEnabled),
+                });
+                showInfo('Test: awans poziomu (fanfary + wibracje).', 2500);
+              }}
+            >
+              🎉 Test: level up
+            </button>
+            <p className="text-xs text-gray-400 text-center">Symuluje awans poziomu.</p>
           </div>
         </div>
       </motion.div>
@@ -404,11 +646,11 @@ const SettingsPremium: React.FC<SettingsProps> = ({
           <div className="flex items-center gap-3 mb-2">
             <span className="text-3xl">🤖</span>
             <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wider text-gradient-gold">
-              AI Assistant
+              Asystent AI
             </h2>
           </div>
           <p className="text-xs md:text-sm text-gray-400 pl-0 md:pl-12 leading-relaxed">
-            Enable AI-powered analysis and priority recommendations
+            Włącz analizy i rekomendacje priorytetów wspierane przez AI
           </p>
         </div>
 
@@ -417,8 +659,8 @@ const SettingsPremium: React.FC<SettingsProps> = ({
           <div className="glass-card glass-card-gold space-widget">
             <div className="flex items-start justify-between mb-5">
               <div className="flex-1 pr-3">
-                <h3 className="text-base font-bold text-white mb-1">Enable AI Support</h3>
-                <p className="text-xs text-gray-400">Intelligent assistance</p>
+                <h3 className="text-base font-bold text-white mb-1">Włącz wsparcie AI</h3>
+                <p className="text-xs text-gray-400">Inteligentne wsparcie</p>
               </div>
 
               <div
@@ -454,10 +696,10 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                 }`}
               >
                 {aiUiState === 'enabled_ready'
-                  ? 'Enabled + key'
+                  ? 'Włączone + klucz'
                   : aiUiState === 'enabled_no_key'
-                    ? 'Enabled (no key) → fallback'
-                    : 'Disabled'}
+                    ? 'Włączone (brak klucza) → tryb awaryjny'
+                    : 'Wyłączone'}
               </span>
             </div>
           </div>
@@ -469,45 +711,128 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                 htmlFor="api-key-input"
                 className="block text-base md:text-lg font-bold text-white mb-2"
               >
-                API Authentication Key
+                Klucz API (uwierzytelnianie)
               </label>
               <p id="api-key-description" className="text-xs text-gray-400 leading-relaxed">
-                OpenAI-compatible key • Stored locally only • Never shared with servers
+                Klucz zgodny z OpenAI • Zapisywany tylko lokalnie • Nie jest wysyłany na serwery
               </p>
             </div>
-            <input
-              id="api-key-input"
-              type="password"
-              value={apiKey}
-              onChange={(e) => {
-                setApiKey(e.target.value);
-                // Clear error when user starts typing
-                if (apiKeyError) setApiKeyError('');
-              }}
-              onBlur={() => {
-                const validation = validateApiKey(apiKey);
-                if (validation.isValid) {
-                  setApiKeyError('');
-                  onUpdateSettings({
-                    ...data.settings,
-                    ai: { ...ai, apiKey: apiKey.trim() },
-                  });
-                } else {
-                  setApiKeyError(validation.error || 'Invalid API key');
+            <div className="flex flex-col gap-2">
+              <input
+                id="api-key-input"
+                type="password"
+                value={apiKey}
+                onChange={(e) => {
+                  setApiKey(e.target.value);
+                  setApiKeyDirty(true);
+                  // Clear error when user starts typing
+                  if (apiKeyError) setApiKeyError('');
+                  setApiConnectionStatus('unknown');
+                }}
+                onBlur={() => {
+                  const trimmed = apiKey.trim();
+                  if (!trimmed) {
+                    setApiKeyError('');
+                    setApiConnectionStatus('unknown');
+                    return;
+                  }
+                  const validation = validateApiKey(trimmed);
+                  if (!validation.isValid) {
+                    setApiKeyError(validation.error || 'Nieprawidłowy klucz API');
+                    setApiConnectionStatus('disconnected');
+                  }
+                }}
+                placeholder="Wklej klucz API (np. gsk_...)"
+                autoComplete="off"
+                aria-describedby={
+                  apiKeyError ? 'api-key-error api-key-description' : 'api-key-description'
                 }
-              }}
-              placeholder="Paste your API key here (e.g., gsk_...)"
-              autoComplete="off"
-              aria-describedby={
-                apiKeyError ? 'api-key-error api-key-description' : 'api-key-description'
-              }
-              aria-invalid={!!apiKeyError}
-              className={`input-premium ${apiKeyError ? 'border-[var(--accent-danger)] focus:ring-[color:var(--accent-danger)]' : ''}`}
-              style={{
-                WebkitAppearance: 'none',
-                boxShadow: 'none',
-              }}
-            />
+                aria-invalid={!!apiKeyError}
+                className={`input-premium flex-1 ${apiKeyError ? 'border-[var(--accent-danger)] focus:ring-[color:var(--accent-danger)]' : ''}`}
+                style={{
+                  WebkitAppearance: 'none',
+                  boxShadow: 'none',
+                }}
+              />
+
+              {isApiKeyDirty && (
+                <div className="text-[11px] text-yellow-200/90">
+                  Masz niezapisane zmiany klucza API. Kliknij „Zapisz klucz”, aby je zastosować.
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const trimmed = apiKey.trim();
+                    const validation = validateApiKey(trimmed);
+                    if (!trimmed) return;
+                    if (!validation.isValid) {
+                      setApiKeyError(validation.error || 'Nieprawidłowy klucz API');
+                      setApiConnectionStatus('disconnected');
+                      return;
+                    }
+                    secureStorage.setApiKey(trimmed);
+                    setSavedApiKey(trimmed);
+                    setApiKeyDirty(false);
+                    setApiKeyError('');
+                    setApiConnectionStatus('unknown');
+                    onUpdateSettings({
+                      ...data.settings,
+                      ai: { ...ai, apiKey: '' },
+                    } as any);
+                    showSuccess('Zapisano klucz API.', 2500);
+                  }}
+                  disabled={!canSaveApiKey}
+                  className="btn-premium btn-magenta text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  💾 Zapisz klucz
+                </button>
+
+                {hasSavedApiKey && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await testApiConnection(savedApiKey.trim(), true);
+                    }}
+                    disabled={apiConnectionStatus === 'testing'}
+                    className="btn-premium btn-cyan text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {apiConnectionStatus === 'testing'
+                      ? 'Testuję…'
+                      : apiConnectionStatus === 'connected'
+                        ? '✓ Połączenie OK'
+                        : apiConnectionStatus === 'disconnected'
+                          ? '✗ Test nieudany'
+                          : 'Testuj połączenie'}
+                  </button>
+                )}
+              </div>
+            </div>
+            {/* Connection Status */}
+            {hasSavedApiKey && apiConnectionStatus !== 'unknown' && (
+              <div className="mt-2">
+                {apiConnectionStatus === 'testing' && (
+                  <p className="text-xs text-gray-400 flex items-center gap-2">
+                    <span className="inline-block w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+                    Testuję połączenie…
+                  </p>
+                )}
+                {apiConnectionStatus === 'connected' && (
+                  <p className="text-xs text-green-400 flex items-center gap-2">
+                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                    Połączenie działa
+                  </p>
+                )}
+                {apiConnectionStatus === 'disconnected' && (
+                  <p className="text-xs text-red-400 flex items-center gap-2">
+                    <span className="inline-block w-2 h-2 bg-red-500 rounded-full"></span>
+                    Połączenie nie działa
+                  </p>
+                )}
+              </div>
+            )}
             {apiKeyError && (
               <p
                 id="api-key-error"
@@ -521,7 +846,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
             )}
             <div className="mt-3 p-3 bg-glass-light rounded-widget border border-gray-700/50">
               <p className="text-xs text-gray-400 leading-relaxed break-words">
-                <span className="font-semibold text-white block mb-1">Get a free API key:</span>
+                <span className="font-semibold text-white block mb-1">Darmowy klucz API:</span>
                 <a
                   href="https://console.groq.com"
                   target="_blank"
@@ -530,7 +855,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                 >
                   console.groq.com
                 </a>
-                <span className="block mt-1">Free tier: 30 requests/min</span>
+                <span className="block mt-1">Darmowy limit: 30 zapytań/min</span>
               </p>
             </div>
           </div>
@@ -540,9 +865,9 @@ const SettingsPremium: React.FC<SettingsProps> = ({
         <div className="mt-8">
           <div className="glass-card space-widget">
             <div className="mb-4">
-              <h3 className="text-lg font-bold text-white mb-2">AI Context & Personality</h3>
+              <h3 className="text-lg font-bold text-white mb-2">Kontekst i styl pracy AI</h3>
               <p className="text-sm text-gray-400 leading-relaxed">
-                Customize how AI assistant understands your work style and goals
+                Ustaw, jak Asystent AI ma rozumieć Twój styl pracy i cele
               </p>
             </div>
 
@@ -555,25 +880,91 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                   ai: { ...ai, customSystemPrompt: customPrompt },
                 })
               }
-              placeholder="Describe your work style, goals, or how you want AI to interact with you. Leave empty to use default personality."
+              placeholder="Opisz swój styl pracy, cele i to, jak AI ma z Tobą rozmawiać. Zostaw puste, aby użyć domyślnego stylu."
               className="input-premium w-full"
               rows={4}
             />
 
             <div className="mt-4 p-3 bg-glass-light rounded-widget border border-gray-700/50">
               <p className="text-xs text-gray-400 leading-relaxed">
-                <span className="font-semibold text-white block mb-1">Examples:</span>
+                <span className="font-semibold text-white block mb-1">Przykłady:</span>
                 <span className="block mb-1">
-                  • "I work best with short, actionable tasks and prefer detailed explanations"
+                  • „Działam najlepiej na krótkich, konkretnych zadaniach. Daj 1–2 kroki na 10
+                  minut.”
                 </span>
                 <span className="block mb-1">
-                  • "Focus on time management and breaking down complex projects"
+                  • „Skupiaj się na zarządzaniu czasem i rozbijaniu złożonych celów na etapy.”
                 </span>
                 <span className="block">
-                  • "I'm an entrepreneur who needs strategic advice and motivation"
+                  • „Prowadzę firmę — potrzebuję strategicznych rekomendacji i motywacji, ale bez
+                  lania wody.”
                 </span>
               </p>
             </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* SECTION 4: Odznaki (Achievements) */}
+      <motion.div
+        className="widget-container-narrow mb-16"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.35 }}
+      >
+        <div className="mb-6 pb-5 border-b border-gray-800">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-3xl">🏅</span>
+            <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wider text-gradient-gold">
+              Odznaki
+            </h2>
+          </div>
+          <p className="text-xs md:text-sm text-gray-400 pl-0 md:pl-12 leading-relaxed">
+            Gablotka trofeów. Zbieraj i domykaj.
+          </p>
+        </div>
+
+        <div className="glass-card p-6 border border-white/10 rounded-widget">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm text-gray-300">
+              Zdobyte: <span className="font-bold text-white">{unlockedIds.size}</span> /{' '}
+              <span className="font-bold text-gray-200">{ACHIEVEMENTS.length}</span>
+            </div>
+            <div className="text-xs text-gray-500">Odznaki są lokalne (offline-first).</div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {ACHIEVEMENTS.map((a) => {
+              const isUnlocked = unlockedIds.has(a.id);
+              const meta = unlocked.find((u: any) => String(u?.achievementId) === a.id);
+              return (
+                <div
+                  key={a.id}
+                  className={`p-4 rounded-lg border ${
+                    isUnlocked ? 'bg-gold/10 border-gold/35' : 'bg-white/5 border-white/10'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className={`text-white font-bold ${isUnlocked ? 'text-gold' : ''}`}>
+                        {a.title}
+                      </div>
+                      <div className="text-xs text-gray-300 mt-1">{a.description}</div>
+                      {isUnlocked && meta?.unlockedAt ? (
+                        <div className="text-[11px] text-gray-400 mt-2">
+                          Zdobyto: {new Date(String(meta.unlockedAt)).toLocaleString()}
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-gray-500 mt-2">Jeszcze niezdobyta.</div>
+                      )}
+                    </div>
+                    <div className="text-2xl flex-shrink-0" aria-hidden="true">
+                      {isUnlocked ? '✅' : '⬜'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </motion.div>
@@ -647,45 +1038,45 @@ const SettingsPremium: React.FC<SettingsProps> = ({
           <div className="flex items-center gap-3 mb-2">
             <span className="text-3xl">🎙️</span>
             <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wider text-gradient-neon">
-              Voice Commands
+              Komendy głosowe
             </h2>
           </div>
           <p className="text-xs md:text-sm text-gray-400 pl-0 md:pl-12 leading-relaxed">
-            Advanced voice notifications and smart triggers
+            Zaawansowane powiadomienia głosowe i inteligentne wyzwalacze
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-6">
           {/* Voice Command Examples */}
           <div className="glass-card glass-card-magenta space-widget">
-            <h3 className="text-lg font-bold text-white mb-4">Available Voice Commands</h3>
+            <h3 className="text-lg font-bold text-white mb-4">Dostępne komendy</h3>
             <div className="space-y-3">
               <div className="flex items-center gap-3 p-3 bg-glass-light rounded-widget">
                 <span className="text-neon-magenta">🔔</span>
                 <div>
-                  <p className="text-white font-medium">Mission completed</p>
-                  <p className="text-xs text-gray-400">Celebrates task completion</p>
+                  <p className="text-white font-medium">Misja zakończona</p>
+                  <p className="text-xs text-gray-400">Świętuje ukończenie zadania</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 bg-glass-light rounded-widget">
                 <span className="text-neon-cyan">⏰</span>
                 <div>
-                  <p className="text-white font-medium">Sprint deadline approaching</p>
-                  <p className="text-xs text-gray-400">Warns about time pressure</p>
+                  <p className="text-white font-medium">Zbliża się deadline sprintu</p>
+                  <p className="text-xs text-gray-400">Ostrzega o presji czasu</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 bg-glass-light rounded-widget">
                 <span className="text-gold">🎯</span>
                 <div>
-                  <p className="text-white font-medium">Daily priority selected</p>
-                  <p className="text-xs text-gray-400">Announces focus task</p>
+                  <p className="text-white font-medium">Wybrano priorytet dnia</p>
+                  <p className="text-xs text-gray-400">Ogłasza zadanie do fokusu</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 bg-glass-light rounded-widget">
                 <span className="text-neon-magenta">🔥</span>
                 <div>
-                  <p className="text-white font-medium">Stuck project detected</p>
-                  <p className="text-xs text-gray-400">Motivational support message</p>
+                  <p className="text-white font-medium">Wykryto utknięcie celu</p>
+                  <p className="text-xs text-gray-400">Wiadomość wsparcia motywacyjnego</p>
                 </div>
               </div>
             </div>
@@ -693,17 +1084,17 @@ const SettingsPremium: React.FC<SettingsProps> = ({
 
           {/* Voice Settings Summary */}
           <div className="glass-card space-widget">
-            <h3 className="text-lg font-bold text-white mb-4">Current Voice Configuration</h3>
+            <h3 className="text-lg font-bold text-white mb-4">Aktualna konfiguracja głosu</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-glow-cyan mb-1">{voice.volume}%</div>
-                <div className="text-xs text-gray-400 uppercase tracking-wider">Volume</div>
+                <div className="text-xs text-gray-400 uppercase tracking-wider">Głośność</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-glow-magenta mb-1">
                   {voice.speed || 1.0}x
                 </div>
-                <div className="text-xs text-gray-400 uppercase tracking-wider">Speed</div>
+                <div className="text-xs text-gray-400 uppercase tracking-wider">Szybkość</div>
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-gray-700/50">
@@ -714,7 +1105,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                 <span
                   className={`text-sm uppercase tracking-wider font-bold ${voice.enabled ? 'text-glow-cyan' : 'text-[var(--text-muted)]'}`}
                 >
-                  {voice.enabled ? 'Voice Commands Active' : 'Voice Commands Disabled'}
+                  {voice.enabled ? 'Komendy głosowe: aktywne' : 'Komendy głosowe: wyłączone'}
                 </span>
               </div>
             </div>
@@ -734,11 +1125,11 @@ const SettingsPremium: React.FC<SettingsProps> = ({
           <div className="flex items-center gap-3 mb-2">
             <span className="text-3xl">💾</span>
             <h2 className="text-2xl md:text-3xl font-bold uppercase tracking-wider text-white">
-              Data & Backup
+              Dane i kopie zapasowe
             </h2>
           </div>
           <p className="text-xs md:text-sm text-gray-400 pl-0 md:pl-12 leading-relaxed">
-            Export or import your complete mission configuration
+            Eksportuj lub importuj całą konfigurację aplikacji
           </p>
         </div>
 
@@ -746,17 +1137,29 @@ const SettingsPremium: React.FC<SettingsProps> = ({
           {/* Export Card */}
           <div className="glass-card glass-card-cyan space-widget">
             <div className="mb-5">
-              <h3 className="text-base md:text-lg font-bold text-white mb-2">
-                Export Mission Data
-              </h3>
+              <h3 className="text-base md:text-lg font-bold text-white mb-2">Eksport danych</h3>
               <p className="text-xs text-gray-400 leading-relaxed mb-2">
-                Download complete setup as JSON file for backup or transfer
+                Pobierz pełną konfigurację jako plik JSON (kopia zapasowa / przeniesienie)
               </p>
+              <label className="mt-3 flex items-start gap-3 text-xs text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={exportIncludeApiKey}
+                  onChange={(e) => setExportIncludeApiKey(e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>
+                  Eksportuj z kluczem API (niezalecane).
+                  <span className="block text-[11px] text-gray-400 mt-1">
+                    Domyślnie klucz API nie jest eksportowany. Zaznacz tylko jeśli wiesz, co robisz.
+                  </span>
+                </span>
+              </label>
               <p className="text-xs text-neon-cyan font-mono">Storage: {storageType}</p>
             </div>
             <button onClick={handleExport} className="btn-premium btn-cyan w-full text-sm">
               <span className="mr-2">📥</span>
-              Download Backup
+              Pobierz kopię
             </button>
           </div>
 
@@ -765,10 +1168,11 @@ const SettingsPremium: React.FC<SettingsProps> = ({
             <div className="mb-5">
               <h3 className="text-base md:text-lg font-bold text-white mb-2 flex items-center gap-2">
                 <span>🕐</span>
-                Stuck Tasks Scheduler
+                Harmonogram kontroli utknięć
               </h3>
               <p className="text-xs text-gray-400 leading-relaxed mb-3">
-                Automatic daily audit of tasks stuck at 90%+. Runs every day at 10:00.
+                Automatyczny dzienny audyt zadań utkwionych na 90%+. Uruchamia się codziennie o
+                10:00.
               </p>
 
               {/* Scheduler Status */}
@@ -782,15 +1186,15 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                         : 'text-[var(--accent-danger)]'
                     }
                   >
-                    {schedulerStatus?.isRunning ? '🟢 Running' : '🔴 Stopped'}
+                    {schedulerStatus?.isRunning ? '🟢 Działa' : '🔴 Zatrzymany'}
                   </span>
                 </div>
                 {schedulerStatus?.lastAudit && (
                   <div className="text-sm text-gray-300">
-                    <strong>Last Audit:</strong>{' '}
+                    <strong>Ostatni audyt:</strong>{' '}
                     {new Date(schedulerStatus.lastAudit.timestamp).toLocaleString()}
                     {' • '}
-                    {schedulerStatus.lastAudit.stuckTasksCount} stuck tasks found
+                    wykryto: {schedulerStatus.lastAudit.stuckTasksCount} utkwionych zadań
                   </div>
                 )}
               </div>
@@ -798,7 +1202,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
               {/* Notification Permission */}
               <div className="mb-4 p-3 rounded-lg bg-black/30">
                 <div className="text-sm text-white mb-2">
-                  <strong>Notifications:</strong>{' '}
+                  <strong>Powiadomienia:</strong>{' '}
                   <span
                     className={
                       notificationPermission === 'granted'
@@ -809,10 +1213,10 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                     }
                   >
                     {notificationPermission === 'granted'
-                      ? '🔔 Enabled'
+                      ? '🔔 Włączone'
                       : notificationPermission === 'denied'
-                        ? '🚫 Denied'
-                        : '❓ Unknown'}
+                        ? '🚫 Odmowa'
+                        : '❓ Nieznane'}
                   </span>
                 </div>
                 {notificationPermission !== 'granted' && (
@@ -820,7 +1224,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                     onClick={handleRequestNotifications}
                     className="btn-premium btn-cyan text-xs mt-2"
                   >
-                    Request Permission
+                    Poproś o uprawnienie
                   </button>
                 )}
               </div>
@@ -829,7 +1233,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
             <div className="flex gap-2">
               <button onClick={handleRunAudit} className="btn-premium btn-cyan flex-1 text-sm">
                 <span className="mr-2">🔍</span>
-                Run Audit Now
+                Uruchom audyt teraz
               </button>
               <button
                 onClick={handleSyncData}
@@ -837,7 +1241,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                 title="Sync pending data to server"
               >
                 <span className="mr-2">🔄</span>
-                Sync Data
+                Synchronizuj dane
               </button>
             </div>
 
@@ -853,7 +1257,8 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                 }}
               >
                 <div className="text-xs text-gray-400 mb-1">
-                  Last Sync: {new Date(schedulerStatus.lastSync.timestamp).toLocaleString()}
+                  Ostatnia synchronizacja:{' '}
+                  {new Date(schedulerStatus.lastSync.timestamp).toLocaleString()}
                 </div>
                 <div
                   className="text-xs"
@@ -865,8 +1270,8 @@ const SettingsPremium: React.FC<SettingsProps> = ({
                   }}
                 >
                   {schedulerStatus.lastSync.result === 'success'
-                    ? `✅ Synced ${schedulerStatus.lastSync.itemsSynced || 0} items`
-                    : `❌ Failed to sync ${schedulerStatus.lastSync.itemsFailed || 0} items`}
+                    ? `✅ Zsynchronizowano: ${schedulerStatus.lastSync.itemsSynced || 0}`
+                    : `❌ Nie udało się zsynchronizować: ${schedulerStatus.lastSync.itemsFailed || 0}`}
                 </div>
               </div>
             )}
@@ -875,14 +1280,12 @@ const SettingsPremium: React.FC<SettingsProps> = ({
           {/* Import Card */}
           <div className="glass-card glass-card-magenta space-widget">
             <div className="mb-5">
-              <h3 className="text-base md:text-lg font-bold text-white mb-2">
-                Import Mission Data
-              </h3>
+              <h3 className="text-base md:text-lg font-bold text-white mb-2">Import danych</h3>
               <p className="text-xs text-[var(--accent-danger)] leading-relaxed font-semibold mb-2">
-                ⚠️ Warning: Replaces Current Config
+                ⚠️ Uwaga: nadpisuje obecną konfigurację
               </p>
               <p className="text-xs text-gray-400 leading-relaxed">
-                Upload JSON file to restore mission setup
+                Wgraj plik JSON, aby przywrócić konfigurację
               </p>
             </div>
             <input
@@ -894,7 +1297,7 @@ const SettingsPremium: React.FC<SettingsProps> = ({
             />
             <button onClick={handleImport} className="btn-premium btn-magenta w-full text-sm">
               <span className="mr-2">📤</span>
-              Upload & Restore
+              Wgraj i przywróć
             </button>
           </div>
         </div>

@@ -16,7 +16,7 @@ interface TaskCardProps {
   showImplementationIntention?: boolean;
 }
 
-// Implementation Intention Bottom Sheet Component
+// Bottom sheet: plan Jeśli–To (implementation intention)
 interface ImplementationIntentionBottomSheetProps {
   task: Task;
   onComplete: () => void;
@@ -65,22 +65,22 @@ export const ImplementationIntentionBottomSheet: React.FC<
     let hasErrors = false;
 
     if (!trigger.trim()) {
-      setTriggerError('Trigger situation is required');
+      setTriggerError('Wpisz sytuację wyzwalającą.');
       hasErrors = true;
     }
 
     if (!action.trim()) {
-      setActionError('Action is required');
+      setActionError('Wpisz akcję.');
       hasErrors = true;
     }
 
     if (trigger.trim().length > 200) {
-      setTriggerError('Trigger too long (max 200 characters)');
+      setTriggerError('Sytuacja jest za długa (max 200 znaków).');
       hasErrors = true;
     }
 
     if (action.trim().length > 200) {
-      setActionError('Action too long (max 200 characters)');
+      setActionError('Akcja jest za długa (max 200 znaków).');
       hasErrors = true;
     }
 
@@ -114,10 +114,7 @@ export const ImplementationIntentionBottomSheet: React.FC<
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       onClick={onCancel}
-      {...getAccessibleModalProps(
-        'Create Implementation Intention',
-        'implementation-intention-description'
-      )}
+      {...getAccessibleModalProps('Plan Jeśli–To', 'implementation-intention-description')}
     >
       <motion.div
         ref={modalRef}
@@ -141,24 +138,24 @@ export const ImplementationIntentionBottomSheet: React.FC<
             className="text-2xl font-bold text-white mb-2 flex items-center gap-2"
           >
             <span>🧠</span>
-            Create Finish Plan
+            Plan Jeśli–To
           </h3>
 
           <p id="implementation-intention-description" className="text-gray-300 mb-6 text-sm">
-            Set up an automatic trigger to help you break through the final 10%. This "if-then" plan
-            will activate when you face completion barriers.
+            Ustaw automatyczny wyzwalacz, który pomoże Ci przebić „ostatnie 10%”. Ten plan Jeśli–To
+            uruchomi się, gdy pojawią się bariery domykania.
           </p>
 
           {/* Current Task Info */}
           <div className="mb-6 p-4 rounded-lg bg-white/5 border border-white/10">
-            <div className="text-sm text-gray-400 mb-1">Task to complete:</div>
+            <div className="text-sm text-gray-400 mb-1">Zadanie do domknięcia:</div>
             <div className="text-white font-medium">{task.name}</div>
-            <div className="text-sm text-gray-400 mt-1">Current progress: {task.progress}%</div>
+            <div className="text-sm text-gray-400 mt-1">Obecny postęp: {task.progress}%</div>
           </div>
 
           {/* Quick Templates */}
           <div className="mb-6">
-            <h4 className="text-lg font-bold text-white mb-3">Quick Templates:</h4>
+            <h4 className="text-lg font-bold text-white mb-3">Szybkie szablony:</h4>
             <div className="grid grid-cols-1 gap-2">
               {templates.map((template, index) => (
                 <button
@@ -167,9 +164,9 @@ export const ImplementationIntentionBottomSheet: React.FC<
                   onClick={() => applyTemplate(template)}
                 >
                   <div className="text-sm text-gray-300">
-                    <strong>If:</strong> {template.trigger}
+                    <strong>Jeśli:</strong> {template.trigger}
                     <br />
-                    <strong>Then:</strong> {template.action}
+                    <strong>To:</strong> {template.action}
                   </div>
                 </button>
               ))}
@@ -180,7 +177,7 @@ export const ImplementationIntentionBottomSheet: React.FC<
           <div className="space-y-4 mb-6">
             <div>
               <label className="block text-sm font-bold text-white mb-2">
-                If (trigger situation):
+                Jeśli (sytuacja wyzwalająca):
               </label>
               <textarea
                 value={trigger}
@@ -194,7 +191,7 @@ export const ImplementationIntentionBottomSheet: React.FC<
                     ? 'border-red-500 focus:border-red-500'
                     : 'border-white/20 focus:border-cyan-400'
                 }`}
-                placeholder="e.g., I think 'this is almost done'..."
+                placeholder="np. pomyślę: „to prawie gotowe”…"
                 rows={2}
               />
               {triggerError && <p className="text-red-400 text-xs mt-1">{triggerError}</p>}
@@ -202,7 +199,7 @@ export const ImplementationIntentionBottomSheet: React.FC<
 
             <div>
               <label className="block text-sm font-bold text-white mb-2">
-                Then (automatic action):
+                To (automatyczna akcja):
               </label>
               <textarea
                 value={action}
@@ -216,7 +213,7 @@ export const ImplementationIntentionBottomSheet: React.FC<
                     ? 'border-red-500 focus:border-red-500'
                     : 'border-white/20 focus:border-cyan-400'
                 }`}
-                placeholder="e.g., check my DONE criteria list..."
+                placeholder="np. sprawdzę listę kryteriów DONE i uzupełnię brakujące…"
                 rows={2}
               />
               {actionError && <p className="text-red-400 text-xs mt-1">{actionError}</p>}
@@ -230,7 +227,7 @@ export const ImplementationIntentionBottomSheet: React.FC<
               className="flex-1 py-3 px-4 rounded-lg border border-white/20 text-white hover:bg-white/10 transition-colors"
               disabled={isSubmitting}
             >
-              Cancel
+              Anuluj
             </button>
             <button
               onClick={handleSubmit}
@@ -243,7 +240,7 @@ export const ImplementationIntentionBottomSheet: React.FC<
                 boxShadow: '0 4px 16px rgba(16, 185, 129, 0.3)',
               }}
             >
-              {isSubmitting ? 'Saving...' : 'Activate Plan'}
+              {isSubmitting ? 'Zapisuję…' : 'Aktywuj plan'}
             </button>
           </div>
         </div>
@@ -302,7 +299,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       {/* Progress Bar */}
       <div className="mb-4">
         <div className="flex justify-between items-center mb-2">
-          <span className="text-sm text-gray-300">Progress</span>
+          <span className="text-sm text-gray-300">Postęp</span>
           <span className="text-lg font-bold" style={{ color: getProgressColor() }}>
             {progress}%
           </span>
@@ -334,12 +331,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         >
           <div className="flex items-center gap-2 mb-3">
             <span className="text-2xl">🎯</span>
-            <span className="text-lg font-bold text-white">Stuck at the Finish Line!</span>
+            <span className="text-lg font-bold text-white">Utknęło na finiszu!</span>
           </div>
 
           <p className="text-sm text-gray-300 mb-3">
-            This task has been at {progress}% for {daysInCurrentState} days. You're so close - let's
-            get it done!
+            To zadanie stoi na {progress}% od {daysInCurrentState} dni. Jesteś bardzo blisko —
+            domknijmy to.
           </p>
 
           {!implementationIntention?.active ? (
@@ -356,15 +353,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              🚀 Create Finish Plan
+              🚀 Ustaw plan Jeśli–To
             </motion.button>
           ) : (
             <div className="p-3 rounded-lg bg-white/10 border border-white/20">
-              <div className="text-sm font-bold text-white mb-1">Your Finish Plan:</div>
+              <div className="text-sm font-bold text-white mb-1">Twój plan Jeśli–To:</div>
               <div className="text-sm text-gray-300">
-                <strong>If:</strong> {implementationIntention.trigger}
+                <strong>Jeśli:</strong> {implementationIntention.trigger}
                 <br />
-                <strong>Then:</strong> {implementationIntention.action}
+                <strong>To:</strong> {implementationIntention.action}
               </div>
             </div>
           )}

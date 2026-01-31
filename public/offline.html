@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="pl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#050505" />
-    <title>Offline - Mission Control</title>
+    <title>Offline — Mission Control</title>
     <style>
       * {
         margin: 0;
@@ -260,30 +260,33 @@
     <div class="container">
       <div class="icon">📡</div>
 
-      <h1>Connection Lost</h1>
+      <h1>Brak połączenia</h1>
 
-      <p>Mission Control is currently offline. Check your internet connection and try again.</p>
+      <p>
+        Mission Control działa teraz w trybie offline. Sprawdź połączenie z internetem i spróbuj
+        ponownie.
+      </p>
 
       <div class="status">
         <span class="status-dot"></span>
-        <span>No Internet Connection</span>
+        <span>Brak połączenia z internetem</span>
       </div>
 
       <div class="actions">
         <button class="btn btn-primary" onclick="retry()">
-          <span id="retry-text">🔄 Retry Connection</span>
+          <span id="retry-text">🔄 Spróbuj ponownie</span>
           <span id="retry-spinner" class="spinner hidden"></span>
         </button>
-        <button class="btn btn-secondary" onclick="goOffline()">📱 Continue Offline</button>
+        <button class="btn btn-secondary" onclick="goOffline()">📱 Kontynuuj offline</button>
       </div>
 
       <div class="tips">
-        <h3>While You're Offline</h3>
+        <h3>W trybie offline</h3>
         <ul>
-          <li>Your data is safely stored locally</li>
-          <li>Changes will sync when back online</li>
-          <li>Core features remain accessible</li>
-          <li>No data will be lost</li>
+          <li>Twoje dane są bezpiecznie zapisane lokalnie</li>
+          <li>Zmiany zsynchronizują się, gdy wrócisz online</li>
+          <li>Kluczowe funkcje dalej działają</li>
+          <li>Nic nie zginie</li>
         </ul>
       </div>
     </div>
@@ -309,7 +312,7 @@
             // Connection restored!
             window.location.reload();
           } else {
-            throw new Error('Still offline');
+            throw new Error('Nadal offline');
           }
         } catch (error) {
           // Still offline
@@ -321,7 +324,7 @@
             // Show temporary message
             const status = document.querySelector('.status span:last-child');
             const originalText = status.textContent;
-            status.textContent = 'Still Offline - Try Again';
+            status.textContent = 'Nadal offline — spróbuj ponownie';
             setTimeout(() => {
               status.textContent = originalText;
             }, 2000);
@@ -336,7 +339,6 @@
 
       // Auto-retry when connection comes back
       window.addEventListener('online', () => {
-        console.log('Connection restored!');
         window.location.reload();
       });
 
